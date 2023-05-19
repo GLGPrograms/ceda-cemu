@@ -1,0 +1,6 @@
+[submodule "vendor/Zeta"]
+	path = vendor/Zeta
+	url = https://github.com/redcode/Zeta
+[submodule "vendor/Z80"]
+	path = vendor/Z80
+	url = https://github.com/redcode/Z80
