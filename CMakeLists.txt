@@ -5,8 +5,14 @@ project(ceda VERSION 2023.06)
 add_executable(ceda
     src/bus.c
     src/ceda.c
+    src/crtc.c
     src/cpu.c
+    src/fdc.c
     src/main.c
+    src/sio2.c
+    src/speaker.c
+    src/timer.c
+    src/upd8255.c
     src/ram/dynamic.c
     src/rom/bios.c
     src/dis/disassembler.c
