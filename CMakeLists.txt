@@ -9,6 +9,7 @@ add_executable(ceda
     src/main.c
     src/ram/dynamic.c
     src/rom/bios.c
+    src/dis/disassembler.c
 )
 
 set(CMAKE_C_STANDARD 17)

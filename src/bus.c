@@ -34,22 +34,33 @@ void bus_init(void) {
 }
 
 zuint8 bus_read(void* context, zuint16 address) {
-    LOG_DEBUG("R %" PRIx16 "\n", address);
-
     for (size_t i = 0; i < ARRAY_SIZE(bus_mem_slots); ++i) {
         const struct bus_mem_slot *slot = &bus_mem_slots[i];
         if (address >= slot->base && address < slot->top) {
-            if (slot->read)
-                return slot->read(context, address - slot->base);
+            if (slot->read) {
+                const zuint8 value = slot->read(context, address - slot->base);
+                LOG_DEBUG("R [%04x] => %02x\n", address, value);
+                return value;
+            }
         }
     }
 
     // default: read from dynamic ram
-    return dyn_ram_read(context, address);
+    const zuint8 value = dyn_ram_read(context, address);
+    LOG_DEBUG("R [%04x] => %02x\n", address, value);
+    return value;
+}
+
+void bus_readsome(void* context, void *_blob, zuint16 address, size_t len) {
+    zuint8* blob = (zuint8*)_blob;
+
+    for (size_t i = 0; i < len; ++i) {
+        blob[i] = bus_read(context, address + i);
+    }
 }
 
 void bus_write(void* context, zuint16 address, zuint8 value) {
-    LOG_DEBUG("W %" PRIx16 " <= %" PRIx8 "\n", address, value);
+    LOG_DEBUG("W [%04x] <= %02x\n", address, value);
 
     for (size_t i = 0; i < ARRAY_SIZE(bus_mem_slots); ++i) {
         const struct bus_mem_slot *slot = &bus_mem_slots[i];
