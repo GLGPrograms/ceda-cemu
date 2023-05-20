@@ -8,7 +8,6 @@
 #include <inttypes.h>
 #include <Z80.h>
 
-#define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
 
 struct bus_mem_slot {
