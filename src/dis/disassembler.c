@@ -1,4 +1,5 @@
 /* from Z88DK */
+/* clang-format off */
 #include <stdio.h>
 #include <inttypes.h>
 #include "disassembler.h"

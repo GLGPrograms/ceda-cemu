@@ -5,4 +5,3 @@
 #define MiB (1024 * KiB)
 
 #endif // CEDA_UNITS_H
-

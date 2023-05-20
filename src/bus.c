@@ -1,12 +1,12 @@
 #include "bus.h"
 
+#include "macro.h"
 #include "ram/dynamic.h"
 #include "rom/bios.h"
-#include "macro.h"
 
-#include <stdint.h>
-#include <inttypes.h>
 #include <Z80.h>
+#include <inttypes.h>
+#include <stdint.h>
 
 #include "log.h"
 
@@ -18,9 +18,9 @@ struct bus_mem_slot {
 };
 
 struct bus_mem_slot bus_mem_slots[] = {
-    { 0xB000, 0xC000, NULL, NULL }, // alt_ram_read/write - TODO
-    { 0xC000, 0xD000, rom_bios_read, NULL },
-    { 0xD000, 0xE000, NULL, NULL }, // video_ram_read/write - TODO
+    {0xB000, 0xC000, NULL, NULL}, // alt_ram_read/write - TODO
+    {0xC000, 0xD000, rom_bios_read, NULL},
+    {0xD000, 0xE000, NULL, NULL}, // video_ram_read/write - TODO
 };
 
 void bus_init(void) {
@@ -33,7 +33,7 @@ void bus_init(void) {
     dyn_ram_write(NULL, 0x2, 0xc0);
 }
 
-zuint8 bus_read(void* context, zuint16 address) {
+zuint8 bus_read(void *context, zuint16 address) {
     for (size_t i = 0; i < ARRAY_SIZE(bus_mem_slots); ++i) {
         const struct bus_mem_slot *slot = &bus_mem_slots[i];
         if (address >= slot->base && address < slot->top) {
@@ -51,15 +51,15 @@ zuint8 bus_read(void* context, zuint16 address) {
     return value;
 }
 
-void bus_readsome(void* context, void *_blob, zuint16 address, size_t len) {
-    zuint8* blob = (zuint8*)_blob;
+void bus_readsome(void *context, void *_blob, zuint16 address, size_t len) {
+    zuint8 *blob = (zuint8 *)_blob;
 
     for (size_t i = 0; i < len; ++i) {
         blob[i] = bus_read(context, address + i);
     }
 }
 
-void bus_write(void* context, zuint16 address, zuint8 value) {
+void bus_write(void *context, zuint16 address, zuint8 value) {
     LOG_DEBUG("W [%04x] <= %02x\n", address, value);
 
     for (size_t i = 0; i < ARRAY_SIZE(bus_mem_slots); ++i) {
@@ -73,4 +73,3 @@ void bus_write(void* context, zuint16 address, zuint8 value) {
     // default: write to dynamic ram
     dyn_ram_write(context, address, value);
 }
-

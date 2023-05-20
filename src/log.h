@@ -1,5 +1,5 @@
-/* From BeRTOS */
-
+/* from BeRTOS */
+/* clang-format off */
 #ifndef CFG_LOG_H
 #define CFG_LOG_H
 

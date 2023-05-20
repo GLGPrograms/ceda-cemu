@@ -14,11 +14,11 @@ static Z80 cpu;
 
 static zuint8 cpu_fetch_opcode(void *context, zuint16 address) {
     LOG_DEBUGB({
-            char mnemonic[256];
-            uint8_t blob[16];
-            bus_readsome(context, blob, address, 16);
-            int r = disassemble2(blob, address, mnemonic, 256);
-            LOG_DEBUG("[%04x]:\t%s\n", address, mnemonic);
+        char mnemonic[256];
+        uint8_t blob[16];
+        bus_readsome(context, blob, address, 16);
+        int r = disassemble2(blob, address, mnemonic, 256);
+        LOG_DEBUG("[%04x]:\t%s\n", address, mnemonic);
     });
     return bus_read(context, address);
 }
@@ -36,4 +36,3 @@ void cpu_init(void) {
 void cpu_run(void) {
     z80_run(&cpu, 1);
 }
-

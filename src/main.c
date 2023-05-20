@@ -11,4 +11,3 @@ int main() {
     ceda_init();
     ceda_run();
 }
-

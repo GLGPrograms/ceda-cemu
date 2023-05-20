@@ -16,4 +16,3 @@ void dyn_ram_write(void *context, zuint16 address, zuint8 value) {
 
     ram[address] = value;
 }
-

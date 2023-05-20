@@ -1,7 +1,7 @@
 #include "ceda.h"
 
-#include "cpu.h"
 #include "bus.h"
+#include "cpu.h"
 #include "rom/bios.h"
 
 void ceda_init(void) {
@@ -15,4 +15,3 @@ void ceda_run(void) {
         cpu_run();
     }
 }
-

@@ -6,7 +6,7 @@
 typedef MemoryDevice {
     Z80Read read;
     Z80Write write;
-} MemoryDevice;
+}
+MemoryDevice;
 
 #endif // CEDA_PLAIN_RAM
-
