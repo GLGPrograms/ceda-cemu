@@ -3,7 +3,7 @@
 #include "../units.h"
 
 #define DYNAMIC_RAM_SIZE (64 * KiB)
-static zuint8 ram[DYNAMIC_RAM_SIZE] = {};
+static zuint8 ram[DYNAMIC_RAM_SIZE] = {0};
 
 zuint8 dyn_ram_read(void *context, zuint16 address) {
     (void)context;

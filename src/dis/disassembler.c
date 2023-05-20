@@ -4,7 +4,6 @@
 #include <inttypes.h>
 #include "disassembler.h"
 
-static char *rp2_table[] = { "bc", "de", "hl", "af"};
 static char *cc_table[] = { "nz", "z", "nc", "c", "po", "pe", "p", "m"};
 static char *alu_table[] = { "add", "adc", "sub", "sbc", "and", "xor", "or", "cp"};
 static char *assorted_mainpage_opcodes[] = { "rlca", "rrca", "rla", "rra", "daa", "cpl", "scf", "ccf" };
@@ -49,6 +48,8 @@ typedef struct {
 
 static char *handle_rot(dcontext *state,  uint8_t z)
 {
+    (void)state;
+
     char *rot_table[] = { "rlc", "rrc", "rl", "rr", "sla", "sra", NULL, "srl" };
     char *instr = rot_table[z];
 
@@ -61,13 +62,10 @@ static char *handle_rot(dcontext *state,  uint8_t z)
 
 static char *handle_rel8(dcontext *state, char *buf, size_t buflen)
 {
-    const char   *label;
     size_t  offs = 0;
     int8_t  displacement;
 
     READ_BYTE(state, displacement);
-
-    char temp[10];
 
     BUF_PRINTF("$%04x", (unsigned short)(state->pc + displacement));
 
@@ -77,14 +75,11 @@ static char *handle_rel8(dcontext *state, char *buf, size_t buflen)
 static char *handle_addr16(dcontext *state, char *buf, size_t buflen)
 {
     size_t   offs = 0;
-    const char    *label;
     uint8_t  lsb;
     uint8_t  msb;
 
     READ_BYTE(state, lsb);
     READ_BYTE(state, msb);
-
-    char temp[10];
 
     BUF_PRINTF("$%02x%02x", msb, lsb);
 
@@ -157,8 +152,8 @@ static char *handle_register8(dcontext *state, uint8_t y, char *buf, size_t bufl
 
         if ( state->prefix != 0xcb )
             READ_BYTE(state, displacement);
-            BUF_PRINTF("%s%s$%02x)", table[index][y],
-                                    displacement < 0 ? "-" : "+", displacement < 0 ? -displacement : displacement);
+
+        BUF_PRINTF("%s%s$%02x)", table[index][y], displacement < 0 ? "-" : "+", displacement < 0 ? -displacement : displacement);
         return buf;
     }
     BUF_PRINTF("%s", table[index][y]);
@@ -177,6 +172,8 @@ static char *handle_displacement(dcontext *state, char *buf, size_t buflen)
 
 static char *handle_register16(dcontext *state, uint8_t p, int index)
 {
+    (void)state;
+
     static char *table[3][4] = {
         { "bc", "de", "hl", "sp" },
         { "bc", "de", "ix", "sp" },
@@ -188,18 +185,21 @@ static char *handle_register16(dcontext *state, uint8_t p, int index)
 
 static char *handle_register16_2(dcontext *state, uint8_t p, int index)
 {
+    (void)state;
+
     static char *table[3][4] = {
         { "bc", "de", "hl", "af" },
         { "bc", "de", "ix", "af" },
         { "bc", "de", "iy", "af" },
     };
 
-
     return table[index][p];
 }
 
 static char *handle_block_instruction(dcontext *state, uint8_t z, uint8_t y)
 {
+    (void)state;
+
     static char *table[4][5] = {
         { "ldi", "cpi", "ini", "outi", "outi2"},
         { "ldd", "cpd", "ind", "outd", "outd2", },
@@ -215,21 +215,18 @@ static char *handle_block_instruction(dcontext *state, uint8_t z, uint8_t y)
 
 static char *handle_ed_assorted_instructions(dcontext *state, uint8_t y)
 {
+    (void)state;
+
     static char *table[] =      { "ld      i,a",   "ld      r,a",   "ld      a,i",   "ld      a,r",   "rrd",           "rld",    "ld      i,i",           "ld      r,r"};
-    static char *z180_table[] = { "ld      i,a",   "ld      r,a",   "ld      a,i",   "ld      a,r",   "rrd",           "rld",    "nop",           "nop"};
-    static char *r2k_table[] =  { "ld      eir,a", "ld      iir,a", "ld      a,eir", "ld      a,iir", "ld      xpc,a", "nop",    "ld      a,xpc", "nop"};
-    static char *r3k_table[] =  { "ld      eir,a", "ld      iir,a", "ld      a,eir", "ld      a,iir", "ld      xpc,a", "setusr", "ld      a,xpc", "rdmode"};
 
     return table[y];
 }
 
 static char *handle_im_instructions(dcontext *state, uint8_t y)
 {
+    (void) state;
+
     char *table[] =      { "im      0", "im      0/1", "im      1", "im      2", "im      0",  "im      0/1", "im      1",  "im      2"};
-    char *z180_table[] = { "im      0", "nop     ",    "im      1", "im      2", "nop     ",   "nop     ",    "slp     ",   "nop     "};
-    char *r2k_table[] =  { "ipset   0", "ipset   2",   "ipset   1", "ipset   3", "nop     ",   "nop     ",    "push    ip", "pop     ip"};
-    char *r3k_table[] =  { "ipset   0", "ipset   2",   "ipset   1", "ipset   3", "push    su", "pop     su",  "push    ip", "pop     ip"};
-    char *ez80table[] =  { "im      0", "nop     ",    "im      1", "im      2", "im      0",  "ld      a,mb","slp     ",   "rsmix   "};
 
     return table[y];
 }
@@ -242,7 +239,6 @@ int disassemble(uint8_t* blob, int pc, char *bufstart, size_t buflen)
     int         i;
     uint8_t     b;
     char        *buf;
-    const char  *label;
     size_t       offs = 0;
     int          start_pc = pc;
     char         dolf = 0;
@@ -252,8 +248,6 @@ int disassemble(uint8_t* blob, int pc, char *bufstart, size_t buflen)
     state->blob = blob;
     state->blob_start = pc;
     state->pc = pc;
-
-    label = NULL;
 
     buf = bufstart + offs;
     buflen -= offs;
@@ -571,7 +565,7 @@ int disassemble(uint8_t* blob, int pc, char *bufstart, size_t buflen)
                                                 else if ( y == 6 ) BUF_PRINTF("%-8s%s",isz180() ? "tstio" : "tsr", handle_immed8(state, opbuf1, sizeof(opbuf1)));
                                                 else if ( y == 4 ) BUF_PRINTF("%-8s%s","tst", handle_immed8(state, opbuf1, sizeof(opbuf1)));
                                                 else if ( y == 2 && isez80()) BUF_PRINTF("%-8six,iy%s","lea",handle_displacement(state, opbuf1, sizeof(opbuf1)));
-                                                else if ( (y % 2 )&& p >= 0 && p <= 3 ) BUF_PRINTF("%-8s%s","mlt", handle_register16(state,p,0));
+                                                else if ( (y % 2 ) && p <= 3 ) BUF_PRINTF("%-8s%s","mlt", handle_register16(state,p,0));
                                                 else BUF_PRINTF("nop");
                                             } else {
                                                 BUF_PRINTF("neg");

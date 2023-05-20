@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.24)
 
 project(ceda VERSION 2023.06)
 
+add_compile_options(-W -Wformat -Wall -Wundef -Wpointer-arith -Wcast-qual -Wwrite-strings -Wsign-compare -Wmissing-noreturn -Wextra -Wpedantic)
+
 add_executable(ceda
     src/bus.c
     src/ceda.c
@@ -17,6 +19,8 @@ add_executable(ceda
     src/rom/bios.c
     src/dis/disassembler.c
 )
+
+set_source_files_properties(src/dis/disassembler.c PROPERTIES COMPILE_FLAGS -Wno-discarded-qualifiers)
 
 set(CMAKE_C_STANDARD 17)
 

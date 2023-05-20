@@ -91,7 +91,7 @@ void bus_mem_write(void *context, zuint16 address, zuint8 value) {
         const struct bus_mem_slot *slot = &bus_mem_slots[i];
         if (address >= slot->base && address < slot->top) {
             if (slot->write)
-                return slot->write(context, address - slot->base, value);
+                slot->write(context, address - slot->base, value);
         }
     }
 
@@ -107,6 +107,8 @@ zuint8 bus_io_in(void *context, zuint16 address) {
                 return slot->in(context, address - slot->base);
         }
     }
+
+    return 0;
 }
 
 void bus_io_out(void *context, zuint16 address, zuint8 value) {
@@ -114,7 +116,7 @@ void bus_io_out(void *context, zuint16 address, zuint8 value) {
         const struct bus_io_slot *slot = &bus_io_slots[i];
         if (address >= slot->base && address < slot->top) {
             if (slot->out)
-                return slot->out(context, address - slot->base, value);
+                slot->out(context, address - slot->base, value);
         }
     }
 }

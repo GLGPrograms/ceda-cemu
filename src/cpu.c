@@ -17,7 +17,7 @@ static zuint8 cpu_fetch_opcode(void *context, zuint16 address) {
         char mnemonic[256];
         uint8_t blob[16];
         bus_mem_readsome(context, blob, address, 16);
-        int r = disassemble(blob, address, mnemonic, 256);
+        disassemble(blob, address, mnemonic, 256);
         LOG_DEBUG("[%04x]:\t%s\n", address, mnemonic);
     });
     return bus_mem_read(context, address);
