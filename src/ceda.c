@@ -15,6 +15,9 @@ void ceda_init(void) {
 }
 
 void ceda_run(void) {
+
+    video_start(); // crt emulation
+
     for (;;) {
         // cli_update();
 

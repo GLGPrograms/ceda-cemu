@@ -40,7 +40,7 @@ void cpu_run(void) {
 
     // poor man breakpoint
     if (cpu.pc.uint16_value == 0xc0b8)
-        abort();
+        return;
 
     z80_run(&cpu, 1);
 }

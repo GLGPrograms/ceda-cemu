@@ -1,5 +1,7 @@
 #include "video.h"
 
+#include "units.h"
+
 #include <SDL2/SDL.h>
 #include <assert.h>
 #include <stdbool.h>
@@ -11,20 +13,43 @@
 
 #define VIDEO_CHAR_MEM_SIZE 0x1000
 #define VIDEO_ATTR_MEM_SIZE VIDEO_CHAR_MEM_SIZE
+#define VIDEO_COLUMNS       80
+#define VIDEO_ROWS          24
 
 #define CRT_PIXEL_WIDTH  640
 #define CRT_PIXEL_HEIGHT 400
 
+#define CHAR_ROM_PATH "rom/CGV7.2_ROM.bin"
+#define CHAR_ROM_SIZE (4 * KiB)
+
 static zuint8 mem_char[VIDEO_CHAR_MEM_SIZE];
 static zuint8 mem_attr[VIDEO_ATTR_MEM_SIZE];
 static zuint8 *mem = NULL; // pointer to current selected memory bank
+static zuint8 char_rom[CHAR_ROM_SIZE];
 
 static SDL_Window *window = NULL;
 static SDL_Surface *surface = NULL;
+static SDL_Renderer *renderer = NULL;
 static bool started = false;
 
 void video_init(void) {
+    // default to character memory
     mem = mem_char;
+
+    // load character generator rom
+    FILE *fp = fopen(CHAR_ROM_PATH, "rb");
+    if (fp == NULL) {
+        LOG_ERR("missing char rom file\n");
+        abort();
+    }
+
+    size_t r = fread(char_rom, 1, CHAR_ROM_SIZE, fp);
+    if (r != CHAR_ROM_SIZE) {
+        LOG_ERR("bad char rom file size: %lu\n", r);
+        abort();
+    }
+
+    fclose(fp);
 }
 
 void video_start(void) {
@@ -38,10 +63,26 @@ void video_start(void) {
                               CRT_PIXEL_HEIGHT, SDL_WINDOW_SHOWN);
     if (window == NULL) {
         LOG_ERR("unable to create window: %s\n", SDL_GetError());
+        abort();
     }
 
-    surface = SDL_GetWindowSurface(window);
-    SDL_FillRect(surface, NULL, SDL_MapRGB(surface->format, 0x00, 0x7f, 0x00));
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+    if (renderer == NULL) {
+        LOG_ERR("unable to create renderer: %s\n", SDL_GetError());
+        abort();
+    }
+
+    // TODO -- check this because it is shamelessly copied from
+    // StackOverflow.com
+    SDL_SetWindowMinimumSize(window, CRT_PIXEL_WIDTH, CRT_PIXEL_HEIGHT);
+    SDL_RenderSetLogicalSize(renderer, CRT_PIXEL_WIDTH, CRT_PIXEL_HEIGHT);
+    SDL_RenderSetIntegerScale(renderer, 1);
+
+    surface = SDL_CreateRGBSurfaceWithFormat(SDL_SWSURFACE, CRT_PIXEL_WIDTH,
+                                             CRT_PIXEL_HEIGHT, 1,
+                                             SDL_PIXELFORMAT_INDEX1LSB);
+    SDL_Color colors[2] = {{0, 0, 0, 255}, {0, 127, 0, 255}};
+    SDL_SetPaletteColors(surface->format->palette, colors, 0, 2);
 
     started = true;
 }
@@ -53,6 +94,7 @@ void video_update(void) {
 #define UPDATE_INTERVAL 20 // [ms] (20ms = 50Hz)
     static struct timeval last;
 
+    // only update at 50Hz
     struct timeval now;
     gettimeofday(&now, NULL);
     const unsigned long diff_s = now.tv_sec - last.tv_sec;
@@ -62,7 +104,33 @@ void video_update(void) {
     if (diff_ms < 20)
         return;
 
+    // TODO -- perform attribute checks
+
+    // update characters on screen
+    zuint8 *pixels = (zuint8 *)(surface->pixels);
+    for (size_t row = 0; row < VIDEO_ROWS; ++row) {
+        for (size_t column = 0; column < VIDEO_COLUMNS; ++column) {
+            const char c = mem_char[row * VIDEO_COLUMNS +
+                                    column]; // TODO -- add CRTC base pointer
+
+            const zuint8 *bitmap = char_rom + c * 16;
+            for (int i = 0; i < 16; ++i) {
+                const zuint8 segment = bitmap[i];
+                *(pixels + (row * 16) * VIDEO_COLUMNS + column +
+                  i * VIDEO_COLUMNS) = segment;
+            }
+        }
+    }
+
+    SDL_RenderClear(renderer);
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+    SDL_RenderCopy(renderer, texture, NULL, NULL);
+    SDL_RenderPresent(renderer);
+    SDL_DestroyTexture(texture);
+
+    // draw
     SDL_UpdateWindowSurface(window);
+
     last = now;
 }
 
