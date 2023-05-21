@@ -9,6 +9,9 @@ zuint8 fdc_in(void *context, zuint16 address) {
     (void)context;
     (void)address;
 
+    // TODO -- this allows routine $C403 to proceed
+    return 0x80;
+
     return 0;
 }
 
