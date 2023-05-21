@@ -70,16 +70,21 @@ void video_start(void) {
         abort();
     }
 
-    // TODO -- check this because it is shamelessly copied from
-    // StackOverflow.com
     SDL_SetWindowMinimumSize(window, CRT_PIXEL_WIDTH, CRT_PIXEL_HEIGHT);
-    SDL_RenderSetLogicalSize(renderer, CRT_PIXEL_WIDTH, CRT_PIXEL_HEIGHT);
-    SDL_RenderSetIntegerScale(renderer, 1);
+    if (SDL_RenderSetLogicalSize(renderer, CRT_PIXEL_WIDTH, CRT_PIXEL_HEIGHT) <
+        0) {
+        LOG_ERR("sdl error: %s\n", SDL_GetError());
+        abort();
+    }
+    if (SDL_RenderSetIntegerScale(renderer, SDL_TRUE) < 0) {
+        LOG_ERR("sdl error: %s\n", SDL_GetError());
+        abort();
+    }
 
     surface = SDL_CreateRGBSurfaceWithFormat(SDL_SWSURFACE, CRT_PIXEL_WIDTH,
                                              CRT_PIXEL_HEIGHT, 1,
                                              SDL_PIXELFORMAT_INDEX1LSB);
-    SDL_Color colors[2] = {{0, 0, 0, 255}, {0, 127, 0, 255}};
+    SDL_Color colors[2] = {{0, 0, 0, 255}, {0, 192, 0, 255}};
     SDL_SetPaletteColors(surface->format->palette, colors, 0, 2);
 
     started = true;
