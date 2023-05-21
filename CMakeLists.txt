@@ -15,6 +15,7 @@ add_executable(ceda
     src/speaker.c
     src/timer.c
     src/upd8255.c
+    src/video.c
     src/ram/dynamic.c
     src/rom/bios.c
     src/dis/disassembler.c
@@ -31,5 +32,6 @@ add_subdirectory(vendor/Z80)
 
 target_link_libraries(ceda
     Z80
+    SDL2
 )
 

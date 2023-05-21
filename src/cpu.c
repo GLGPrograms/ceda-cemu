@@ -18,7 +18,7 @@ static zuint8 cpu_fetch_opcode(void *context, zuint16 address) {
         uint8_t blob[16];
         bus_mem_readsome(context, blob, address, 16);
         disassemble(blob, address, mnemonic, 256);
-        LOG_DEBUG("[%04x]:\t%s\n", address, mnemonic);
+        LOG_DEBUG("%s: [%04x]:\t%s\n", __func__, address, mnemonic);
     });
     return bus_mem_read(context, address);
 }
@@ -36,5 +36,11 @@ void cpu_init(void) {
 }
 
 void cpu_run(void) {
+    LOG_DEBUG("%s: ----------------\n", __func__);
+
+    // poor man breakpoint
+    if (cpu.pc.uint16_value == 0xc0b8)
+        abort();
+
     z80_run(&cpu, 1);
 }
