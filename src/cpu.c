@@ -36,8 +36,6 @@ void cpu_init(void) {
 }
 
 void cpu_run(void) {
-    LOG_DEBUG("%s: ----------------\n", __func__);
-
     // poor man breakpoint
     if (cpu.pc.uint16_value == 0xc0b8)
         return;

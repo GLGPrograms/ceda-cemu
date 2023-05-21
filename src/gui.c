@@ -13,7 +13,7 @@ void gui_init(void) {
 }
 
 void gui_start(void) {
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
         LOG_ERR("unable to initialize SDL: %s\n", SDL_GetError());
         abort();
     }

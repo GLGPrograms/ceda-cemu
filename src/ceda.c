@@ -4,6 +4,7 @@
 #include "cpu.h"
 #include "gui.h"
 #include "rom/bios.h"
+#include "speaker.h"
 #include "video.h"
 
 void ceda_init(void) {
@@ -12,13 +13,15 @@ void ceda_init(void) {
 
     rom_bios_init();
     video_init();
+    speaker_init();
     bus_init();
     cpu_init();
 }
 
 void ceda_run(void) {
     gui_start();
-    video_start(); // crt emulation
+    speaker_start(); // "beep"
+    video_start();   // crt emulation
 
     for (;;) {
         // cli_update();

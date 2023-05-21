@@ -34,5 +34,6 @@ add_subdirectory(vendor/Z80)
 target_link_libraries(ceda
     Z80
     SDL2
+    SDL2_mixer
 )
 
