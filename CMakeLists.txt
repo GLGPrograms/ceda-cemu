@@ -2,11 +2,10 @@ cmake_minimum_required(VERSION 3.24)
 
 project(ceda VERSION 2023.06)
 
-add_compile_options(-W -Wformat -Wall -Wundef -Wpointer-arith -Wcast-qual -Wwrite-strings -Wsign-compare -Wmissing-noreturn -Wextra -Wpedantic)
-
 add_executable(ceda
     src/bus.c
     src/ceda.c
+    src/cli.c
     src/crtc.c
     src/cpu.c
     src/fdc.c
@@ -21,6 +20,9 @@ add_executable(ceda
     src/rom/bios.c
     src/dis/disassembler.c
 )
+
+target_compile_options(ceda PRIVATE -W -Wformat -Wformat-signedness -Wall -Wundef -Wpointer-arith -Wcast-qual -Wwrite-strings -Wsign-compare -Wmissing-noreturn -Wextra -Wpedantic)
+# -Wconversion (but first must fix .h of those dorks who wrote the libraries)
 
 set_source_files_properties(src/dis/disassembler.c PROPERTIES COMPILE_FLAGS -Wno-discarded-qualifiers)
 
