@@ -1,5 +1,6 @@
 #include "video.h"
 
+#include "gui.h"
 #include "units.h"
 
 #include <SDL2/SDL.h>
@@ -53,10 +54,7 @@ void video_init(void) {
 }
 
 void video_start(void) {
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        LOG_ERR("unable to initialize video: %s\n", SDL_GetError());
-        abort();
-    }
+    assert(gui_isStarted());
 
     window = SDL_CreateWindow("ceda cemu", SDL_WINDOWPOS_UNDEFINED,
                               SDL_WINDOWPOS_UNDEFINED, CRT_PIXEL_WIDTH,

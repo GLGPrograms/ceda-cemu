@@ -10,6 +10,7 @@ add_executable(ceda
     src/crtc.c
     src/cpu.c
     src/fdc.c
+    src/gui.c
     src/main.c
     src/sio2.c
     src/speaker.c

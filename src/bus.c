@@ -15,7 +15,6 @@
 #include <inttypes.h>
 #include <stdint.h>
 
-#define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
 
 struct bus_mem_slot {
