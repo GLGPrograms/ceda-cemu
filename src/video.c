@@ -58,7 +58,8 @@ void video_start(void) {
 
     window = SDL_CreateWindow("ceda cemu", SDL_WINDOWPOS_UNDEFINED,
                               SDL_WINDOWPOS_UNDEFINED, CRT_PIXEL_WIDTH,
-                              CRT_PIXEL_HEIGHT, SDL_WINDOW_SHOWN);
+                              CRT_PIXEL_HEIGHT,
+                              SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN);
     if (window == NULL) {
         LOG_ERR("unable to create window: %s\n", SDL_GetError());
         abort();
