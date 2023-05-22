@@ -21,7 +21,7 @@ add_executable(ceda
     src/dis/disassembler.c
 )
 
-target_compile_options(ceda PRIVATE -W -Wformat -Wformat-signedness -Wall -Wundef -Wpointer-arith -Wcast-qual -Wwrite-strings -Wsign-compare -Wmissing-noreturn -Wextra -Wpedantic)
+target_compile_options(ceda PRIVATE -W -Wformat -Wformat-signedness -Wall -Wundef -Wpointer-arith -Wcast-qual -Wwrite-strings -Wsign-compare -Wmissing-noreturn -Wextra)
 # -Wconversion (but first must fix .h of those dorks who wrote the libraries)
 
 set_source_files_properties(src/dis/disassembler.c PROPERTIES COMPILE_FLAGS -Wno-discarded-qualifiers)
