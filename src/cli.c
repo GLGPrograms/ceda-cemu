@@ -1,10 +1,12 @@
 #include "cli.h"
 
+#include "3rd/fifo.h"
 #include "macro.h"
 
 #include <errno.h>
 #include <netinet/in.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/select.h>
 #include <unistd.h>
@@ -15,11 +17,20 @@
 
 #define CLI_PORT 0xceda
 
+#define USER_PROMPT_STR "> "
+#define USER_PROMPT_LEN 2
+
 static bool initialized = false;
 static bool quit = false;
 
 static int sockfd = -1;
 static int connfd = -1;
+
+DECLARE_FIFO_TYPE(void *, TxFifo, 8);
+TxFifo tx_fifo;
+struct message {
+    size_t len;
+};
 
 void cli_init(void) {
     struct sockaddr_in server_addr;
@@ -45,6 +56,8 @@ void cli_init(void) {
         return;
     }
 
+    FIFO_INIT(&tx_fifo);
+
     LOG_INFO("cli ok\n");
     initialized = true;
 }
@@ -54,7 +67,7 @@ void cli_start(void) {
         return;
 }
 
-void *cli_quit(void *arg) {
+static void *cli_quit(void *arg) {
     (void)arg;
 
     quit = true;
@@ -66,21 +79,50 @@ void *cli_quit(void *arg) {
 typedef void *(*cli_command_handler_t)(void *);
 typedef struct cli_command {
     const char *command;
+    const char *help;
     cli_command_handler_t handler;
 } cli_command;
 
+static void *cli_help(void *);
 static const cli_command cli_commands[] = {
-    {"quit", cli_quit},
+    {"quit", "quit the emulator", cli_quit},
+    {"help", "show this help", cli_help},
 };
 
-void cli_handle_command(char *buffer, size_t size) {
+static void cli_handle_command(char *buffer, size_t size) {
     for (size_t i = 0; i < ARRAY_SIZE(cli_commands); ++i) {
         const cli_command *const c = &cli_commands[i];
         if (strncmp(c->command, buffer, MIN(size, strlen(c->command))) == 0) {
-            c->handler(NULL);
+            void *m = c->handler(NULL);
+            if (m != NULL)
+                FIFO_PUSH(&tx_fifo, m);
             return;
         }
     }
+}
+
+static void *cli_help(void *arg) {
+    (void)arg;
+#define BUFFER_SIZE 4096
+
+    char *buffer = malloc(BUFFER_SIZE);
+    if (buffer == NULL) {
+        LOG_ERR("out of memory\n");
+        return NULL;
+    }
+
+    size_t n = 0;
+    struct message *m = (struct message *)buffer;
+    char *payload = buffer + sizeof(*m);
+
+    for (size_t i = 0; i < ARRAY_SIZE(cli_commands); ++i) {
+        const cli_command *const c = &cli_commands[i];
+        n += snprintf(payload + n, BUFFER_SIZE - n, "\t%s\n\t\t%s\n\n",
+                      c->command, c->help);
+    }
+
+    m->len = n;
+    return buffer;
 }
 
 void cli_poll(void) {
@@ -105,8 +147,9 @@ void cli_poll(void) {
             // just a timeout
             return;
         } else {
+            LOG_DEBUG("accept cli client\n");
             connfd = accept(sockfd, NULL, NULL);
-            LOG_DEBUG("accept cli client on fd = %d\n", connfd);
+            send(connfd, USER_PROMPT_STR, USER_PROMPT_LEN, 0);
         }
         // a client is connected, select() for read() or write()
         // this is reasonable because we handle only one client (at the moment)
@@ -148,21 +191,27 @@ void cli_poll(void) {
                 return;
             } else {
                 // data available
-                // TODO -- handle client commands
                 cli_handle_command(buffer, (size_t)rv);
             }
         }
 
         // check file descriptors ready for write
         if (FD_ISSET(connfd, &write_set)) {
-            // int rv = send(connfd, "hello ceda\n", 11, 0);
-            int rv = 0;
-            if (rv == -1) {
-                LOG_ERR("send error while writing to client: %s\n",
-                        strerror(errno));
-                close(connfd);
-                connfd = -1;
-                return;
+            if (!FIFO_ISEMPTY(&tx_fifo)) {
+                struct message *m = FIFO_POP(&tx_fifo);
+                void *payload = &m[1];
+
+                int rv0 = send(connfd, payload, m->len, 0);
+                free(m);
+                int rv1 = send(connfd, USER_PROMPT_STR, USER_PROMPT_LEN, 0);
+
+                if (rv0 == -1 || rv1 == -1) {
+                    LOG_ERR("send error while writing to client: %s\n",
+                            strerror(errno));
+                    close(connfd);
+                    connfd = -1;
+                    return;
+                }
             }
         }
     }
