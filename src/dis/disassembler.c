@@ -659,7 +659,7 @@ int disassemble(uint8_t* blob, int pc, char *bufstart, size_t buflen)
                         if ( israbbit() && y == 0 ) { handle_immed16(state, opbuf1, sizeof(opbuf1)); handle_immed8(state, opbuf2, sizeof(opbuf2)); BUF_PRINTF("%-8s%s,%s","ljp", opbuf2, opbuf1); }
                         else if ( israbbit() && y == 1 ) { handle_immed16(state, opbuf1, sizeof(opbuf1)); handle_immed8(state, opbuf2, sizeof(opbuf2)); BUF_PRINTF("%-8s%s,%s","lcall", opbuf2, opbuf1); }
                         else if ( israbbit() && y == 6 ) BUF_PRINTF("mul");
-                        else BUF_PRINTF("%-8s$%02x", "rst", y * 8);
+                        else BUF_PRINTF("%-8s$%02x", "rst", (unsigned int)(y * 8));
                     }
                     break;
             }
@@ -671,7 +671,7 @@ int disassemble(uint8_t* blob, int pc, char *bufstart, size_t buflen)
         buf[offs++] = ' ';
         buf[offs] = 0;
     }
-    offs += snprintf(buf + offs, buflen - offs, ";[%04x] ", start_pc & 0xffff);
+    offs += snprintf(buf + offs, buflen - offs, ";[%04x] ", (unsigned int)(start_pc & 0xffff));
     for ( i = state->skip; i < state->len; i++ ) {
         offs += snprintf(buf + offs, buflen - offs,"%s%02x", i ? " " : "", state->instr_bytes[i]);
     }
