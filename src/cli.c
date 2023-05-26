@@ -44,6 +44,12 @@ void cli_init(void) {
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     server_addr.sin_port = htons(CLI_PORT);
 
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){true},
+                   sizeof(int)) != 0) {
+        LOG_WARN("unable to setsockopt(): %s\n", strerror(errno));
+        return;
+    }
+
     if (bind(sockfd, (const struct sockaddr *)&server_addr,
              sizeof(server_addr)) != 0) {
         LOG_WARN("unable to bind(): %s\n", strerror(errno));
