@@ -1,10 +1,10 @@
 #include "bus.h"
 
+#include "bios.h"
 #include "crtc.h"
 #include "fdc.h"
 #include "macro.h"
 #include "ram/dynamic.h"
-#include "rom/bios.h"
 #include "sio2.h"
 #include "speaker.h"
 #include "timer.h"

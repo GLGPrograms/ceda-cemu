@@ -1,10 +1,10 @@
 #include "ceda.h"
 
+#include "bios.h"
 #include "bus.h"
 #include "cli.h"
 #include "cpu.h"
 #include "gui.h"
-#include "rom/bios.h"
 #include "speaker.h"
 #include "video.h"
 

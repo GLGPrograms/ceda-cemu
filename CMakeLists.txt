@@ -17,7 +17,7 @@ add_executable(ceda
     src/upd8255.c
     src/video.c
     src/ram/dynamic.c
-    src/rom/bios.c
+    src/bios.c
     src/dis/disassembler.c
 )
 
