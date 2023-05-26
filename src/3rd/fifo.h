@@ -152,6 +152,20 @@
     })
 
 /**
+ * Peek a character from the fifo buffer, without removing it.
+ *
+ * \note Calling \c fifo_peek() on an empty buffer is undefined.
+ *       The caller must make sure the buffer contains at least
+ *       one character before calling this function.
+ */
+#define FIFO_PEEK(fb)                                                          \
+    ({                                                                         \
+        typeof(*(fb)->head) ret;                                               \
+        ret = *((fb)->head);                                                   \
+        ret;                                                                   \
+    })
+
+/**
  * Make the fifo empty, discarding all its current contents.
  */
 #define FIFO_FLUSH(fb) ((fb)->head = (fb)->tail)
