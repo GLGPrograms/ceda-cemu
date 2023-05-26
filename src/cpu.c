@@ -5,7 +5,6 @@
 
 #include <string.h>
 
-#define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
 
 #define CPU_CHUNK_CYCLES 100
