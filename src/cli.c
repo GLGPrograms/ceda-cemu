@@ -3,6 +3,7 @@
 #include "3rd/fifo.h"
 #include "macro.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <stdbool.h>
@@ -17,8 +18,9 @@
 
 #define CLI_PORT 0xceda
 
-#define USER_PROMPT_STR "> "
-#define USER_PROMPT_LEN 2
+#define USER_PROMPT_STR     "> "
+#define COMMAND_BUFFER_SIZE 128
+#define HELP_BUFFER_SIZE    4096
 
 static bool initialized = false;
 static bool quit = false;
@@ -26,11 +28,8 @@ static bool quit = false;
 static int sockfd = -1;
 static int connfd = -1;
 
-DECLARE_FIFO_TYPE(void *, TxFifo, 8);
-TxFifo tx_fifo;
-struct message {
-    size_t len;
-};
+DECLARE_FIFO_TYPE(char *, TxFifo, 8);
+static TxFifo tx_fifo;
 
 void cli_init(void) {
     struct sockaddr_in server_addr;
@@ -67,7 +66,16 @@ void cli_start(void) {
         return;
 }
 
-static void *cli_quit(void *arg) {
+static void cli_send_string(const char *str) {
+    const size_t alloc_size = strlen(str) + 1;
+
+    char *m = malloc(alloc_size);
+    strcpy(m, str);
+
+    FIFO_PUSH(&tx_fifo, m);
+}
+
+static char *cli_quit(void *arg) {
     (void)arg;
 
     quit = true;
@@ -76,53 +84,80 @@ static void *cli_quit(void *arg) {
 }
 
 // TODO - to be extended
-typedef void *(*cli_command_handler_t)(void *);
+typedef char *(*cli_command_handler_t)(void *);
 typedef struct cli_command {
     const char *command;
     const char *help;
     cli_command_handler_t handler;
 } cli_command;
 
-static void *cli_help(void *);
+static char *cli_help(void *);
 static const cli_command cli_commands[] = {
     {"quit", "quit the emulator", cli_quit},
     {"help", "show this help", cli_help},
 };
 
-static void cli_handle_command(char *buffer, size_t size) {
+static void cli_handle_command(const char *buffer, size_t size) {
+    // size == 0 => reuse last command
+    if (size == 0) {
+        cli_send_string(USER_PROMPT_STR);
+        return; // TODO
+    }
+
+    // search for a potentially good command
     for (size_t i = 0; i < ARRAY_SIZE(cli_commands); ++i) {
         const cli_command *const c = &cli_commands[i];
         if (strncmp(c->command, buffer, MIN(size, strlen(c->command))) == 0) {
-            void *m = c->handler(NULL);
+            const char *m = c->handler(NULL);
             if (m != NULL)
-                FIFO_PUSH(&tx_fifo, m);
+                cli_send_string(m);
+            cli_send_string(USER_PROMPT_STR);
             return;
         }
     }
+    cli_send_string("command not found\n");
+    cli_send_string(USER_PROMPT_STR);
 }
 
-static void *cli_help(void *arg) {
-    (void)arg;
-#define BUFFER_SIZE 4096
+static void cli_handle_incoming_data(const char *buffer, size_t size) {
+    static char command[COMMAND_BUFFER_SIZE] = {0};
+    static size_t count = 0;
 
-    char *buffer = malloc(BUFFER_SIZE);
-    if (buffer == NULL) {
+    for (size_t i = 0; i < size; ++i) {
+        const char c = buffer[i];
+
+        // discard cr
+        if (c == '\r')
+            continue;
+
+        // new line: handle what has been read
+        if (c == '\n' || count == COMMAND_BUFFER_SIZE) {
+            cli_handle_command(command, count);
+            count = 0;
+            continue;
+        }
+
+        command[count++] = c;
+    }
+}
+
+static char *cli_help(void *arg) {
+    (void)arg;
+
+    char *m = malloc(HELP_BUFFER_SIZE);
+    if (m == NULL) {
         LOG_ERR("out of memory\n");
         return NULL;
     }
 
     size_t n = 0;
-    struct message *m = (struct message *)buffer;
-    char *payload = buffer + sizeof(*m);
-
     for (size_t i = 0; i < ARRAY_SIZE(cli_commands); ++i) {
         const cli_command *const c = &cli_commands[i];
-        n += snprintf(payload + n, BUFFER_SIZE - n, "\t%s\n\t\t%s\n\n",
+        n += snprintf(m + n, HELP_BUFFER_SIZE - n, "\t%s\n\t\t%s\n\n",
                       c->command, c->help);
     }
 
-    m->len = n;
-    return buffer;
+    return m;
 }
 
 void cli_poll(void) {
@@ -149,10 +184,10 @@ void cli_poll(void) {
         } else {
             LOG_DEBUG("accept cli client\n");
             connfd = accept(sockfd, NULL, NULL);
-            send(connfd, USER_PROMPT_STR, USER_PROMPT_LEN, 0);
+            cli_send_string(USER_PROMPT_STR);
         }
         // a client is connected, select() for read() or write()
-        // this is reasonable because we handle only one client (at the moment)
+        // this is reasonable because we handle only one client
     } else {
         int rv = -1;
         fd_set read_set, write_set;
@@ -169,7 +204,6 @@ void cli_poll(void) {
             connfd = -1;
             return;
         } else if (rv == 0) {
-            LOG_DEBUG("timeout\n");
             // just a timeout
             return;
         }
@@ -191,21 +225,19 @@ void cli_poll(void) {
                 return;
             } else {
                 // data available
-                cli_handle_command(buffer, (size_t)rv);
+                cli_handle_incoming_data(buffer, rv);
             }
         }
 
         // check file descriptors ready for write
         if (FD_ISSET(connfd, &write_set)) {
-            if (!FIFO_ISEMPTY(&tx_fifo)) {
-                struct message *m = FIFO_POP(&tx_fifo);
-                void *payload = &m[1];
+            while (!FIFO_ISEMPTY(&tx_fifo)) {
+                char *m = FIFO_POP(&tx_fifo);
 
-                int rv0 = send(connfd, payload, m->len, 0);
+                int rv = send(connfd, m, strlen(m), 0);
                 free(m);
-                int rv1 = send(connfd, USER_PROMPT_STR, USER_PROMPT_LEN, 0);
 
-                if (rv0 == -1 || rv1 == -1) {
+                if (rv == -1) {
                     LOG_ERR("send error while writing to client: %s\n",
                             strerror(errno));
                     close(connfd);
