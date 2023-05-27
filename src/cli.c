@@ -80,7 +80,7 @@ static void cli_send_string(const char *str) {
     const size_t alloc_size = strlen(str) + 1;
 
     char *m = malloc(alloc_size);
-    strcpy(m, str);
+    strncpy(m, str, alloc_size);
 
     FIFO_PUSH(&tx_fifo, m);
 }
@@ -177,7 +177,7 @@ static char *cli_break(const char *arg) {
 
 static char *cli_delete(const char *arg) {
     char *m = malloc(LINE_BUFFER_SIZE);
-    strcpy(m, "");
+    strncpy(m, "", LINE_BUFFER_SIZE);
 
     // skip first arg
     while (*arg != ' ' && *arg != '\0') {
@@ -302,7 +302,8 @@ static void cli_handle_line(const char *line) {
 
         // command found
         if (strcmp(c->command, word) == 0) {
-            strcpy(last_line, line); // save line for next time
+            strncpy(last_line, line,
+                    LINE_BUFFER_SIZE); // save line for next time
             const char *m = c->handler(line);
             if (m != NULL)
                 cli_send_string(m);
@@ -312,7 +313,7 @@ static void cli_handle_line(const char *line) {
     }
 
     // if no command has been found in the line
-    strcpy(last_line, "");
+    strncpy(last_line, "", LINE_BUFFER_SIZE);
     cli_send_string("command not found\n");
     cli_send_string(USER_PROMPT_STR);
 }
