@@ -18,13 +18,13 @@ add_executable(ceda
     src/video.c
     src/ram/dynamic.c
     src/bios.c
-    src/dis/disassembler.c
+    src/3rd/disassembler.c
 )
 
 target_compile_options(ceda PRIVATE -W -Wformat -Wformat-signedness -Wall -Wundef -Wpointer-arith -Wcast-qual -Wwrite-strings -Wsign-compare -Wmissing-noreturn -Wextra)
 # -Wconversion (but first must fix .h of those dorks who wrote the libraries)
 
-set_source_files_properties(src/dis/disassembler.c PROPERTIES COMPILE_FLAGS -Wno-discarded-qualifiers)
+set_source_files_properties(src/3rd/disassembler.c PROPERTIES COMPILE_FLAGS -Wno-discarded-qualifiers)
 
 set(CMAKE_C_STANDARD 17)
 

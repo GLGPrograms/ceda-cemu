@@ -1,7 +1,7 @@
 #include "cpu.h"
 
+#include "3rd/disassembler.h"
 #include "bus.h"
-#include "dis/disassembler.h"
 
 #include <string.h>
 
