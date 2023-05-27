@@ -18,9 +18,9 @@
 
 #define CLI_PORT 0xceda
 
-#define USER_PROMPT_STR     "> "
-#define COMMAND_BUFFER_SIZE 128
-#define HELP_BUFFER_SIZE    4096
+#define USER_PROMPT_STR  "> "
+#define LINE_BUFFER_SIZE 128
+#define HELP_BUFFER_SIZE 4096
 
 static bool initialized = false;
 static bool quit = false;
@@ -103,25 +103,27 @@ static const cli_command cli_commands[] = {
     {"help", "show this help", cli_help},
 };
 
-static void cli_handle_command(const char *buffer) {
-    static char last_buffer[COMMAND_BUFFER_SIZE] = {0};
+static void cli_handle_line(const char *line) {
+    static char last_line[LINE_BUFFER_SIZE] = {0};
 
-    // size == 0 => reuse last command
-    if (strlen(buffer) == 0) {
-        buffer = last_buffer;
+    // size == 0 => reuse last command line
+    if (strlen(line) == 0) {
+        line = last_line;
     }
 
-    // last command empty => do nothing
-    if (strlen(buffer) == 0) {
+    // last command line is empty => do nothing
+    if (strlen(line) == 0) {
         cli_send_string(USER_PROMPT_STR);
         return;
     }
 
-    // search for a potentially good command
+    // search for a potentially good command in the line
     for (size_t i = 0; i < ARRAY_SIZE(cli_commands); ++i) {
         const cli_command *const c = &cli_commands[i];
-        if (strcmp(c->command, buffer) == 0) {
-            strcpy(last_buffer, buffer); // save for next time
+
+        // command found
+        if (strcmp(c->command, line) == 0) {
+            strcpy(last_line, line); // save line for next time
             const char *m = c->handler(NULL);
             if (m != NULL)
                 cli_send_string(m);
@@ -129,13 +131,26 @@ static void cli_handle_command(const char *buffer) {
             return;
         }
     }
-    strcpy(last_buffer, "");
+
+    // if no command has been found in the line
+    strcpy(last_line, "");
     cli_send_string("command not found\n");
     cli_send_string(USER_PROMPT_STR);
 }
 
+/**
+ * @brief Split incoming raw data into lines separed by '\n'.
+ *
+ * This function also discards any '\r' and '\n' from the incoming stream,
+ * and produce a nice null-terminated C string for each incoming line.
+ *
+ * Then, lines are parsed as commands.
+ *
+ * @param buffer Pointer to raw data buffer.
+ * @param size Lenght of raw data.
+ */
 static void cli_handle_incoming_data(const char *buffer, size_t size) {
-    static char command[COMMAND_BUFFER_SIZE] = {0};
+    static char line[LINE_BUFFER_SIZE] = {0};
     static size_t count = 0;
 
     for (size_t i = 0; i < size; ++i) {
@@ -146,14 +161,14 @@ static void cli_handle_incoming_data(const char *buffer, size_t size) {
             continue;
 
         // new line: handle what has been read
-        if (c == '\n' || count == COMMAND_BUFFER_SIZE - 1) {
-            command[count] = '\0';
-            cli_handle_command(command);
+        if (c == '\n' || count == LINE_BUFFER_SIZE - 1) {
+            line[count] = '\0';
+            cli_handle_line(line);
             count = 0;
             continue;
         }
 
-        command[count++] = c;
+        line[count++] = c;
     }
 }
 
