@@ -29,4 +29,6 @@ void cpu_pause(bool enable);
 
 void cpu_reg(CpuRegs *regs);
 
+void cpu_step(void);
+
 #endif // CEDA_CPU_H

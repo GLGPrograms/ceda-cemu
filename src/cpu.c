@@ -39,7 +39,7 @@ void cpu_run(void) {
     if (pause)
         return;
 
-    z80_run(&cpu, 1);
+    z80_run(&cpu, CPU_CHUNK_CYCLES);
 }
 
 void cpu_pause(bool enable) {
@@ -47,6 +47,9 @@ void cpu_pause(bool enable) {
 }
 
 void cpu_reg(CpuRegs *regs) {
+    if (regs == NULL)
+        return;
+
     regs->fg.af = cpu.af.uint16_value;
     regs->fg.bc = cpu.bc.uint16_value;
     regs->fg.de = cpu.de.uint16_value;
@@ -62,4 +65,9 @@ void cpu_reg(CpuRegs *regs) {
 
     regs->sp = cpu.sp.uint16_value;
     regs->pc = cpu.pc.uint16_value;
+}
+
+void cpu_step(void) {
+    cpu_pause(true);
+    z80_run(&cpu, 1);
 }

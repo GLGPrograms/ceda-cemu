@@ -117,6 +117,11 @@ static char *cli_reg(const char *arg) {
     return m;
 }
 
+static char *cli_step(const char *arg) {
+    cpu_step();
+    return cli_reg(arg);
+}
+
 /*
     A cli_command_handler_t is a command line handler.
     It takes a pointer to the line buffer.
@@ -139,6 +144,7 @@ static const cli_command cli_commands[] = {
     {"pause", "pause cpu execution", cli_pause},
     {"continue", "continue cpu execution", cli_continue},
     {"reg", "show cpu registers", cli_reg},
+    {"step", "step one instruction", cli_step},
     {"quit", "quit the emulator", cli_quit},
     {"help", "show this help", cli_help},
 };
