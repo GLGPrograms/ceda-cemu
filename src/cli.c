@@ -81,7 +81,7 @@ static void cli_send_string(const char *str) {
     FIFO_PUSH(&tx_fifo, m);
 }
 
-static char *cli_quit(void *arg) {
+static char *cli_quit(const char *arg) {
     (void)arg;
 
     quit = true;
@@ -89,20 +89,37 @@ static char *cli_quit(void *arg) {
     return NULL;
 }
 
+/*
+    A cli_command_handler_t is a command line handler.
+    It takes a pointer to the line buffer.
+    It returns a pointer to a null-terminated C string,
+    which is the response to the command (NULL if none).
+    Caller takes ownership of the returned string,
+    and must free() it when done.
+*/
+typedef char *(*cli_command_handler_t)(const char *);
+
 // TODO - to be extended
-typedef char *(*cli_command_handler_t)(void *);
 typedef struct cli_command {
     const char *command;
     const char *help;
     cli_command_handler_t handler;
 } cli_command;
 
-static char *cli_help(void *);
+static char *cli_help(const char *);
 static const cli_command cli_commands[] = {
     {"quit", "quit the emulator", cli_quit},
     {"help", "show this help", cli_help},
 };
 
+/**
+ * @brief Parse the command line and execute command.
+ *
+ * Find the first word in the command line, and try to execute it as a
+ * command.
+ *
+ * @param line null-terminated C string representing the command line
+ */
 static void cli_handle_line(const char *line) {
     static char last_line[LINE_BUFFER_SIZE] = {0};
 
@@ -117,12 +134,23 @@ static void cli_handle_line(const char *line) {
         return;
     }
 
-    // search for a potentially good command in the line
+    // search for first word
+    char word[LINE_BUFFER_SIZE];
+    for (size_t i = 0; i < LINE_BUFFER_SIZE; ++i) {
+        const char c = line[i];
+        word[i] = c;
+        if (c == ' ' || c == '\0') {
+            word[i] = '\0';
+            break;
+        }
+    }
+
+    // look for `word` in the command set
     for (size_t i = 0; i < ARRAY_SIZE(cli_commands); ++i) {
         const cli_command *const c = &cli_commands[i];
 
         // command found
-        if (strcmp(c->command, line) == 0) {
+        if (strcmp(c->command, word) == 0) {
             strcpy(last_line, line); // save line for next time
             const char *m = c->handler(NULL);
             if (m != NULL)
@@ -172,7 +200,7 @@ static void cli_handle_incoming_data(const char *buffer, size_t size) {
     }
 }
 
-static char *cli_help(void *arg) {
+static char *cli_help(const char *arg) {
     (void)arg;
 
     char *m = malloc(HELP_BUFFER_SIZE);
