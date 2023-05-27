@@ -103,17 +103,25 @@ static const cli_command cli_commands[] = {
     {"help", "show this help", cli_help},
 };
 
-static void cli_handle_command(const char *buffer, size_t size) {
+static void cli_handle_command(const char *buffer) {
+    static char last_buffer[COMMAND_BUFFER_SIZE] = {0};
+
     // size == 0 => reuse last command
-    if (size == 0) {
+    if (strlen(buffer) == 0) {
+        buffer = last_buffer;
+    }
+
+    // last command empty => do nothing
+    if (strlen(buffer) == 0) {
         cli_send_string(USER_PROMPT_STR);
-        return; // TODO
+        return;
     }
 
     // search for a potentially good command
     for (size_t i = 0; i < ARRAY_SIZE(cli_commands); ++i) {
         const cli_command *const c = &cli_commands[i];
-        if (strncmp(c->command, buffer, MIN(size, strlen(c->command))) == 0) {
+        if (strcmp(c->command, buffer) == 0) {
+            strcpy(last_buffer, buffer); // save for next time
             const char *m = c->handler(NULL);
             if (m != NULL)
                 cli_send_string(m);
@@ -121,6 +129,7 @@ static void cli_handle_command(const char *buffer, size_t size) {
             return;
         }
     }
+    strcpy(last_buffer, "");
     cli_send_string("command not found\n");
     cli_send_string(USER_PROMPT_STR);
 }
@@ -137,8 +146,9 @@ static void cli_handle_incoming_data(const char *buffer, size_t size) {
             continue;
 
         // new line: handle what has been read
-        if (c == '\n' || count == COMMAND_BUFFER_SIZE) {
-            cli_handle_command(command, count);
+        if (c == '\n' || count == COMMAND_BUFFER_SIZE - 1) {
+            command[count] = '\0';
+            cli_handle_command(command);
             count = 0;
             continue;
         }
