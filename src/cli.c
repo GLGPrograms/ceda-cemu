@@ -304,9 +304,11 @@ static void cli_handle_line(const char *line) {
         if (strcmp(c->command, word) == 0) {
             strncpy(last_line, line,
                     LINE_BUFFER_SIZE); // save line for next time
-            const char *m = c->handler(line);
-            if (m != NULL)
+            char *m = c->handler(line);
+            if (m != NULL) {
                 cli_send_string(m);
+                free(m);
+            }
             cli_send_string(USER_PROMPT_STR);
             return;
         }
