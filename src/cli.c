@@ -1,10 +1,12 @@
 #include "cli.h"
 
 #include "3rd/fifo.h"
+#include "bus.h"
 #include "cpu.h"
 #include "macro.h"
 
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <netinet/in.h>
 #include <stdbool.h>
@@ -19,9 +21,9 @@
 
 #define CLI_PORT 0xceda
 
-#define USER_PROMPT_STR  "> "
-#define LINE_BUFFER_SIZE 128
-#define HELP_BUFFER_SIZE 4096
+#define USER_PROMPT_STR   "> "
+#define LINE_BUFFER_SIZE  128  // small line-like stuff
+#define BLOCK_BUFFER_SIZE 4096 // big page-like stuff
 
 #define USER_BAD_ARG_STR       "bad argument\n"
 #define USER_NO_SPACE_LEFT_STR "no space left\n"
@@ -150,7 +152,7 @@ static char *cli_break(const char *arg) {
         return m;
     }
 
-    // atoi address
+    // extract address
     ++arg;
     unsigned int _address;
     int n = sscanf(arg, "%04x", &_address);
@@ -234,6 +236,61 @@ static char *cli_delete(const char *arg) {
     return NULL;
 }
 
+static char *cli_read(const char *arg) {
+    char *m = malloc(BLOCK_BUFFER_SIZE);
+
+    // skip first arg
+    while (*arg != ' ' && *arg != '\0') {
+        ++arg;
+    }
+
+    // missing address
+    if (*arg == '\0') {
+        strncpy(m, USER_BAD_ARG_STR "missing address\n", BLOCK_BUFFER_SIZE);
+        return m;
+    }
+
+    // extract address
+    ++arg;
+    unsigned int _address;
+    int r = sscanf(arg, "%04x", &_address);
+    if (r != 1) {
+        strncpy(m, USER_BAD_ARG_STR "bad address format\n", BLOCK_BUFFER_SIZE);
+        return m;
+    }
+
+    // perform read
+    zuint16 address = _address;
+    const size_t BLOB_SIZE = 8 * 16;
+    char blob[BLOB_SIZE];
+    bus_mem_readsome(NULL, blob, address, BLOB_SIZE);
+
+    // print nice hexdump
+    int n = 0;
+    char ascii[16 + 1] = {0};
+    for (unsigned int i = 0; i < BLOB_SIZE && n < BLOCK_BUFFER_SIZE - 1; ++i) {
+        const char c = blob[i];
+
+        if (i % 16 == 0) {
+            n += snprintf(m + n, BLOCK_BUFFER_SIZE - n, "%04x\t", address + i);
+        }
+
+        n += snprintf(m + n, BLOCK_BUFFER_SIZE - n, "%02x ",
+                      ((unsigned int)(c)) & 0xff);
+        ascii[i % 16] = isprint(c) ? c : '.';
+
+        if (i % 16 == 7) {
+            n += snprintf(m + n, BLOCK_BUFFER_SIZE - n, " ");
+        }
+
+        if (i % 16 == 15) {
+            n += snprintf(m + n, BLOCK_BUFFER_SIZE - n, "\t%s\n", ascii);
+        }
+    }
+
+    return m;
+}
+
 /*
     A cli_command_handler_t is a command line handler.
     It takes a pointer to the line buffer.
@@ -259,6 +316,7 @@ static const cli_command cli_commands[] = {
     {"continue", "continue cpu execution", cli_continue},
     {"reg", "show cpu registers", cli_reg},
     {"step", "step one instruction", cli_step},
+    {"read", "read from memory", cli_read},
     {"quit", "quit the emulator", cli_quit},
     {"help", "show this help", cli_help},
 };
@@ -357,17 +415,17 @@ static void cli_handle_incoming_data(const char *buffer, size_t size) {
 static char *cli_help(const char *arg) {
     (void)arg;
 
-    char *m = malloc(HELP_BUFFER_SIZE);
+    char *m = malloc(BLOCK_BUFFER_SIZE);
     if (m == NULL) {
         LOG_ERR("out of memory\n");
         return NULL;
     }
 
     size_t n = 0;
-    for (size_t i = 0; i < ARRAY_SIZE(cli_commands) && n < HELP_BUFFER_SIZE - 1;
-         ++i) {
+    for (size_t i = 0;
+         i < ARRAY_SIZE(cli_commands) && n < BLOCK_BUFFER_SIZE - 1; ++i) {
         const cli_command *const c = &cli_commands[i];
-        n += snprintf(m + n, HELP_BUFFER_SIZE - n, "\t%s\n\t\t%s\n\n",
+        n += snprintf(m + n, BLOCK_BUFFER_SIZE - n, "\t%s\n\t\t%s\n\n",
                       c->command, c->help);
     }
 
