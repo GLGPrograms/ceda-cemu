@@ -1,5 +1,6 @@
 #include "cli.h"
 
+#include "3rd/disassembler.h"
 #include "3rd/fifo.h"
 #include "bus.h"
 #include "cpu.h"
@@ -113,12 +114,32 @@ static char *cli_reg(const char *arg) {
     CpuRegs regs;
     cpu_reg(&regs);
 
-    char *m = malloc(LINE_BUFFER_SIZE);
-    snprintf(m, LINE_BUFFER_SIZE,
-             " PC   SP   AF   BC   DE   HL   AF'  BC'  DE'  HL' IX IY\n"
-             "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %02x %02x\n",
-             regs.pc, regs.sp, regs.fg.af, regs.fg.bc, regs.fg.de, regs.fg.hl,
-             regs.bg.af, regs.bg.bc, regs.bg.de, regs.bg.hl, regs.ix, regs.iy);
+    // disassemble current pc
+    char _dis[LINE_BUFFER_SIZE];
+    uint8_t blob[16];
+    bus_mem_readsome(NULL, blob, regs.pc, 16);
+    disassemble(blob, regs.pc, _dis, LINE_BUFFER_SIZE);
+    const char *dis = _dis;
+    while (*dis == ' ')
+        ++dis;
+
+    char *m = malloc(BLOCK_BUFFER_SIZE);
+
+    /* clang-format off */
+    /* don't pretend miracles from the formatter */
+    snprintf(
+        m, BLOCK_BUFFER_SIZE,
+
+        // string format
+        " %s\n"
+        " PC   SP   AF   BC   DE   HL   AF'  BC'  DE'  HL' IX IY\n"
+        "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %02x %02x\n",
+
+        // varargs
+        dis,
+        regs.pc, regs.sp, regs.fg.af, regs.fg.bc, regs.fg.de, regs.fg.hl,
+        regs.bg.af, regs.bg.bc, regs.bg.de, regs.bg.hl, regs.ix, regs.iy);
+    /* clang-format on */
 
     return m;
 }
