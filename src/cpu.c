@@ -10,6 +10,7 @@
 #define CPU_CHUNK_CYCLES 100
 
 static Z80 cpu;
+static bool pause = true;
 
 static zuint8 cpu_fetch_opcode(void *context, zuint16 address) {
     LOG_DEBUGB({
@@ -31,13 +32,34 @@ void cpu_init(void) {
     cpu.in = bus_io_in;
     cpu.out = bus_io_out;
 
-    z80_power(&cpu, TRUE);
+    z80_power(&cpu, true);
 }
 
 void cpu_run(void) {
-    // poor man breakpoint
-    if (cpu.pc.uint16_value == 0xc0b8)
+    if (pause)
         return;
 
     z80_run(&cpu, 1);
+}
+
+void cpu_pause(bool enable) {
+    pause = enable;
+}
+
+void cpu_reg(CpuRegs *regs) {
+    regs->fg.af = cpu.af.uint16_value;
+    regs->fg.bc = cpu.bc.uint16_value;
+    regs->fg.de = cpu.de.uint16_value;
+    regs->fg.hl = cpu.hl.uint16_value;
+
+    regs->bg.af = cpu.af_.uint16_value;
+    regs->bg.bc = cpu.bc_.uint16_value;
+    regs->bg.de = cpu.de_.uint16_value;
+    regs->bg.hl = cpu.hl_.uint16_value;
+
+    regs->ix = cpu.ix_iy->uint8_values.at_0;
+    regs->iy = cpu.ix_iy->uint8_values.at_1;
+
+    regs->sp = cpu.sp.uint16_value;
+    regs->pc = cpu.pc.uint16_value;
 }

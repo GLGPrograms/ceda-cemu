@@ -1,6 +1,7 @@
 #include "cli.h"
 
 #include "3rd/fifo.h"
+#include "cpu.h"
 #include "macro.h"
 
 #include <assert.h>
@@ -89,6 +90,33 @@ static char *cli_quit(const char *arg) {
     return NULL;
 }
 
+static char *cli_pause(const char *arg) {
+    (void)arg;
+    cpu_pause(true);
+    return NULL;
+}
+
+static char *cli_continue(const char *arg) {
+    (void)arg;
+    cpu_pause(false);
+    return NULL;
+}
+
+static char *cli_reg(const char *arg) {
+    (void)arg;
+    CpuRegs regs;
+    cpu_reg(&regs);
+
+    char *m = malloc(LINE_BUFFER_SIZE);
+    snprintf(m, LINE_BUFFER_SIZE,
+             " PC   SP   AF   BC   DE   HL   AF'  BC'  DE'  HL' IX IY\n"
+             "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %02x %02x\n",
+             regs.pc, regs.sp, regs.fg.af, regs.fg.bc, regs.fg.de, regs.fg.hl,
+             regs.bg.af, regs.bg.bc, regs.bg.de, regs.bg.hl, regs.ix, regs.iy);
+
+    return m;
+}
+
 /*
     A cli_command_handler_t is a command line handler.
     It takes a pointer to the line buffer.
@@ -108,6 +136,9 @@ typedef struct cli_command {
 
 static char *cli_help(const char *);
 static const cli_command cli_commands[] = {
+    {"pause", "pause cpu execution", cli_pause},
+    {"continue", "continue cpu execution", cli_continue},
+    {"reg", "show cpu registers", cli_reg},
     {"quit", "quit the emulator", cli_quit},
     {"help", "show this help", cli_help},
 };
