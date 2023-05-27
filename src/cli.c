@@ -274,7 +274,7 @@ static char *cli_read(const char *arg) {
     // extract address
     ++arg;
     unsigned int _address;
-    int r = sscanf(arg, "%04x", &_address);
+    int r = sscanf(arg, "%x", &_address);
     if (r != 1) {
         strncpy(m, USER_BAD_ARG_STR "bad address format\n", BLOCK_BUFFER_SIZE);
         return m;
@@ -312,6 +312,72 @@ static char *cli_read(const char *arg) {
     return m;
 }
 
+static char *cli_write(const char *arg) {
+    char *m = malloc(LINE_BUFFER_SIZE);
+
+    // skip first arg
+    while (*arg != ' ' && *arg != '\0') {
+        ++arg;
+    }
+
+    // missing address
+    if (*arg == '\0') {
+        strncpy(m, USER_BAD_ARG_STR "missing address\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    // extract address
+    ++arg;
+    unsigned int _address;
+    int r = sscanf(arg, "%x", &_address);
+    if (r != 1 || _address >= 0x10000) {
+        strncpy(m, USER_BAD_ARG_STR "bad address format\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    // next arg
+    while (*arg != ' ' && *arg != '\0') {
+        ++arg;
+    }
+    // skip space
+    if (*arg == ' ')
+        ++arg;
+
+    // missing value
+    if (*arg == '\0') {
+        strncpy(m, USER_BAD_ARG_STR "missing value\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    zuint16 address = _address;
+    for (unsigned int i = 0;; ++i) {
+        // atoi value
+        unsigned int value;
+        int r = sscanf(arg, "%x", &value);
+        if (r != 1 || value >= 0x100) {
+            strncpy(m, USER_BAD_ARG_STR "bad value format\n", LINE_BUFFER_SIZE);
+            return m;
+        }
+        bus_mem_write(NULL, address + i, value);
+
+        // next value
+        while (*arg != ' ' && *arg != '\0') {
+            ++arg;
+        }
+        // skip space
+        if (*arg == ' ')
+            ++arg;
+
+        LOG_DEBUG("next arg = %d\n", ((int)(*arg)) & 0xff);
+        // no more values
+        if (*arg == '\0')
+            break;
+    }
+
+    free(m);
+    return NULL;
+}
+
 /*
     A cli_command_handler_t is a command line handler.
     It takes a pointer to the line buffer.
@@ -338,6 +404,7 @@ static const cli_command cli_commands[] = {
     {"reg", "show cpu registers", cli_reg},
     {"step", "step one instruction", cli_step},
     {"read", "read from memory", cli_read},
+    {"write", "write to memory", cli_write},
     {"quit", "quit the emulator", cli_quit},
     {"help", "show this help", cli_help},
 };
