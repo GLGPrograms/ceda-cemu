@@ -23,6 +23,9 @@
 #define LINE_BUFFER_SIZE 128
 #define HELP_BUFFER_SIZE 4096
 
+#define USER_BAD_ARG_STR       "bad argument\n"
+#define USER_NO_SPACE_LEFT_STR "no space left\n"
+
 static bool initialized = false;
 static bool quit = false;
 
@@ -98,6 +101,7 @@ static char *cli_pause(const char *arg) {
 
 static char *cli_continue(const char *arg) {
     (void)arg;
+    cpu_step(); // possibly step past the breakpoint
     cpu_pause(false);
     return NULL;
 }
@@ -122,6 +126,57 @@ static char *cli_step(const char *arg) {
     return cli_reg(arg);
 }
 
+static char *cli_break(const char *arg) {
+    // skip first arg
+    while (*arg != ' ' && *arg != '\0') {
+        ++arg;
+    }
+
+    // no arg => show current breakpoints
+    if (*arg == '\0') {
+        char *m = malloc(LINE_BUFFER_SIZE);
+        strncpy(m, "no breakpoint set\n", LINE_BUFFER_SIZE);
+
+        CpuBreakpoint *breakpoints;
+        const size_t n = cpu_getBreakpoints(&breakpoints);
+
+        int w = 0;
+        for (size_t i = 0; i < n && w < LINE_BUFFER_SIZE - 1; ++i) {
+            if (!breakpoints[i].valid)
+                continue;
+            w += snprintf(m + w, LINE_BUFFER_SIZE - w, "%lu\t%04x\n", i,
+                          breakpoints[i].address);
+        }
+        return m;
+    }
+
+    // atoi address
+    ++arg;
+    unsigned int _address;
+    int n = sscanf(arg, "%04x", &_address);
+    if (n != 1) {
+        char *m = malloc(LINE_BUFFER_SIZE);
+        strncpy(m, USER_BAD_ARG_STR, LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    zuint16 address;
+    address = _address;
+
+    // actually set breakpoint
+    bool r = cpu_addBreakpoint(address);
+
+    if (!r) {
+        char *m = malloc(LINE_BUFFER_SIZE);
+        strncpy(m, USER_NO_SPACE_LEFT_STR, LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    LOG_DEBUG("add breakpoint = %04x\n", address);
+
+    return NULL;
+}
+
 /*
     A cli_command_handler_t is a command line handler.
     It takes a pointer to the line buffer.
@@ -141,6 +196,7 @@ typedef struct cli_command {
 
 static char *cli_help(const char *);
 static const cli_command cli_commands[] = {
+    {"break", "set or show cpu breakpoints", cli_break},
     {"pause", "pause cpu execution", cli_pause},
     {"continue", "continue cpu execution", cli_continue},
     {"reg", "show cpu registers", cli_reg},
@@ -189,7 +245,7 @@ static void cli_handle_line(const char *line) {
         // command found
         if (strcmp(c->command, word) == 0) {
             strcpy(last_line, line); // save line for next time
-            const char *m = c->handler(NULL);
+            const char *m = c->handler(line);
             if (m != NULL)
                 cli_send_string(m);
             cli_send_string(USER_PROMPT_STR);
@@ -247,7 +303,8 @@ static char *cli_help(const char *arg) {
     }
 
     size_t n = 0;
-    for (size_t i = 0; i < ARRAY_SIZE(cli_commands); ++i) {
+    for (size_t i = 0; i < ARRAY_SIZE(cli_commands) && n < HELP_BUFFER_SIZE - 1;
+         ++i) {
         const cli_command *const c = &cli_commands[i];
         n += snprintf(m + n, HELP_BUFFER_SIZE - n, "\t%s\n\t\t%s\n\n",
                       c->command, c->help);

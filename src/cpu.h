@@ -3,6 +3,7 @@
 
 #include <Z80.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 typedef struct CpuGenRegs {
     zuint16 af;
@@ -21,6 +22,11 @@ typedef struct CpuRegs {
     zuint8 iy;
 } CpuRegs;
 
+typedef struct CpuBreakpoint {
+    bool valid;
+    zuint16 address;
+} CpuBreakpoint;
+
 void cpu_init(void);
 
 void cpu_run(void);
@@ -30,5 +36,20 @@ void cpu_pause(bool enable);
 void cpu_reg(CpuRegs *regs);
 
 void cpu_step(void);
+
+/**
+ * @brief Add a cpu breakpoint.
+ *
+ * The breakpoint will pause the cpu when the cpu tries to fetch the instruction
+ * located at the given address.
+ *
+ * There is a finite number of breakpoints which can be set.
+ *
+ * @param address Address of the instruction which must trigger the breakpoint.
+ * @return true if the breakpoint has been set, false otherwise.
+ */
+bool cpu_addBreakpoint(zuint16 address);
+
+size_t cpu_getBreakpoints(CpuBreakpoint *v[]);
 
 #endif // CEDA_CPU_H

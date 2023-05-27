@@ -12,6 +12,27 @@
 static Z80 cpu;
 static bool pause = true;
 
+#define CPU_BREAKPOINTS 8
+static CpuBreakpoint breakpoints[CPU_BREAKPOINTS] = {0};
+static unsigned int valid_breakpoints = 0;
+
+/**
+ * @brief Check if a breakpoint has been hit.
+ *
+ * @return true if a breakpoint has been hit, false otherwise.
+ */
+static bool cpu_checkBreakpoints(void) {
+    for (size_t i = 0; i < CPU_BREAKPOINTS; ++i) {
+        if (!breakpoints[i].valid)
+            continue;
+
+        if (cpu.pc.uint16_value == breakpoints[i].address)
+            return true;
+    }
+
+    return false;
+}
+
 static zuint8 cpu_fetch_opcode(void *context, zuint16 address) {
     LOG_DEBUGB({
         char mnemonic[256];
@@ -39,7 +60,19 @@ void cpu_run(void) {
     if (pause)
         return;
 
-    z80_run(&cpu, CPU_CHUNK_CYCLES);
+    // check if a breakpoint has been hit
+    if (valid_breakpoints != 0) {
+        if (cpu_checkBreakpoints()) {
+            cpu_pause(true);
+            // TODO: signal the user that the breakpoint has been hit
+            return;
+        }
+    }
+
+    // if there are breakpoints, step one instruction at a time
+    unsigned int cycles = (valid_breakpoints == 0) ? CPU_CHUNK_CYCLES : 1;
+
+    z80_run(&cpu, cycles);
 }
 
 void cpu_pause(bool enable) {
@@ -70,4 +103,23 @@ void cpu_reg(CpuRegs *regs) {
 void cpu_step(void) {
     cpu_pause(true);
     z80_run(&cpu, 1);
+}
+
+bool cpu_addBreakpoint(zuint16 address) {
+    // find free breakpoint slot (if any) and add it
+    for (size_t i = 0; i < CPU_BREAKPOINTS; ++i) {
+        if (!breakpoints[i].valid) {
+            breakpoints[i].address = address;
+            breakpoints[i].valid = true;
+            ++valid_breakpoints;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+size_t cpu_getBreakpoints(CpuBreakpoint *v[]) {
+    *v = breakpoints;
+    return CPU_BREAKPOINTS;
 }
