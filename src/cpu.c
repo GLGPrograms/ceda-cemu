@@ -119,6 +119,14 @@ bool cpu_addBreakpoint(zuint16 address) {
     return false;
 }
 
+bool cpu_deleteBreakpoint(unsigned int index) {
+    if (index >= CPU_BREAKPOINTS)
+        return false;
+
+    breakpoints[index].valid = false;
+    return true;
+}
+
 size_t cpu_getBreakpoints(CpuBreakpoint *v[]) {
     *v = breakpoints;
     return CPU_BREAKPOINTS;

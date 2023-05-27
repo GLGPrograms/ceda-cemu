@@ -172,8 +172,65 @@ static char *cli_break(const char *arg) {
         return m;
     }
 
-    LOG_DEBUG("add breakpoint = %04x\n", address);
+    return NULL;
+}
 
+static char *cli_delete(const char *arg) {
+    char *m = malloc(LINE_BUFFER_SIZE);
+    strcpy(m, "");
+
+    // skip first arg
+    while (*arg != ' ' && *arg != '\0') {
+        ++arg;
+    }
+
+    // missing what
+    if (*arg == '\0') {
+        strncpy(m, USER_BAD_ARG_STR "missing delete target\n",
+                LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    // extract what to delete (breakpoint, watchpoint, ...)
+    ++arg;
+    char what[LINE_BUFFER_SIZE];
+    size_t n = 0;
+    while (*arg != ' ' && *arg != '\0') {
+        what[n++] = *arg++;
+    }
+    what[n] = '\0';
+
+    // missing index
+    if (*arg == '\0') {
+        strncpy(m, USER_BAD_ARG_STR "missing index\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    // extract index
+    ++arg;
+    unsigned int index;
+    int r = sscanf(arg, "%u", &index);
+    if (r != 1) {
+        strncpy(m, USER_BAD_ARG_STR "bad index format\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    // actually delete something
+    if (strcmp(what, "breakpoint") == 0) {
+        if (!cpu_deleteBreakpoint(index)) {
+            strncpy(m, "can't delete breakpoint\n", LINE_BUFFER_SIZE);
+            return m;
+        }
+    } else if (strcmp(what, "watchpoint") == 0) {
+        // TODO
+    } else {
+        strncpy(m, USER_BAD_ARG_STR "unknown delete target\n",
+                LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    // all ok
+    free(m);
     return NULL;
 }
 
@@ -197,6 +254,7 @@ typedef struct cli_command {
 static char *cli_help(const char *);
 static const cli_command cli_commands[] = {
     {"break", "set or show cpu breakpoints", cli_break},
+    {"delete", "delete cpu breakpoint", cli_delete},
     {"pause", "pause cpu execution", cli_pause},
     {"continue", "continue cpu execution", cli_continue},
     {"reg", "show cpu registers", cli_reg},

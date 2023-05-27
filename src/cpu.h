@@ -50,6 +50,8 @@ void cpu_step(void);
  */
 bool cpu_addBreakpoint(zuint16 address);
 
+bool cpu_deleteBreakpoint(unsigned int index);
+
 size_t cpu_getBreakpoints(CpuBreakpoint *v[]);
 
 #endif // CEDA_CPU_H
