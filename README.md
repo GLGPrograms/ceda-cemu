@@ -22,7 +22,18 @@ Emulation can be started/stopped/resumed via the provided command line debugger.
 
 In case you are wondering, *52954* is just the decimal version of `0xCEDA`.
 
-## Script
+## Development
+- to add debug symbols:
+```
+cmake -DCMAKE_BUILD_TYPE=Debug
+```
+
+- to compile tests:
+```
+cmake -DCEDA_TEST=1
+```
+
+### Script
 The `script/` directory contains some useful script for development.
 - `format`: clang-format sources
 - `valgrind`: check for memory leaks

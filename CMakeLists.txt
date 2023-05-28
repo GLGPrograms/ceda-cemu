@@ -24,6 +24,10 @@ add_executable(ceda
 target_compile_options(ceda PRIVATE -W -Wformat -Wformat-signedness -Wall -Wundef -Wpointer-arith -Wcast-qual -Wwrite-strings -Wsign-compare -Wmissing-noreturn -Wextra)
 # -Wconversion (but first must fix .h of those dorks who wrote the libraries)
 
+if(CEDA_TEST)
+    target_compile_options(ceda PRIVATE -DCEDA_TEST=1)
+endif()
+
 set_source_files_properties(src/3rd/disassembler.c PROPERTIES COMPILE_FLAGS -Wno-discarded-qualifiers)
 
 set(CMAKE_C_STANDARD 17)
@@ -37,5 +41,6 @@ target_link_libraries(ceda
     Z80
     SDL2
     SDL2_mixer
+    criterion
 )
 

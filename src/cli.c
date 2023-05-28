@@ -382,9 +382,11 @@ static char *cli_write(const char *arg) {
     A cli_command_handler_t is a command line handler.
     It takes a pointer to the line buffer.
     It returns a pointer to a null-terminated C string,
-    which is the response to the command (NULL if none).
+    which is the response to the command.
     Caller takes ownership of the returned string,
     and must free() it when done.
+    NULL can be returned for an empty message.
+    An empty message is treated as a generic "success" condition.
 */
 typedef char *(*cli_command_handler_t)(const char *);
 
@@ -622,3 +624,92 @@ void cli_cleanup(void) {
     if (sockfd != -1)
         close(sockfd);
 }
+
+#ifdef CEDA_TEST
+
+#include <criterion/criterion.h>
+
+struct test {
+    bool input; // true => is user input line,
+                // false => is emulator expected response
+    const char *text;
+};
+
+static void cli_test_setup(void) {
+    FIFO_INIT(&tx_fifo);
+}
+
+static void run_tests(struct test *tests, size_t n) {
+    // static bool prompt = false;
+
+    for (size_t i = 0; i < n; ++i) {
+        struct test *t = &tests[i];
+
+        // LOG_DEBUG("test %s %s\n", t->input ? "=>" : "<=", t->text);
+
+        if (t->input) {
+            cli_handle_line(t->text);
+        } else {
+            const char *expected = t->text ? t->text : USER_PROMPT_STR;
+            cr_assert(!FIFO_ISEMPTY(&tx_fifo));
+            char *m = FIFO_POP(&tx_fifo);
+            cr_assert_str_eq(m, expected);
+            free(m);
+        }
+    }
+}
+
+Test(cli, break, .init = cli_test_setup) {
+    /* clang-format off */
+    struct test tests[] = {
+        {true,  "break"},
+        {false, "no breakpoint set\n"},
+        {false, USER_PROMPT_STR},
+        {true,  "break c000"},
+        {false, USER_PROMPT_STR},
+        {true,  "break"},
+        {false, "0\tc000\n"},
+        {false, USER_PROMPT_STR},
+        {true,  "break c030"},
+        {false, USER_PROMPT_STR},
+        {true,  "break"},
+        {false, "0\tc000\n1\tc030\n"},
+        {false, USER_PROMPT_STR},
+    };
+    /* clang-format on */
+    run_tests(tests, ARRAY_SIZE(tests));
+}
+
+Test(cli, delete, .init = cli_test_setup) {
+    /* clang-format off */
+    struct test tests[] = {
+        {true,  "break c000"},
+        {false, USER_PROMPT_STR},
+        {true,  "break c030"},
+        {false, USER_PROMPT_STR},
+        {true,  "delete"},
+        {false, USER_BAD_ARG_STR "missing delete target\n"},
+        {false, USER_PROMPT_STR},
+        {true,  "delete breakpoint"},
+        {false, USER_BAD_ARG_STR "missing index\n"},
+        {false, USER_PROMPT_STR},
+        {true,  "delete brekpoi 1"},
+        {false, USER_BAD_ARG_STR "unknown delete target\n"},
+        {false, USER_PROMPT_STR},
+        {true,  "delete breakpoint -1"},
+        {false, "can't delete breakpoint\n"},
+        {false, USER_PROMPT_STR},
+        {true,  "delete breakpoint xx"},
+        {false, USER_BAD_ARG_STR "bad index format\n"},
+        {false, USER_PROMPT_STR},
+        {true,  "delete breakpoint 0"},
+        {false, USER_PROMPT_STR},
+        {true,  "break"},
+        {false, "1\tc030\n"},
+        {false, USER_PROMPT_STR},
+    };
+    /* clang-format on */
+    run_tests(tests, ARRAY_SIZE(tests));
+}
+
+#endif
