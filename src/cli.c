@@ -159,7 +159,7 @@ static char *cli_step(const char *arg) {
  * @return const char* Pointer to first char after the word in the input string.
  * NULL if there are no more words.
  */
-const char *cli_next_word(char *word, const char *src, size_t size) {
+static const char *cli_next_word(char *word, const char *src, size_t size) {
     bool started = false;
 
     assert(src);
@@ -184,6 +184,18 @@ const char *cli_next_word(char *word, const char *src, size_t size) {
 
     word[n++] = '\0';
     return src + i;
+}
+
+static const char *cli_next_hex(unsigned int *dst, const char *src) {
+    assert(src);
+
+    char word[LINE_BUFFER_SIZE] = {0};
+    src = cli_next_word(word, src, LINE_BUFFER_SIZE);
+    int r = sscanf(word, "%x", dst);
+    if (r != 1)
+        return NULL;
+
+    return src;
 }
 
 static char *cli_break(const char *arg) {
@@ -300,24 +312,22 @@ static char *cli_read(const char *arg) {
     arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // extract address
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    unsigned int address;
+    arg = cli_next_hex(&address, arg);
 
     // missing address
     if (arg == NULL) {
         strncpy(m, USER_BAD_ARG_STR "missing address\n", BLOCK_BUFFER_SIZE);
         return m;
     }
-
-    // atoi address
-    unsigned int _address;
-    int r = sscanf(word, "%x", &_address);
-    if (r != 1) {
-        strncpy(m, USER_BAD_ARG_STR "bad address format\n", BLOCK_BUFFER_SIZE);
+    // address >= 2^16
+    if (address >= 0x10000) {
+        strncpy(m, USER_BAD_ARG_STR "address must be 16 bit\n",
+                BLOCK_BUFFER_SIZE);
         return m;
     }
 
-    // perform read
-    zuint16 address = _address;
+    // read some mem
     const size_t BLOB_SIZE = 8 * 16;
     char blob[BLOB_SIZE];
     bus_mem_readsome(NULL, blob, address, BLOB_SIZE);
@@ -356,24 +366,27 @@ static char *cli_write(const char *arg) {
     arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // extract address
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
-    if (arg == NULL) {
-        strncpy(m, USER_BAD_ARG_STR "missing address\n", LINE_BUFFER_SIZE);
-        return m;
-    }
+    unsigned int address;
+    arg = cli_next_hex(&address, arg);
 
-    // atoi address
-    unsigned int _address;
-    int r = sscanf(word, "%x", &_address);
-    if (r != 1 || _address >= 0x10000) {
+    // missing address
+    if (arg == NULL) {
         strncpy(m, USER_BAD_ARG_STR "bad address format\n", LINE_BUFFER_SIZE);
         return m;
     }
-    zuint16 address = _address;
 
+    // address >= 2^16
+    if (address >= 0x10000) {
+        strncpy(m, USER_BAD_ARG_STR "address must be 16 bit\n",
+                BLOCK_BUFFER_SIZE);
+        return m;
+    }
+
+    // read values, and put them in memory
     for (unsigned int i = 0;; ++i) {
         // extract value
-        arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+        unsigned int value;
+        arg = cli_next_hex(&value, arg);
         if (arg == NULL) {
             // first value cannot be missing
             if (i == 0) {
@@ -386,13 +399,13 @@ static char *cli_write(const char *arg) {
             }
         }
 
-        // atoi value
-        unsigned int value;
-        int r = sscanf(word, "%x", &value);
-        if (r != 1 || value >= 0x100) {
-            strncpy(m, USER_BAD_ARG_STR "bad value format\n", LINE_BUFFER_SIZE);
+        // value >= 2^8
+        if (value >= 0x100) {
+            strncpy(m, USER_BAD_ARG_STR "value must be 8 bit\n",
+                    LINE_BUFFER_SIZE);
             return m;
         }
+
         bus_mem_write(NULL, address + i, value);
     }
 
@@ -747,6 +760,20 @@ Test(cli, next_word) {
     assert(constraint <= LINE_BUFFER_SIZE);
     cli_next_word(word, "supercalifragilisticexpialidocious", constraint);
     cr_assert_str_eq(word, "super");
+}
+
+Test(cli, next_hex) {
+    const char *prompt = " 12 ab xx 77 ";
+    const unsigned int values[] = {0x12, 0xab};
+
+    unsigned int value;
+    for (size_t i = 0; i < ARRAY_SIZE(values); ++i) {
+        prompt = cli_next_hex(&value, prompt);
+        cr_assert_eq(value, values[i]);
+    }
+
+    prompt = cli_next_hex(&value, prompt);
+    cr_assert_eq(prompt, NULL);
 }
 
 #endif
