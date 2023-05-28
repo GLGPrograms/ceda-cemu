@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+function banner() {
+    echo "================================================================================"
+    echo
+    echo -n -e "\t"
+    echo $1
+    echo
+    echo "================================================================================"
+}
+
+banner "Building RELEASE"
+mkdir -p build/release
+cmake -B build/release -DCMAKE_BUILD_TYPE=Release
+make -C build/release
+
+banner "Building DEBUG"
+mkdir -p build/debug
+cmake -B build/debug -DCMAKE_BUILD_TYPE=Debug
+make -C build/debug
+
+banner "Building TEST"
+mkdir -p build/test
+cmake -B build/test -DCMAKE_BUILD_TYPE=Debug -DCEDA_TEST=1
+make -C build/test
+

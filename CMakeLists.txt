@@ -34,7 +34,9 @@ set(CMAKE_C_STANDARD 17)
 
 include_directories(vendor/Z80/API)
 set(Z80_SHARED_LIBS NO CACHE BOOL "")
-set(Z80_WITH_HTML_DOCUMENTATION YES)
+if(CMAKE_BUILD_TYPE MATCHES "Debug")
+    set(Z80_WITH_HTML_DOCUMENTATION YES)
+endif()
 add_subdirectory(vendor/Z80)
 
 target_link_libraries(ceda
