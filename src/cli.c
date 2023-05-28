@@ -149,14 +149,54 @@ static char *cli_step(const char *arg) {
     return cli_reg(arg);
 }
 
-static char *cli_break(const char *arg) {
-    // skip first arg
-    while (*arg != ' ' && *arg != '\0') {
-        ++arg;
+/**
+ * @brief Extract the first word from a null-terminated C string.
+ *
+ * @param word Pointer to destination null-terminated string.
+ * @param src Pointer to input string to inspect.
+ * @param size Size of destination word buffer.
+ *
+ * @return const char* Pointer to first char after the word in the input string.
+ * NULL if there are no more words.
+ */
+const char *cli_next_word(char *word, const char *src, size_t size) {
+    bool started = false;
+
+    assert(src);
+    if (*src == '\0')
+        return NULL;
+
+    size_t i = 0;
+    size_t n = 0;
+    for (; n < size - 1; ++i) {
+        if (src[i] == ' ') {
+            if (started)
+                break;
+            else
+                continue;
+        }
+        started = true;
+        word[n++] = src[i];
+
+        if (src[i] == '\0')
+            break;
     }
 
-    // no arg => show current breakpoints
-    if (*arg == '\0') {
+    word[n++] = '\0';
+    return src + i;
+}
+
+static char *cli_break(const char *arg) {
+    char word[LINE_BUFFER_SIZE];
+
+    // skip argv[0]
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+
+    // read argv[1] (address)
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+
+    // no address => show current breakpoints
+    if (arg == NULL) {
         char *m = malloc(LINE_BUFFER_SIZE);
         strncpy(m, "no breakpoint set\n", LINE_BUFFER_SIZE);
 
@@ -174,9 +214,8 @@ static char *cli_break(const char *arg) {
     }
 
     // extract address
-    ++arg;
     unsigned int _address;
-    int n = sscanf(arg, "%04x", &_address);
+    int n = sscanf(word, "%x", &_address);
     if (n != 1) {
         char *m = malloc(LINE_BUFFER_SIZE);
         strncpy(m, USER_BAD_ARG_STR, LINE_BUFFER_SIZE);
@@ -199,40 +238,36 @@ static char *cli_break(const char *arg) {
 }
 
 static char *cli_delete(const char *arg) {
+    char word[LINE_BUFFER_SIZE];
     char *m = malloc(LINE_BUFFER_SIZE);
     strncpy(m, "", LINE_BUFFER_SIZE);
 
-    // skip first arg
-    while (*arg != ' ' && *arg != '\0') {
-        ++arg;
-    }
+    // skip argv[0]
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+
+    char what[LINE_BUFFER_SIZE];
+    // extract what to delete (breakpoint, watchpoint, ...)
+    arg = cli_next_word(what, arg, LINE_BUFFER_SIZE);
 
     // missing what
-    if (*arg == '\0') {
+    if (arg == NULL) {
         strncpy(m, USER_BAD_ARG_STR "missing delete target\n",
                 LINE_BUFFER_SIZE);
         return m;
     }
 
-    // extract what to delete (breakpoint, watchpoint, ...)
-    ++arg;
-    char what[LINE_BUFFER_SIZE];
-    size_t n = 0;
-    while (*arg != ' ' && *arg != '\0') {
-        what[n++] = *arg++;
-    }
-    what[n] = '\0';
+    // extract index
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // missing index
-    if (*arg == '\0') {
+    if (arg == NULL) {
         strncpy(m, USER_BAD_ARG_STR "missing index\n", LINE_BUFFER_SIZE);
         return m;
     }
 
-    // extract index
-    ++arg;
+    // atoi index
     unsigned int index;
-    int r = sscanf(arg, "%u", &index);
+    int r = sscanf(word, "%u", &index);
     if (r != 1) {
         strncpy(m, USER_BAD_ARG_STR "bad index format\n", LINE_BUFFER_SIZE);
         return m;
@@ -258,23 +293,24 @@ static char *cli_delete(const char *arg) {
 }
 
 static char *cli_read(const char *arg) {
+    char word[LINE_BUFFER_SIZE];
     char *m = malloc(BLOCK_BUFFER_SIZE);
 
-    // skip first arg
-    while (*arg != ' ' && *arg != '\0') {
-        ++arg;
-    }
+    // skip argv[0]
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+
+    // extract address
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // missing address
-    if (*arg == '\0') {
+    if (arg == NULL) {
         strncpy(m, USER_BAD_ARG_STR "missing address\n", BLOCK_BUFFER_SIZE);
         return m;
     }
 
-    // extract address
-    ++arg;
+    // atoi address
     unsigned int _address;
-    int r = sscanf(arg, "%x", &_address);
+    int r = sscanf(word, "%x", &_address);
     if (r != 1) {
         strncpy(m, USER_BAD_ARG_STR "bad address format\n", BLOCK_BUFFER_SIZE);
         return m;
@@ -313,65 +349,51 @@ static char *cli_read(const char *arg) {
 }
 
 static char *cli_write(const char *arg) {
+    char word[LINE_BUFFER_SIZE];
     char *m = malloc(LINE_BUFFER_SIZE);
 
-    // skip first arg
-    while (*arg != ' ' && *arg != '\0') {
-        ++arg;
-    }
+    // skip argv[0]
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
 
-    // missing address
-    if (*arg == '\0') {
+    // extract address
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    if (arg == NULL) {
         strncpy(m, USER_BAD_ARG_STR "missing address\n", LINE_BUFFER_SIZE);
         return m;
     }
 
-    // extract address
-    ++arg;
+    // atoi address
     unsigned int _address;
-    int r = sscanf(arg, "%x", &_address);
+    int r = sscanf(word, "%x", &_address);
     if (r != 1 || _address >= 0x10000) {
         strncpy(m, USER_BAD_ARG_STR "bad address format\n", LINE_BUFFER_SIZE);
         return m;
     }
-
-    // next arg
-    while (*arg != ' ' && *arg != '\0') {
-        ++arg;
-    }
-    // skip space
-    if (*arg == ' ')
-        ++arg;
-
-    // missing value
-    if (*arg == '\0') {
-        strncpy(m, USER_BAD_ARG_STR "missing value\n", LINE_BUFFER_SIZE);
-        return m;
-    }
-
     zuint16 address = _address;
+
     for (unsigned int i = 0;; ++i) {
+        // extract value
+        arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+        if (arg == NULL) {
+            // first value cannot be missing
+            if (i == 0) {
+                strncpy(m, USER_BAD_ARG_STR "missing value\n",
+                        LINE_BUFFER_SIZE);
+                return m;
+            } else {
+                // nothing more to write
+                break;
+            }
+        }
+
         // atoi value
         unsigned int value;
-        int r = sscanf(arg, "%x", &value);
+        int r = sscanf(word, "%x", &value);
         if (r != 1 || value >= 0x100) {
             strncpy(m, USER_BAD_ARG_STR "bad value format\n", LINE_BUFFER_SIZE);
             return m;
         }
         bus_mem_write(NULL, address + i, value);
-
-        // next value
-        while (*arg != ' ' && *arg != '\0') {
-            ++arg;
-        }
-        // skip space
-        if (*arg == ' ')
-            ++arg;
-
-        LOG_DEBUG("next arg = %d\n", ((int)(*arg)) & 0xff);
-        // no more values
-        if (*arg == '\0')
-            break;
     }
 
     free(m);
@@ -435,14 +457,7 @@ static void cli_handle_line(const char *line) {
 
     // search for first word
     char word[LINE_BUFFER_SIZE];
-    for (size_t i = 0; i < LINE_BUFFER_SIZE; ++i) {
-        const char c = line[i];
-        word[i] = c;
-        if (c == ' ' || c == '\0') {
-            word[i] = '\0';
-            break;
-        }
-    }
+    cli_next_word(word, line, LINE_BUFFER_SIZE);
 
     // look for `word` in the command set
     for (size_t i = 0; i < ARRAY_SIZE(cli_commands); ++i) {
@@ -710,6 +725,28 @@ Test(cli, delete, .init = cli_test_setup) {
     };
     /* clang-format on */
     run_tests(tests, ARRAY_SIZE(tests));
+}
+
+Test(cli, next_word) {
+    const char *prompt = "   The quick  brown   fox";
+    const char *words[] = {"The", "quick", "brown", "fox"};
+
+    // check tokenize capability
+    char word[LINE_BUFFER_SIZE];
+    for (size_t i = 0; i < ARRAY_SIZE(words); ++i) {
+        prompt = cli_next_word(word, prompt, LINE_BUFFER_SIZE);
+        cr_assert_str_eq(word, words[i]);
+    }
+
+    // no more words
+    prompt = cli_next_word(word, prompt, LINE_BUFFER_SIZE);
+    cr_assert_eq(prompt, NULL);
+
+    // check length constraints
+    const size_t constraint = 6;
+    assert(constraint <= LINE_BUFFER_SIZE);
+    cli_next_word(word, "supercalifragilisticexpialidocious", constraint);
+    cr_assert_str_eq(word, "super");
 }
 
 #endif
