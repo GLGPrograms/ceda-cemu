@@ -7,14 +7,13 @@ This time, written in plain old C.
 ```
 git submodule init
 git submodule update
-cmake -B build
-make -C build
+script/build release
 ```
 
 ## Run
 Place a copy of BIOS and Character ROM inside `rom/`, then:
 ```
-build/ceda
+build/release/ceda
 telnet 127.0.0.1 52954
 ```
 
@@ -25,12 +24,17 @@ In case you are wondering, *52954* is just the decimal version of `0xCEDA`.
 ## Development
 - to add debug symbols:
 ```
-cmake -DCMAKE_BUILD_TYPE=Debug
+script/build debug
 ```
 
-- to compile tests:
+- to compile tests
 ```
-cmake -DCEDA_TEST=1
+script/build test
+```
+
+- to run tests:
+```
+build/test/ceda
 ```
 
 ### Script

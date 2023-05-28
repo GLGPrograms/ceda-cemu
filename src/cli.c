@@ -378,7 +378,7 @@ static char *cli_write(const char *arg) {
     // address >= 2^16
     if (address >= 0x10000) {
         strncpy(m, USER_BAD_ARG_STR "address must be 16 bit\n",
-                BLOCK_BUFFER_SIZE);
+                LINE_BUFFER_SIZE);
         return m;
     }
 

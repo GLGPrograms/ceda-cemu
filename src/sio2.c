@@ -32,6 +32,7 @@ zuint8 sio2_in(void *context, zuint16 address) {
     }
 
     assert(0);
+    return 0x00;
 }
 
 void sio2_out(void *context, zuint16 address, zuint8 value) {
