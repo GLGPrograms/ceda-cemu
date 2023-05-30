@@ -252,7 +252,7 @@ int disassemble(uint8_t* blob, int pc, char *bufstart, size_t buflen)
     buf = bufstart + offs;
     buflen -= offs;
 
-    offs = snprintf(buf, buflen, "%-20s", "");
+    offs = snprintf(buf, buflen, "%-8s", "");
 
     if ( 0 ) { //address_is_code(state->pc) == 0 ) {
         READ_BYTE(state, b);
@@ -667,7 +667,7 @@ int disassemble(uint8_t* blob, int pc, char *bufstart, size_t buflen)
         } while (1);
     }
 
-    while ( offs < 60 ) {
+    while ( offs < 48 ) {
         buf[offs++] = ' ';
         buf[offs] = 0;
     }
