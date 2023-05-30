@@ -17,6 +17,7 @@ int main(int argc, char *argv[]) {
     criterion_options.color = true;
     criterion_options.full_stats = true;
     criterion_options.timeout = 1;
+    criterion_options.logging_threshold = 0;
 
     struct criterion_test_set *set = criterion_initialize();
     if (criterion_handle_args(argc, argv, true))
