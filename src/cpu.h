@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#define CPU_MAX_OPCODE_LEN 6
+
 typedef struct CpuGenRegs {
     zuint16 af;
     zuint16 bc;

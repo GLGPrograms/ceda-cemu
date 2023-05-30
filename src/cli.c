@@ -174,8 +174,8 @@ static char *cli_reg(const char *arg) {
 
     // disassemble current pc
     char _dis[LINE_BUFFER_SIZE];
-    uint8_t blob[16];
-    bus_mem_readsome(NULL, blob, regs.pc, 16);
+    uint8_t blob[CPU_MAX_OPCODE_LEN];
+    bus_mem_readsome(NULL, blob, regs.pc, CPU_MAX_OPCODE_LEN);
     disassemble(blob, regs.pc, _dis, LINE_BUFFER_SIZE);
     const char *dis = _dis;
     while (*dis == ' ')
@@ -422,6 +422,35 @@ static char *cli_write(const char *arg) {
     return NULL;
 }
 
+static char *cli_dis(const char *arg) {
+    char word[LINE_BUFFER_SIZE];
+    char *m = malloc(BLOCK_BUFFER_SIZE);
+
+    // skip argv[0]
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+
+    unsigned int address;
+    arg = cli_next_hex(&address, arg);
+    // if no address specified, use current pc
+    if (arg == NULL) {
+        CpuRegs regs;
+        cpu_reg(&regs);
+        address = regs.pc;
+    }
+
+    int b = 0; // disassembled bytes
+    int n = 0; // snprintf'd bytes
+    char line[LINE_BUFFER_SIZE];
+    uint8_t blob[CPU_MAX_OPCODE_LEN];
+    for (int i = 0; i < 16 && n < BLOCK_BUFFER_SIZE - 1; ++i) {
+        bus_mem_readsome(NULL, blob, address + b, CPU_MAX_OPCODE_LEN);
+        b += disassemble(blob, address + b, line, BLOCK_BUFFER_SIZE);
+        n += snprintf(m + n, BLOCK_BUFFER_SIZE - n, "%s\n", line);
+    }
+
+    return m;
+}
+
 /*
     A cli_command_handler_t is a command line handler.
     It takes a pointer to the line buffer.
@@ -443,6 +472,7 @@ typedef struct cli_command {
 
 static char *cli_help(const char *);
 static const cli_command cli_commands[] = {
+    {"dis", "disassembly binary data", cli_dis},
     {"break", "set or show cpu breakpoints", cli_break},
     {"delete", "delete cpu breakpoint", cli_delete},
     {"pause", "pause cpu execution", cli_pause},
