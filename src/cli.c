@@ -88,6 +88,64 @@ static void cli_send_string(const char *str) {
     FIFO_PUSH(&tx_fifo, m);
 }
 
+/**
+ * @brief Extract the first word from a null-terminated C string.
+ *
+ * @param word Pointer to destination null-terminated string.
+ * @param src Pointer to input string to inspect.
+ * @param size Size of destination word buffer.
+ *
+ * @return const char* Pointer to first char after the word in the input string.
+ * NULL if there are no more words.
+ */
+static const char *cli_next_word(char *word, const char *src, size_t size) {
+    bool started = false;
+
+    assert(src);
+    if (*src == '\0')
+        return NULL;
+
+    size_t i = 0;
+    size_t n = 0;
+    for (; n < size - 1; ++i) {
+        if (src[i] == ' ') {
+            if (started)
+                break;
+            else
+                continue;
+        }
+        started = true;
+        word[n++] = src[i];
+
+        if (src[i] == '\0')
+            break;
+    }
+
+    word[n++] = '\0';
+    return src + i;
+}
+
+/**
+ * @brief Extract an unsigned int expressed in hex format from a C string.
+ *
+ * @param dst Pointer to unsigned int to write into.
+ * @param src Pointer to input string to inspect.
+
+ * @return const char* Pointer to first char after the unsigned int in the input
+ * string. NULL if there has been an error during integer parsing.
+ */
+static const char *cli_next_hex(unsigned int *dst, const char *src) {
+    assert(src);
+
+    char word[LINE_BUFFER_SIZE] = {0};
+    src = cli_next_word(word, src, LINE_BUFFER_SIZE);
+    int r = sscanf(word, "%x", dst);
+    if (r != 1)
+        return NULL;
+
+    return src;
+}
+
 static char *cli_quit(const char *arg) {
     (void)arg;
 
@@ -147,55 +205,6 @@ static char *cli_reg(const char *arg) {
 static char *cli_step(const char *arg) {
     cpu_step();
     return cli_reg(arg);
-}
-
-/**
- * @brief Extract the first word from a null-terminated C string.
- *
- * @param word Pointer to destination null-terminated string.
- * @param src Pointer to input string to inspect.
- * @param size Size of destination word buffer.
- *
- * @return const char* Pointer to first char after the word in the input string.
- * NULL if there are no more words.
- */
-static const char *cli_next_word(char *word, const char *src, size_t size) {
-    bool started = false;
-
-    assert(src);
-    if (*src == '\0')
-        return NULL;
-
-    size_t i = 0;
-    size_t n = 0;
-    for (; n < size - 1; ++i) {
-        if (src[i] == ' ') {
-            if (started)
-                break;
-            else
-                continue;
-        }
-        started = true;
-        word[n++] = src[i];
-
-        if (src[i] == '\0')
-            break;
-    }
-
-    word[n++] = '\0';
-    return src + i;
-}
-
-static const char *cli_next_hex(unsigned int *dst, const char *src) {
-    assert(src);
-
-    char word[LINE_BUFFER_SIZE] = {0};
-    src = cli_next_word(word, src, LINE_BUFFER_SIZE);
-    int r = sscanf(word, "%x", dst);
-    if (r != 1)
-        return NULL;
-
-    return src;
 }
 
 static char *cli_break(const char *arg) {
