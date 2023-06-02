@@ -105,6 +105,10 @@ void cpu_step(void) {
     z80_run(&cpu, 1);
 }
 
+void cpu_goto(zuint16 address) {
+    cpu.pc.uint16_value = address;
+}
+
 bool cpu_addBreakpoint(zuint16 address) {
     // find free breakpoint slot (if any) and add it
     for (size_t i = 0; i < CPU_BREAKPOINTS; ++i) {

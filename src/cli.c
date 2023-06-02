@@ -627,6 +627,32 @@ static char *cli_load(const char *arg) {
     return NULL;
 }
 
+static char *cli_goto(const char *arg) {
+    char word[LINE_BUFFER_SIZE];
+
+    // skip argv[0]
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+
+    // extract address and perform sanity check
+    unsigned int address;
+    arg = cli_next_hex(&address, arg);
+    if (arg == NULL) {
+        char *m = malloc(LINE_BUFFER_SIZE);
+        strncpy(m, USER_BAD_ARG_STR "missing address\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+    if (address >= 0x10000) {
+        char *m = malloc(LINE_BUFFER_SIZE);
+        strncpy(m, USER_BAD_ARG_STR "address must be 16 bit\n",
+                LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    // inconditional jump
+    cpu_goto(address);
+    return NULL;
+}
+
 /*
     A cli_command_handler_t is a command line handler.
     It takes a pointer to the line buffer.
@@ -655,6 +681,7 @@ static const cli_command cli_commands[] = {
     {"continue", "continue cpu execution", cli_continue},
     {"reg", "show cpu registers", cli_reg},
     {"step", "step one instruction", cli_step},
+    {"goto", "override cpu program counter", cli_goto},
     {"read", "read from memory", cli_read},
     {"write", "write to memory", cli_write},
     {"load", "load binary from file", cli_load},

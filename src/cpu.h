@@ -40,6 +40,13 @@ void cpu_reg(CpuRegs *regs);
 void cpu_step(void);
 
 /**
+ * @brief Move the cpu program counter to the given address.
+ *
+ * @param address Target address.
+ */
+void cpu_goto(zuint16 address);
+
+/**
  * @brief Add a cpu breakpoint.
  *
  * The breakpoint will pause the cpu when the cpu tries to fetch the instruction
