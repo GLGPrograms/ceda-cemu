@@ -33,6 +33,8 @@ static SDL_Surface *surface = NULL;
 static SDL_Renderer *renderer = NULL;
 static bool started = false;
 
+static unsigned long int fields = 0; // displayed video fields
+
 void video_init(void) {
     // default to character memory
     mem = mem_char;
@@ -108,6 +110,8 @@ void video_update(void) {
     if (diff_ms < 20)
         return;
 
+    ++fields;
+
     // TODO -- perform attribute checks
 
     // update characters on screen
@@ -132,8 +136,23 @@ void video_update(void) {
     const unsigned int cursor_position = crtc_cursorPosition();
     const unsigned int row = cursor_position / VIDEO_COLUMNS;
     const unsigned int column = cursor_position % VIDEO_COLUMNS;
-    *(pixels + (row * 16) * VIDEO_COLUMNS + column + 0x0d * VIDEO_COLUMNS) =
-        0xff;
+    unsigned int blink_period = 0; // [fields]
+    switch (crtc_cursorBlink()) {
+    case CRTC_CURSOR_SOLID:
+        blink_period = 0;
+        break;
+    case CRTC_CURSOR_BLINK_FAST:
+        blink_period = 16;
+        break;
+    case CRTC_CURSOR_BLINK_SLOW:
+        blink_period = 32;
+        break;
+    default:
+        assert(0);
+    }
+    if (blink_period == 0 || ((fields % blink_period) < (blink_period / 2)))
+        *(pixels + (row * 16) * VIDEO_COLUMNS + column + 0x0d * VIDEO_COLUMNS) =
+            0xff;
 
     SDL_RenderClear(renderer);
     SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);

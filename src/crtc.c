@@ -72,7 +72,7 @@ void crtc_out(void *context, zuint16 address, zuint8 value) {
 }
 
 CRTCCursorBlink crtc_cursorBlink(void) {
-    if (!regs[REG_CURSOR_START_RASTER & 0x40])
+    if (!(regs[REG_CURSOR_START_RASTER] & 0x40))
         return CRTC_CURSOR_SOLID;
 
     return (regs[REG_CURSOR_START_RASTER] & 0x20) ? CRTC_CURSOR_BLINK_FAST
