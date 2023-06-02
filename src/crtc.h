@@ -2,6 +2,7 @@
 #define CEDA_CRTC_H
 
 #include <Z80.h>
+#include <stdint.h>
 
 typedef enum CRTCCursorBlink {
     CRTC_CURSOR_SOLID,
@@ -27,5 +28,13 @@ CRTCCursorBlink crtc_cursorBlink(void);
  * @return int = row * total_columns + column
  */
 unsigned int crtc_cursorPosition(void);
+
+/**
+ * @brief Get the cursor size in terms of start/end raster line.
+ *
+ * @param start High raster line (included).
+ * @param end Low raster line (included).
+ */
+void crtc_cursorRasterSize(uint8_t *start, uint8_t *end);
 
 #endif // CEDA_CRTC_H

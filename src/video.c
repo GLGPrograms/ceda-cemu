@@ -130,9 +130,6 @@ void video_update(void) {
         }
     }
 
-    // TODO -- cursor start raster/cursor end raster
-    // (CRTC R10/R11) may define cursor height (eg. block/line)
-    // 0x0d is the default value (eg. one line at 0x0d sub-line of a character)
     const unsigned int cursor_position = crtc_cursorPosition();
     const unsigned int row = cursor_position / VIDEO_COLUMNS;
     const unsigned int column = cursor_position % VIDEO_COLUMNS;
@@ -150,9 +147,15 @@ void video_update(void) {
     default:
         assert(0);
     }
-    if (blink_period == 0 || ((fields % blink_period) < (blink_period / 2)))
-        *(pixels + (row * 16) * VIDEO_COLUMNS + column + 0x0d * VIDEO_COLUMNS) =
-            0xff;
+    uint8_t cursor_raster_start, cursor_raster_end;
+    crtc_cursorRasterSize(&cursor_raster_start, &cursor_raster_end);
+    if (blink_period == 0 || ((fields % blink_period) < (blink_period / 2))) {
+        for (uint8_t raster = cursor_raster_start; raster <= cursor_raster_end;
+             ++raster) {
+            *(pixels + (row * 16) * VIDEO_COLUMNS + column +
+              raster * VIDEO_COLUMNS) = 0xff;
+        }
+    }
 
     SDL_RenderClear(renderer);
     SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);

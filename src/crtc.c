@@ -82,3 +82,8 @@ CRTCCursorBlink crtc_cursorBlink(void) {
 unsigned int crtc_cursorPosition(void) {
     return regs[REG_CURSOR_H] * 256U + regs[REG_CURSOR_L];
 }
+
+void crtc_cursorRasterSize(uint8_t *start, uint8_t *end) {
+    *start = regs[REG_CURSOR_START_RASTER] & 0x1f;
+    *end = regs[REG_CURSOR_END_RASTER] & 0x1f;
+}
