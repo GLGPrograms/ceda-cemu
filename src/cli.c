@@ -653,6 +653,67 @@ static char *cli_goto(const char *arg) {
     return NULL;
 }
 
+static char *cli_in(const char *arg) {
+    char word[LINE_BUFFER_SIZE];
+    char *m = malloc(LINE_BUFFER_SIZE);
+
+    // skip argv[0]
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+
+    // extract io address
+    unsigned int address;
+    arg = cli_next_hex(&address, arg);
+    if (arg == NULL) {
+        strncpy(m, USER_BAD_ARG_STR "missing address\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+    if (address >= 0x100) {
+        strncpy(m, "address must be 8 bit\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    const zuint8 value = bus_io_in(NULL, address);
+    snprintf(m, LINE_BUFFER_SIZE, "%02x\n", value);
+    return m;
+}
+
+static char *cli_out(const char *arg) {
+    char word[LINE_BUFFER_SIZE];
+    char *m = malloc(LINE_BUFFER_SIZE);
+
+    // skip argv[0]
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+
+    // extract address
+    unsigned int address;
+    arg = cli_next_hex(&address, arg);
+    if (arg == NULL) {
+        strncpy(m, USER_BAD_ARG_STR "missing address\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+    if (address >= 0x100) {
+        strncpy(m, "address must be 8 bit\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    // extract value
+    unsigned int value;
+    arg = cli_next_hex(&value, arg);
+    if (arg == NULL) {
+        strncpy(m, USER_BAD_ARG_STR "missing value\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+    if (value >= 0x100) {
+        strncpy(m, "value must be 8 bit\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    bus_io_out(NULL, address, value);
+
+    free(m);
+    return NULL;
+}
+
 /*
     A cli_command_handler_t is a command line handler.
     It takes a pointer to the line buffer.
@@ -684,6 +745,8 @@ static const cli_command cli_commands[] = {
     {"goto", "override cpu program counter", cli_goto},
     {"read", "read from memory", cli_read},
     {"write", "write to memory", cli_write},
+    {"in", "read from io", cli_in},
+    {"out", "write to io", cli_out},
     {"load", "load binary from file", cli_load},
     {"save", "save memory dump to file", cli_save},
     {"quit", "quit the emulator", cli_quit},
