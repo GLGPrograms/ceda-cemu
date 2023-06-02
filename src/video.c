@@ -1,5 +1,6 @@
 #include "video.h"
 
+#include "crtc.h"
 #include "gui.h"
 #include "units.h"
 
@@ -9,7 +10,6 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-#define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
 
 #define VIDEO_CHAR_MEM_SIZE 0x1000
@@ -114,8 +114,8 @@ void video_update(void) {
     zuint8 *pixels = (zuint8 *)(surface->pixels);
     for (size_t row = 0; row < VIDEO_ROWS; ++row) {
         for (size_t column = 0; column < VIDEO_COLUMNS; ++column) {
-            const char c = mem_char[row * VIDEO_COLUMNS +
-                                    column]; // TODO -- add CRTC base pointer
+            // TODO -- add CRTC base pointer
+            const char c = mem_char[row * VIDEO_COLUMNS + column];
 
             const zuint8 *bitmap = char_rom + c * 16;
             for (int i = 0; i < 16; ++i) {
@@ -125,6 +125,15 @@ void video_update(void) {
             }
         }
     }
+
+    // TODO -- cursor start raster/cursor end raster
+    // (CRTC R10/R11) may define cursor height (eg. block/line)
+    // 0x0d is the default value (eg. one line at 0x0d sub-line of a character)
+    const unsigned int cursor_position = crtc_cursorPosition();
+    const unsigned int row = cursor_position / VIDEO_COLUMNS;
+    const unsigned int column = cursor_position % VIDEO_COLUMNS;
+    *(pixels + (row * 16) * VIDEO_COLUMNS + column + 0x0d * VIDEO_COLUMNS) =
+        0xff;
 
     SDL_RenderClear(renderer);
     SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
@@ -142,15 +151,12 @@ zuint8 video_ram_read(void *context, zuint16 address) {
     (void)context;
     assert(address < VIDEO_CHAR_MEM_SIZE);
 
-    // TODO: handle bank switching
     return mem[address];
 }
 
 void video_ram_write(void *context, zuint16 address, zuint8 value) {
     (void)context;
     assert(address < VIDEO_CHAR_MEM_SIZE);
-
-    LOG_DEBUG("video mem write: [%04x] <= %02x\n", address, value);
 
     mem[address] = value;
 }

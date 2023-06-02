@@ -5,7 +5,6 @@
 #include <assert.h>
 #include <stdint.h>
 
-#define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
 
 #define UPD8255_PORTA_REG 0
