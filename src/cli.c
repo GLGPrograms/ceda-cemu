@@ -451,6 +451,182 @@ static char *cli_dis(const char *arg) {
     return m;
 }
 
+/**
+ * @brief Save a chunk of memory to disk.
+ *
+ * Expected command line syntax:
+ *  save <filename> <start> <end>
+ * where
+ *  filename: name of the file where to save the dump (no spaces allowed)
+ *  start: starting memory address, in hex
+ *  end: ending memory address, in hex
+ *
+ * Data is saved [start;end)
+ *
+ * Example: dump video memory
+ *  save video.crt d000 e000
+ *
+ * File format: .prg
+ * First two octets represent the starting address in little endian,
+ * then actual data follows.
+ *
+ * @param arg Pointer to the command line string.
+ *
+ * @return char* NULL in case of success, pointer to error message otherwise.
+ */
+static char *cli_save(const char *arg) {
+    char word[LINE_BUFFER_SIZE];
+    char *m = malloc(LINE_BUFFER_SIZE);
+
+    // skip argv[0]
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+
+    // extract file name
+    char filename[LINE_BUFFER_SIZE];
+    arg = cli_next_word(filename, arg, LINE_BUFFER_SIZE);
+    if (arg == NULL) {
+        strncpy(m, USER_BAD_ARG_STR "missing file name\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    unsigned int start_address;
+    arg = cli_next_hex(&start_address, arg);
+    if (arg == NULL) {
+        strncpy(m, USER_BAD_ARG_STR "bad start address\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    unsigned int end_address;
+    arg = cli_next_hex(&end_address, arg);
+    if (arg == NULL) {
+        strncpy(m, USER_BAD_ARG_STR "bad end address\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    if (start_address >= 0x10000 || end_address >= 0x10000) {
+        strncpy(m, USER_BAD_ARG_STR "address must be 16 bit\n",
+                LINE_BUFFER_SIZE);
+        return m;
+    }
+    if (end_address < start_address) {
+        strncpy(m,
+                USER_BAD_ARG_STR
+                "end address must be greater than start address\n",
+                LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    const size_t data_size = end_address - start_address;
+    const size_t alloc_size = data_size + 2;
+
+    FILE *fp = fopen(filename, "wb");
+    if (fp == NULL) {
+        snprintf(m, LINE_BUFFER_SIZE, "unable to open file: %.64s\n", filename);
+        return m;
+    }
+
+    uint8_t *blob = malloc(alloc_size);
+    // header: start_address in little endian
+    const uint8_t lsb = start_address & 0xff;
+    const uint8_t msb = (start_address >> 8) & 0xff;
+    blob[0] = lsb;
+    blob[1] = msb;
+    // payload
+    bus_mem_readsome(NULL, &blob[2], start_address, data_size);
+    // write
+    size_t w = fwrite(blob, 1, alloc_size, fp);
+    fclose(fp);
+    free(blob);
+    if (w != alloc_size) {
+        snprintf(m, LINE_BUFFER_SIZE, "fwrite returned: %lu", w);
+        return m;
+    }
+
+    free(m);
+    return NULL;
+}
+
+/**
+ * @brief Load a chunk of memory from disk.
+ *
+ * Expected command line syntax:
+ *  load <filename> [start]
+ * where
+ *  filename: name of the file from which to load the dump (no spaces allowed)
+ *  start: starting memory address, in hex
+ *
+ * When loading, this routine will use the starting address saves inside the
+ * file, unless a starting address is explicitly specified on the command line,
+ * in which case, the starting address of the file will be overridden.
+ *
+ * Example: load video memory dump, but one row below
+ *  load video.crt d050
+ *
+ * File format: .prg
+ * First two octets represent the starting address in little endian,
+ * then actual data follows.
+ *
+ * @param arg Pointer to the command line string.
+ *
+ * @return char* NULL in case of success, pointer to error message otherwise.
+ */
+static char *cli_load(const char *arg) {
+    char word[LINE_BUFFER_SIZE];
+    char *m = malloc(LINE_BUFFER_SIZE);
+
+    // skip argv[0]
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+
+    // extract filename
+    char filename[LINE_BUFFER_SIZE];
+    arg = cli_next_word(filename, arg, LINE_BUFFER_SIZE);
+    if (arg == NULL) {
+        strncpy(m, USER_BAD_ARG_STR "missing filename\n", LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    // extract starting address
+    // (optional, override what's inside the file)
+    unsigned int address;
+    arg = cli_next_hex(&address, arg);
+    const bool override_address = arg != NULL;
+    if (arg != NULL && address >= 0x10000) {
+        strncpy(m, USER_BAD_ARG_STR "address must be 16 bit\n",
+                LINE_BUFFER_SIZE);
+        return m;
+    }
+
+    // extract starting address from file
+    FILE *fp = fopen(filename, "rb");
+    size_t r = fread(word, 1, 2, fp);
+    if (r != 2) {
+        fclose(fp);
+        strncpy(m, "unable to read start address from file\n",
+                LINE_BUFFER_SIZE);
+        return m;
+    }
+    const unsigned int file_address = word[0] | (word[1] << 8);
+
+    // use starting address from file if we are not overriding it
+    if (!override_address) {
+        address = file_address;
+    }
+
+    // read data until the end, and write it in memory
+    for (;;) {
+        char c;
+        r = fread(&c, 1, 1, fp);
+        if (r == 0)
+            break;
+        bus_mem_write(NULL, address++, c);
+    }
+
+    fclose(fp);
+
+    free(m);
+    return NULL;
+}
+
 /*
     A cli_command_handler_t is a command line handler.
     It takes a pointer to the line buffer.
@@ -481,6 +657,8 @@ static const cli_command cli_commands[] = {
     {"step", "step one instruction", cli_step},
     {"read", "read from memory", cli_read},
     {"write", "write to memory", cli_write},
+    {"load", "load binary from file", cli_load},
+    {"save", "save memory dump to file", cli_save},
     {"quit", "quit the emulator", cli_quit},
     {"help", "show this help", cli_help},
 };
