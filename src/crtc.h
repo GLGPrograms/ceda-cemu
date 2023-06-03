@@ -37,4 +37,13 @@ unsigned int crtc_cursorPosition(void);
  */
 void crtc_cursorRasterSize(uint8_t *start, uint8_t *end);
 
+/**
+ * @brief Get current video memory start address.
+ *
+ * Start address is relative to CRCT.
+ *
+ * @return uint16_t Start address.
+ */
+uint16_t crtc_startAddress(void);
+
 #endif // CEDA_CRTC_H

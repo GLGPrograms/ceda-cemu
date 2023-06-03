@@ -21,6 +21,8 @@ static uint8_t regs[CRTC_REGISTER_COUNT];
 #define REG_MAX_RASTER_RASTER              9
 #define REG_CURSOR_START_RASTER            10
 #define REG_CURSOR_END_RASTER              11
+#define REG_START_ADDRESS_H                12
+#define REG_START_ADDRESS_L                13
 #define REG_CURSOR_H                       14
 #define REG_CURSOR_L                       15
 #define REG_LIGHT_PEN_H                    16
@@ -55,15 +57,61 @@ void crtc_out(void *context, zuint16 address, zuint8 value) {
     }
 
     if (address == 1) {
-        regs[rselect] = value;
-
-        if (rselect == REG_HORIZONTAL_DISPLAY_CHAR && value != 50)
-            LOG_WARN(CRTC_NOT_IMPLEMENTED_STR);
-        if (rselect == REG_VERTICAL_DISPLAY_CHAR && value != 25)
-            LOG_WARN(CRTC_NOT_IMPLEMENTED_STR);
-        if (rselect == REG_INTERLACED_MODE)
+        // clamp value based on actual number of meaningful bits in each
+        // register, and also raise warnings when using non-standard and
+        // non-implemented values (emulator specific)
+        if (rselect == REG_HORIZONTAL_DISPLAY_CHAR) {
+            if (value != 50) {
+                LOG_WARN(CRTC_NOT_IMPLEMENTED_STR);
+            }
+        }
+        if (rselect == REG_HORIZONTAL_SYNC_PULSE_WIDTH) {
+            value &= 0x0f;
+        }
+        if (rselect == REG_VERTICAL_TOT_CHAR) {
+            value &= 0x7f;
+        }
+        if (rselect == REG_TOTAL_RASTER_ADJUST) {
+            value &= 0x1f;
+        }
+        if (rselect == REG_VERTICAL_DISPLAY_CHAR) {
+            value &= 0x7f;
+            if (value != 25) {
+                LOG_WARN(CRTC_NOT_IMPLEMENTED_STR);
+            }
+        }
+        if (rselect == REG_VERTICAL_SYNC_PULSE_POSITION) {
+            value &= 0x7f;
+        }
+        if (rselect == REG_INTERLACED_MODE) {
+            value &= 0x03;
             if (value != 0 && value != 2)
                 LOG_WARN(CRTC_NOT_IMPLEMENTED_STR);
+        }
+        if (rselect == REG_MAX_RASTER_RASTER) {
+            value &= 0x1f;
+        }
+        if (rselect == REG_CURSOR_START_RASTER) {
+            value &= 0x7f;
+        }
+        if (rselect == REG_CURSOR_END_RASTER) {
+            value &= 0x1f;
+        }
+        if (rselect == REG_START_ADDRESS_H) {
+            value &= 0x3f;
+        }
+        if (rselect == REG_CURSOR_H) {
+            value &= 0x3f;
+        }
+        if (rselect == REG_LIGHT_PEN_H || rselect == REG_LIGHT_PEN_L) {
+            // light pen registers are read-only
+            return;
+        }
+
+        regs[rselect] = value;
+
+        LOG_DEBUG("cursor = %u\n",
+                  regs[REG_CURSOR_H] * 256U + regs[REG_CURSOR_L]);
 
         return;
     }
@@ -86,4 +134,11 @@ unsigned int crtc_cursorPosition(void) {
 void crtc_cursorRasterSize(uint8_t *start, uint8_t *end) {
     *start = regs[REG_CURSOR_START_RASTER] & 0x1f;
     *end = regs[REG_CURSOR_END_RASTER] & 0x1f;
+}
+
+uint16_t crtc_startAddress(void) {
+    const uint16_t start_address =
+        (regs[REG_START_ADDRESS_H] << 8) | (regs[REG_START_ADDRESS_L]);
+
+    return start_address;
 }
