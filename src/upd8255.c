@@ -18,7 +18,7 @@ uint8_t port[UPD8255_PORTS_COUNT];
 #define UPD8255_REG_COUNT 4
 
 void upd8255_init(void) {
-    // TODO
+    port[UPD8255_PORTC_REG] = 0x02; // CRTC frame sync?
 }
 
 zuint8 upd8255_in(void *context, zuint16 address) {

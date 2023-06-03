@@ -6,12 +6,14 @@
 #include "cpu.h"
 #include "gui.h"
 #include "speaker.h"
+#include "upd8255.h"
 #include "video.h"
 
 void ceda_init(void) {
     cli_init();
     gui_init();
 
+    upd8255_init();
     rom_bios_init();
     video_init();
     speaker_init();
