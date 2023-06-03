@@ -121,11 +121,16 @@ void video_update(void) {
             const uint16_t crtc_start_address = crtc_startAddress();
             const char c =
                 mem_char[crtc_start_address + row * VIDEO_COLUMNS + column];
-
+            const zuint8 attr = mem_attr[row * VIDEO_COLUMNS + column];
             const zuint8 *bitmap = char_rom + c * 16;
+
+            bool stretch = attr & 0x08;
             for (int i = 0; i < 16; ++i) {
+                zuint8 *pixels_segment = pixels + (row * 16) * VIDEO_COLUMNS +
+                                         column + i * VIDEO_COLUMNS;
                 zuint8 segment = bitmap[i];
-                const zuint8 attr = mem_attr[row * VIDEO_COLUMNS + column];
+
+                // mangle segment depending on text attribute, if any
                 if (attr) {
                     // invert colors
                     if (attr & 0x01)
@@ -141,10 +146,24 @@ void video_update(void) {
                         if (fields % 32 < 16)
                             segment = 0;
                     }
+                    // stretch
+                    if (stretch) {
+                        // compute widened char segment
+                        zuint16 wide_segment = 0;
+                        for (int i = 7; i >= 0; --i) {
+                            const bool lit = segment & (1 << i);
+                            wide_segment |= (lit ? 3 : 0) << (i * 2);
+                        }
+                        *pixels_segment = (wide_segment >> 8) & 0xff;
+                        segment = wide_segment & 0xff;
+                        ++pixels_segment;
+                    }
                 }
-                *(pixels + (row * 16) * VIDEO_COLUMNS + column +
-                  i * VIDEO_COLUMNS) = segment;
+                *pixels_segment = segment;
             }
+            // stretch implies skipping char on your right
+            if (stretch)
+                ++column;
         }
     }
 
