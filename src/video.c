@@ -2,6 +2,7 @@
 
 #include "crtc.h"
 #include "gui.h"
+#include "macro.h"
 #include "units.h"
 
 #include <SDL2/SDL.h>
@@ -10,12 +11,13 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
+#define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
 
 #define VIDEO_CHAR_MEM_SIZE 0x1000
 #define VIDEO_ATTR_MEM_SIZE VIDEO_CHAR_MEM_SIZE
 #define VIDEO_COLUMNS       80
-#define VIDEO_ROWS          24
+#define VIDEO_ROWS          25
 
 #define CRT_PIXEL_WIDTH  640
 #define CRT_PIXEL_HEIGHT 400
@@ -118,8 +120,9 @@ void video_update(void) {
     zuint8 *pixels = (zuint8 *)(surface->pixels);
     for (size_t row = 0; row < VIDEO_ROWS; ++row) {
         for (size_t column = 0; column < VIDEO_COLUMNS; ++column) {
-            // TODO -- add CRTC base pointer
-            const char c = mem_char[row * VIDEO_COLUMNS + column];
+            const uint16_t crtc_start_address = crtc_startAddress();
+            const char c =
+                mem_char[crtc_start_address + row * VIDEO_COLUMNS + column];
 
             const zuint8 *bitmap = char_rom + c * 16;
             for (int i = 0; i < 16; ++i) {
@@ -130,7 +133,9 @@ void video_update(void) {
         }
     }
 
-    const unsigned int cursor_position = crtc_cursorPosition();
+    // update cursor on screen
+    const unsigned int cursor_position =
+        crtc_cursorPosition() - crtc_startAddress();
     const unsigned int row = cursor_position / VIDEO_COLUMNS;
     const unsigned int column = cursor_position % VIDEO_COLUMNS;
     unsigned int blink_period = 0; // [fields]
@@ -157,6 +162,7 @@ void video_update(void) {
         }
     }
 
+    // render
     SDL_RenderClear(renderer);
     SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
     SDL_RenderCopy(renderer, texture, NULL, NULL);
@@ -179,6 +185,8 @@ zuint8 video_ram_read(void *context, zuint16 address) {
 void video_ram_write(void *context, zuint16 address, zuint8 value) {
     (void)context;
     assert(address < VIDEO_CHAR_MEM_SIZE);
+
+    LOG_DEBUG("write [%04x] <= %02x\n", address, value);
 
     mem[address] = value;
 }
