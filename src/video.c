@@ -114,8 +114,6 @@ void video_update(void) {
 
     ++fields;
 
-    // TODO -- perform attribute checks
-
     // update characters on screen
     zuint8 *pixels = (zuint8 *)(surface->pixels);
     for (size_t row = 0; row < VIDEO_ROWS; ++row) {
@@ -126,7 +124,24 @@ void video_update(void) {
 
             const zuint8 *bitmap = char_rom + c * 16;
             for (int i = 0; i < 16; ++i) {
-                const zuint8 segment = bitmap[i];
+                zuint8 segment = bitmap[i];
+                const zuint8 attr = mem_attr[row * VIDEO_COLUMNS + column];
+                if (attr) {
+                    // invert colors
+                    if (attr & 0x01)
+                        segment ^= 0xff;
+                    // underline
+                    if ((attr & 0x10 || attr & 0x20) && i == 0x0d)
+                        segment = 0xff;
+                    // hide
+                    if (attr & 0x40)
+                        segment = 0;
+                    // blink
+                    if (attr & 0x02 || attr & 0x20) {
+                        if (fields % 32 < 16)
+                            segment = 0;
+                    }
+                }
                 *(pixels + (row * 16) * VIDEO_COLUMNS + column +
                   i * VIDEO_COLUMNS) = segment;
             }
