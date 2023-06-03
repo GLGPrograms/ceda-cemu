@@ -3,6 +3,8 @@
 An emulator for Sanco 8000, a Z80-based French computer.
 This time, written in plain old C.
 
+![sample screenshot](img/ceda.gif)
+
 ## Build
 ```
 git submodule init
