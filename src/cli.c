@@ -190,8 +190,8 @@ static char *cli_reg(const char *arg) {
 
         // string format
         " %s\n"
-        " PC   SP   AF   BC   DE   HL   AF'  BC'  DE'  HL' IX IY\n"
-        "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %02x %02x\n",
+        " PC   SP   AF   BC   DE   HL   AF'  BC'  DE'  HL'  IX   IY\n"
+        "%04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x %04x\n",
 
         // varargs
         dis,

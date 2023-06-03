@@ -93,8 +93,8 @@ void cpu_reg(CpuRegs *regs) {
     regs->bg.de = cpu.de_.uint16_value;
     regs->bg.hl = cpu.hl_.uint16_value;
 
-    regs->ix = cpu.ix_iy->uint8_values.at_0;
-    regs->iy = cpu.ix_iy->uint8_values.at_1;
+    regs->ix = cpu.ix_iy[0].uint16_value;
+    regs->iy = cpu.ix_iy[1].uint16_value;
 
     regs->sp = cpu.sp.uint16_value;
     regs->pc = cpu.pc.uint16_value;

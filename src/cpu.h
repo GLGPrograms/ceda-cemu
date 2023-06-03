@@ -20,8 +20,8 @@ typedef struct CpuRegs {
     zuint16 sp;
     zuint16 pc;
 
-    zuint8 ix;
-    zuint8 iy;
+    zuint16 ix;
+    zuint16 iy;
 } CpuRegs;
 
 typedef struct CpuBreakpoint {
