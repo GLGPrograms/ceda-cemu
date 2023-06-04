@@ -17,7 +17,7 @@ static Z80 cpu;
 static bool pause = true;
 static unsigned long int cycles = 0;
 static us_time_t last_update = 0;
-static us_time_t update_interval = 0;
+static us_time_t update_interval = CPU_PAUSE_PERIOD;
 
 static float perf_value = 0;
 static const char *perf_unit = "ips";
@@ -106,7 +106,14 @@ static long cpu_remaining(void) {
 
 void cpu_pause(bool enable) {
     pause = enable;
-    update_interval = pause ? CPU_PAUSE_PERIOD : CPU_CHUNK_PERIOD; // [us]
+
+    if (pause) {
+        update_interval = CPU_PAUSE_PERIOD;
+    } else if (valid_breakpoints > 0) {
+        update_interval = 0;
+    } else {
+        update_interval = CPU_CHUNK_PERIOD;
+    }
 }
 
 void cpu_reg(CpuRegs *regs) {
@@ -158,6 +165,7 @@ bool cpu_deleteBreakpoint(unsigned int index) {
         return false;
 
     breakpoints[index].valid = false;
+    --valid_breakpoints;
     return true;
 }
 
