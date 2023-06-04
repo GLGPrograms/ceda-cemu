@@ -13,6 +13,7 @@ add_executable(ceda
     src/main.c
     src/sio2.c
     src/speaker.c
+    src/time.c
     src/timer.c
     src/upd8255.c
     src/video.c

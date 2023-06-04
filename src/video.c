@@ -3,6 +3,7 @@
 #include "crtc.h"
 #include "gui.h"
 #include "macro.h"
+#include "time.h"
 #include "units.h"
 
 #include <SDL2/SDL.h>
@@ -24,6 +25,8 @@
 
 #define CHAR_ROM_PATH "rom/CGV7.2_ROM.bin"
 #define CHAR_ROM_SIZE (4 * KiB)
+
+static long last_update = 0;
 
 static zuint8 mem_char[VIDEO_CHAR_MEM_SIZE];
 static zuint8 mem_attr[VIDEO_ATTR_MEM_SIZE];
@@ -96,6 +99,8 @@ void video_start(void) {
 }
 
 void video_update(void) {
+    last_update = time_now_ms();
+
     if (!started)
         return;
 
@@ -207,6 +212,14 @@ void video_update(void) {
     SDL_UpdateWindowSurface(window);
 
     last = now;
+}
+
+long video_remaining(void) {
+#define UPDATE_INTERVAL 20 // [ms] 20 ms => 50 Hz
+    const long now = time_now_ms();
+    const long next_update = last_update + UPDATE_INTERVAL;
+    const long diff = next_update - now;
+    return diff;
 }
 
 zuint8 video_ram_read(void *context, zuint16 address) {

@@ -5,6 +5,7 @@
 #include "bus.h"
 #include "cpu.h"
 #include "macro.h"
+#include "time.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -31,6 +32,7 @@
 
 static bool initialized = false;
 static bool quit = false;
+static long last_update = 0; // last poll() call [ms]
 
 static int sockfd = -1;
 static int connfd = -1;
@@ -858,6 +860,8 @@ static char *cli_help(const char *arg) {
 }
 
 void cli_poll(void) {
+    last_update = time_now_ms();
+
     if (!initialized)
         return;
 
@@ -944,6 +948,14 @@ void cli_poll(void) {
             }
         }
     }
+}
+
+long cli_remaining(void) {
+#define UPDATE_INTERVAL 20 // [ms] 20 ms => 50 Hz
+    const long next_update = last_update + UPDATE_INTERVAL;
+    const long now = time_now_ms();
+    const long diff = next_update - now;
+    return diff;
 }
 
 bool cli_isQuit(void) {

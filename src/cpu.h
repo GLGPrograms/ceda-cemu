@@ -30,13 +30,11 @@ typedef struct CpuBreakpoint {
 } CpuBreakpoint;
 
 void cpu_init(void);
-
 void cpu_run(void);
+long cpu_remaining(void);
 
 void cpu_pause(bool enable);
-
 void cpu_reg(CpuRegs *regs);
-
 void cpu_step(void);
 
 /**

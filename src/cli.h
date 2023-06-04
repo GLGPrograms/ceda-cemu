@@ -5,8 +5,8 @@
 
 void cli_init(void);
 void cli_start(void);
-
 void cli_poll(void);
+long cli_remaining(void);
 
 bool cli_isQuit(void);
 

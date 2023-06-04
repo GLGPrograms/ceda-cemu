@@ -2,6 +2,7 @@
 
 #include "3rd/disassembler.h"
 #include "bus.h"
+#include "time.h"
 
 #include <string.h>
 
@@ -11,6 +12,8 @@
 
 static Z80 cpu;
 static bool pause = true;
+static long last_update = 0;
+static long update_interval = 0;
 
 #define CPU_BREAKPOINTS 8
 static CpuBreakpoint breakpoints[CPU_BREAKPOINTS] = {0};
@@ -57,6 +60,8 @@ void cpu_init(void) {
 }
 
 void cpu_run(void) {
+    last_update = time_now_ms();
+
     if (pause)
         return;
 
@@ -75,8 +80,16 @@ void cpu_run(void) {
     z80_run(&cpu, cycles);
 }
 
+long cpu_remaining(void) {
+    const long now = time_now_ms();
+    const long next_update = last_update + update_interval;
+    const long diff = next_update - now;
+    return diff;
+}
+
 void cpu_pause(bool enable) {
     pause = enable;
+    update_interval = pause ? 20 : 0;
 }
 
 void cpu_reg(CpuRegs *regs) {

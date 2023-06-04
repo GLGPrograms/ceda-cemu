@@ -7,6 +7,7 @@ void gui_init(void);
 
 void gui_start(void);
 void gui_pollEvent(void);
+long gui_remaining(void);
 
 bool gui_isStarted(void);
 bool gui_isQuit(void);
