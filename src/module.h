@@ -1,7 +1,9 @@
 #ifndef CEDA_MODULE_H
 #define CEDA_MODULE_H
 
-typedef long (*remaining_handler_t)(void);
+#include "time.h"
+
+typedef us_time_t (*remaining_handler_t)(void);
 
 typedef struct CEDAModule {
     /**
@@ -43,7 +45,7 @@ typedef struct CEDAModule {
     void (*poll)(void);
 
     /**
-     * @brief Return the remaining time before next update. [ms]
+     * @brief Return the remaining time before next update. [us]
      *
      * A remaining_handler_t must only do the minimal amount of computation
      * needed to return the value of interest. Computation time must be

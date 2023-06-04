@@ -8,7 +8,8 @@
 
 static bool started = false;
 static bool quit = false;
-static long last_update = 0;
+#define UPDATE_INTERVAL 20000 // [us] 20 ms => 50 Hz
+static us_time_t last_update = 0;
 static SDL_Event event;
 
 bool gui_isStarted(void) {
@@ -29,7 +30,7 @@ static void gui_start(void) {
 }
 
 static void gui_poll(void) {
-    last_update = time_now_ms();
+    last_update = time_now_us();
 
     SDL_PollEvent(&event);
 
@@ -37,10 +38,9 @@ static void gui_poll(void) {
 }
 
 static long gui_remaining(void) {
-#define UPDATE_INTERVAL 20 // [ms] 20 ms => 50 Hz
-    const long now = time_now_ms();
-    const long next_update = last_update + UPDATE_INTERVAL;
-    const long diff = next_update - now;
+    const us_time_t now = time_now_us();
+    const us_time_t next_update = last_update + UPDATE_INTERVAL;
+    const us_time_t diff = next_update - now;
     return diff;
 }
 

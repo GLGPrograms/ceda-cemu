@@ -8,12 +8,14 @@
 
 #include "log.h"
 
-#define CPU_CHUNK_CYCLES 100
+#define CPU_CHUNK_CYCLES 4000
+#define CPU_FREQ         4000000                                     // [Hz]
+#define CPU_CHUNK_PERIOD (CPU_CHUNK_CYCLES * 1000 * 1000 / CPU_FREQ) // [us]
 
 static Z80 cpu;
 static bool pause = true;
-static long last_update = 0;
-static long update_interval = 0;
+static us_time_t last_update = 0;
+static us_time_t update_interval = 0;
 
 #define CPU_BREAKPOINTS 8
 static CpuBreakpoint breakpoints[CPU_BREAKPOINTS] = {0};
@@ -48,7 +50,7 @@ static zuint8 cpu_fetch_opcode(void *context, zuint16 address) {
 }
 
 static void cpu_poll(void) {
-    last_update = time_now_ms();
+    last_update = time_now_us();
 
     if (pause)
         return;
@@ -69,15 +71,15 @@ static void cpu_poll(void) {
 }
 
 static long cpu_remaining(void) {
-    const long now = time_now_ms();
-    const long next_update = last_update + update_interval;
-    const long diff = next_update - now;
+    const us_time_t now = time_now_us();
+    const us_time_t next_update = last_update + update_interval;
+    const us_time_t diff = next_update - now;
     return diff;
 }
 
 void cpu_pause(bool enable) {
     pause = enable;
-    update_interval = pause ? 20 : 0;
+    update_interval = pause ? 20000 : 0; // [us]
 }
 
 void cpu_reg(CpuRegs *regs) {

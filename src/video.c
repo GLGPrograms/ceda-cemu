@@ -26,7 +26,8 @@
 #define CHAR_ROM_PATH "rom/CGV7.2_ROM.bin"
 #define CHAR_ROM_SIZE (4 * KiB)
 
-static long last_update = 0;
+#define UPDATE_INTERVAL 20000 // [us] 20 ms => 50 Hz
+static us_time_t last_update = 0;
 
 static zuint8 mem_char[VIDEO_CHAR_MEM_SIZE];
 static zuint8 mem_attr[VIDEO_ATTR_MEM_SIZE];
@@ -79,23 +80,12 @@ static void video_start(void) {
 }
 
 static void video_poll(void) {
-    last_update = time_now_ms();
+    const us_time_t now = time_now_us();
+    if (now < last_update + 20000)
+        return;
+    last_update = time_now_us();
 
     if (!started)
-        return;
-
-// TODO -- use remaining() capabilities
-#define UPDATE_INTERVAL 20 // [ms] (20ms = 50Hz)
-    static struct timeval last;
-
-    // only update at 50Hz
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    const unsigned long diff_s = now.tv_sec - last.tv_sec;
-    const unsigned long diff_u = now.tv_usec - last.tv_usec;
-    const unsigned long diff_us = diff_s * 1000000UL + diff_u;
-    const unsigned long diff_ms = diff_us / 1000;
-    if (diff_ms < 20)
         return;
 
     ++fields;
@@ -191,15 +181,12 @@ static void video_poll(void) {
 
     // draw
     SDL_UpdateWindowSurface(window);
-
-    last = now;
 }
 
-static long video_remaining(void) {
-#define UPDATE_INTERVAL 20 // [ms] 20 ms => 50 Hz
-    const long now = time_now_ms();
-    const long next_update = last_update + UPDATE_INTERVAL;
-    const long diff = next_update - now;
+static us_time_t video_remaining(void) {
+    const us_time_t now = time_now_us();
+    const us_time_t next_update = last_update + UPDATE_INTERVAL;
+    const us_time_t diff = next_update - now;
     return diff;
 }
 

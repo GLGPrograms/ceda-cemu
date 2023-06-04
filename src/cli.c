@@ -32,7 +32,8 @@
 
 static bool initialized = false;
 static bool quit = false;
-static long last_update = 0; // last poll() call [ms]
+#define UPDATE_INTERVAL 20000     // [us] 20 ms => 50 Hz
+static us_time_t last_update = 0; // last poll() call
 
 static int sockfd = -1;
 static int connfd = -1;
@@ -828,7 +829,7 @@ static void cli_start(void) {
 }
 
 static void cli_poll(void) {
-    last_update = time_now_ms();
+    last_update = time_now_us();
 
     if (!initialized)
         return;
@@ -918,11 +919,10 @@ static void cli_poll(void) {
     }
 }
 
-static long cli_remaining(void) {
-#define UPDATE_INTERVAL 20 // [ms] 20 ms => 50 Hz
-    const long next_update = last_update + UPDATE_INTERVAL;
-    const long now = time_now_ms();
-    const long diff = next_update - now;
+static us_time_t cli_remaining(void) {
+    const us_time_t next_update = last_update + UPDATE_INTERVAL;
+    const us_time_t now = time_now_us();
+    const us_time_t diff = next_update - now;
     return diff;
 }
 
