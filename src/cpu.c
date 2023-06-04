@@ -9,8 +9,9 @@
 #include "log.h"
 
 #define CPU_CHUNK_CYCLES 4000
-#define CPU_FREQ         4000000                                     // [Hz]
-#define CPU_CHUNK_PERIOD (CPU_CHUNK_CYCLES * 1000 * 1000 / CPU_FREQ) // [us]
+#define CPU_FREQ         4000000                                       // [Hz]
+#define CPU_CHUNK_PERIOD (CPU_CHUNK_CYCLES * 1000L * 1000L / CPU_FREQ) // [us]
+#define CPU_PAUSE_PERIOD 20000 // [us] 20 ms => 50 Hz
 
 static Z80 cpu;
 static bool pause = true;
@@ -79,7 +80,7 @@ static long cpu_remaining(void) {
 
 void cpu_pause(bool enable) {
     pause = enable;
-    update_interval = pause ? 20000 : 0; // [us]
+    update_interval = pause ? CPU_PAUSE_PERIOD : CPU_CHUNK_PERIOD; // [us]
 }
 
 void cpu_reg(CpuRegs *regs) {
