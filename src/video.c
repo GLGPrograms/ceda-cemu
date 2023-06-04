@@ -98,7 +98,7 @@ void video_start(void) {
     started = true;
 }
 
-void video_update(void) {
+void video_poll(void) {
     last_update = time_now_ms();
 
     if (!started)

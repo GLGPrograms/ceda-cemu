@@ -28,7 +28,7 @@ bool gui_isStarted(void) {
     return started;
 }
 
-void gui_pollEvent(void) {
+void gui_poll(void) {
     last_update = time_now_ms();
 
     SDL_PollEvent(&event);

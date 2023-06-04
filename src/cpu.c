@@ -59,7 +59,7 @@ void cpu_init(void) {
     z80_power(&cpu, true);
 }
 
-void cpu_run(void) {
+void cpu_poll(void) {
     last_update = time_now_ms();
 
     if (pause)

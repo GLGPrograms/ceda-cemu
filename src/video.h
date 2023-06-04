@@ -6,7 +6,7 @@
 
 void video_init(void);
 void video_start(void);
-void video_update(void);
+void video_poll(void);
 long video_remaining(void);
 void video_cleanup(void);
 

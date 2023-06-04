@@ -1,11 +1,14 @@
 #include "ceda.h"
 
+#include "assert.h"
 #include "bios.h"
 #include "bus.h"
 #include "cli.h"
 #include "cpu.h"
 #include "gui.h"
+#include "limits.h"
 #include "macro.h"
+#include "module.h"
 #include "speaker.h"
 #include "upd8255.h"
 #include "video.h"
@@ -31,25 +34,34 @@ void ceda_run(void) {
     cli_start();
     gui_start();
 
-    speaker_start(); // "beep"
-    video_start();   // crt emulation
+    speaker_start();
+    video_start(); // crt emulation
 
     for (;;) {
         cli_poll();
-        gui_pollEvent();
+        gui_poll();
 
-        cpu_run();
-        video_update();
+        cpu_poll();
+        video_poll();
 
         if (gui_isQuit() || cli_isQuit()) {
             break;
         }
 
-        long wait =
-            MIN(cli_remaining(),
-                MIN(gui_remaining(), MIN(cpu_remaining(), video_remaining())));
-        if (wait > 0)
-            usleep(wait * 1000);
+        static const remaining_handler_t remaining_handlers[] = {
+            cli_remaining,
+            gui_remaining,
+            cpu_remaining,
+            video_remaining,
+        };
+
+        long wait = LONG_MAX;
+        for (unsigned int i = 0; i < ARRAY_SIZE(remaining_handlers); ++i) {
+            remaining_handler_t remaining = remaining_handlers[i];
+            wait = MIN(remaining(), wait);
+        }
+        wait = MAX(wait, 0);
+        usleep(wait * 1000);
     }
 
     gui_cleanup();
