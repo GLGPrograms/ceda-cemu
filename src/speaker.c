@@ -28,17 +28,7 @@ static Mix_Chunk chunk = {
     .volume = 64,
 };
 
-void speaker_init(void) {
-    // a square wave
-    for (size_t i = 0; i < SPEAKER_SAMPLE_SIZE; ++i) {
-        sample[i] = ((i % SPEAKER_SAMPLES_PER_PERIOD) <
-                     (SPEAKER_SAMPLES_PER_PERIOD / 2))
-                        ? 255
-                        : 0;
-    }
-}
-
-void speaker_start(void) {
+static void speaker_start(void) {
     if (!gui_isStarted()) {
         LOG_WARN("no gui: default to terminal speaker\n");
         return;
@@ -52,6 +42,24 @@ void speaker_start(void) {
 
     LOG_INFO("%s: ready\n", __func__);
     fallback = false;
+}
+
+void speaker_init(CEDAModule *mod) {
+    // init mod struct
+    memset(mod, 0, sizeof(*mod));
+    mod->init = speaker_init;
+    mod->start = speaker_start;
+    mod->poll = NULL;
+    mod->remaining = NULL;
+    mod->cleanup = NULL;
+
+    // a square wave
+    for (size_t i = 0; i < SPEAKER_SAMPLE_SIZE; ++i) {
+        sample[i] = ((i % SPEAKER_SAMPLES_PER_PERIOD) <
+                     (SPEAKER_SAMPLES_PER_PERIOD / 2))
+                        ? 255
+                        : 0;
+    }
 }
 
 zuint8 speaker_in(void *context, zuint16 address) {

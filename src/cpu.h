@@ -1,6 +1,8 @@
 #ifndef CEDA_CPU_H
 #define CEDA_CPU_H
 
+#include "module.h"
+
 #include <Z80.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -29,9 +31,7 @@ typedef struct CpuBreakpoint {
     zuint16 address;
 } CpuBreakpoint;
 
-void cpu_init(void);
-void cpu_poll(void);
-long cpu_remaining(void);
+void cpu_init(CEDAModule *mod);
 
 void cpu_pause(bool enable);
 void cpu_reg(CpuRegs *regs);

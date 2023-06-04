@@ -40,45 +40,8 @@ static int connfd = -1;
 DECLARE_FIFO_TYPE(char *, TxFifo, 8);
 static TxFifo tx_fifo;
 
-void cli_init(void) {
-    struct sockaddr_in server_addr;
-
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1) {
-        LOG_WARN("unable to socket(): %s\n", strerror(errno));
-        return;
-    }
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    server_addr.sin_port = htons(CLI_PORT);
-
-    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){true},
-                   sizeof(int)) != 0) {
-        LOG_WARN("unable to setsockopt(): %s\n", strerror(errno));
-        return;
-    }
-
-    if (bind(sockfd, (const struct sockaddr *)&server_addr,
-             sizeof(server_addr)) != 0) {
-        LOG_WARN("unable to bind(): %s\n", strerror(errno));
-        return;
-    }
-
-    if (listen(sockfd, 1) != 0) {
-        LOG_WARN("unable to listen(): %s\n", strerror(errno));
-        return;
-    }
-
-    FIFO_INIT(&tx_fifo);
-
-    LOG_INFO("cli ok\n");
-    initialized = true;
-}
-
-void cli_start(void) {
-    if (!initialized)
-        return;
+bool cli_isQuit(void) {
+    return quit;
 }
 
 static void cli_send_string(const char *str) {
@@ -859,7 +822,12 @@ static char *cli_help(const char *arg) {
     return m;
 }
 
-void cli_poll(void) {
+static void cli_start(void) {
+    if (!initialized)
+        return;
+}
+
+static void cli_poll(void) {
     last_update = time_now_ms();
 
     if (!initialized)
@@ -950,16 +918,12 @@ void cli_poll(void) {
     }
 }
 
-long cli_remaining(void) {
+static long cli_remaining(void) {
 #define UPDATE_INTERVAL 20 // [ms] 20 ms => 50 Hz
     const long next_update = last_update + UPDATE_INTERVAL;
     const long now = time_now_ms();
     const long diff = next_update - now;
     return diff;
-}
-
-bool cli_isQuit(void) {
-    return quit;
 }
 
 void cli_cleanup(void) {
@@ -970,6 +934,48 @@ void cli_cleanup(void) {
         close(connfd);
     if (sockfd != -1)
         close(sockfd);
+}
+
+void cli_init(CEDAModule *mod) {
+    memset(mod, 0, sizeof(*mod));
+    mod->init = cli_init;
+    mod->start = cli_start;
+    mod->poll = cli_poll;
+    mod->remaining = cli_remaining;
+    mod->cleanup = cli_cleanup;
+
+    struct sockaddr_in server_addr;
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd == -1) {
+        LOG_WARN("unable to socket(): %s\n", strerror(errno));
+        return;
+    }
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    server_addr.sin_port = htons(CLI_PORT);
+
+    if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){true},
+                   sizeof(int)) != 0) {
+        LOG_WARN("unable to setsockopt(): %s\n", strerror(errno));
+        return;
+    }
+
+    if (bind(sockfd, (const struct sockaddr *)&server_addr,
+             sizeof(server_addr)) != 0) {
+        LOG_WARN("unable to bind(): %s\n", strerror(errno));
+        return;
+    }
+
+    if (listen(sockfd, 1) != 0) {
+        LOG_WARN("unable to listen(): %s\n", strerror(errno));
+        return;
+    }
+
+    FIFO_INIT(&tx_fifo);
+
+    LOG_INFO("cli ok\n");
+    initialized = true;
 }
 
 #ifdef CEDA_TEST

@@ -1,13 +1,11 @@
 #ifndef CEDA_GUI_H
 #define CEDA_GUI_H
 
+#include "module.h"
+
 #include <stdbool.h>
 
-void gui_init(void);
-void gui_start(void);
-void gui_poll(void);
-long gui_remaining(void);
-void gui_cleanup(void);
+void gui_init(CEDAModule *mod);
 
 bool gui_isStarted(void);
 bool gui_isQuit(void);

@@ -47,19 +47,7 @@ static zuint8 cpu_fetch_opcode(void *context, zuint16 address) {
     return bus_mem_read(context, address);
 }
 
-void cpu_init(void) {
-    memset(&cpu, 0, sizeof(cpu));
-    cpu.fetch_opcode = cpu_fetch_opcode;
-    cpu.fetch = bus_mem_read;
-    cpu.read = bus_mem_read;
-    cpu.write = bus_mem_write;
-    cpu.in = bus_io_in;
-    cpu.out = bus_io_out;
-
-    z80_power(&cpu, true);
-}
-
-void cpu_poll(void) {
+static void cpu_poll(void) {
     last_update = time_now_ms();
 
     if (pause)
@@ -80,7 +68,7 @@ void cpu_poll(void) {
     z80_run(&cpu, cycles);
 }
 
-long cpu_remaining(void) {
+static long cpu_remaining(void) {
     const long now = time_now_ms();
     const long next_update = last_update + update_interval;
     const long diff = next_update - now;
@@ -147,4 +135,25 @@ bool cpu_deleteBreakpoint(unsigned int index) {
 size_t cpu_getBreakpoints(CpuBreakpoint *v[]) {
     *v = breakpoints;
     return CPU_BREAKPOINTS;
+}
+
+void cpu_init(CEDAModule *mod) {
+    // init mod struct
+    memset(mod, 0, sizeof(*mod));
+    mod->init = cpu_init;
+    mod->start = NULL;
+    mod->poll = cpu_poll;
+    mod->remaining = cpu_remaining;
+    mod->cleanup = NULL;
+
+    // init cpu
+    memset(&cpu, 0, sizeof(cpu));
+    cpu.fetch_opcode = cpu_fetch_opcode;
+    cpu.fetch = bus_mem_read;
+    cpu.read = bus_mem_read;
+    cpu.write = bus_mem_write;
+    cpu.in = bus_io_in;
+    cpu.out = bus_io_out;
+
+    z80_power(&cpu, true);
 }

@@ -40,27 +40,7 @@ static bool started = false;
 
 static unsigned long int fields = 0; // displayed video fields
 
-void video_init(void) {
-    // default to character memory
-    mem = mem_char;
-
-    // load character generator rom
-    FILE *fp = fopen(CHAR_ROM_PATH, "rb");
-    if (fp == NULL) {
-        LOG_ERR("missing char rom file\n");
-        abort();
-    }
-
-    size_t r = fread(char_rom, 1, CHAR_ROM_SIZE, fp);
-    if (r != CHAR_ROM_SIZE) {
-        LOG_ERR("bad char rom file size: %lu\n", r);
-        abort();
-    }
-
-    fclose(fp);
-}
-
-void video_start(void) {
+static void video_start(void) {
     assert(gui_isStarted());
 
     window = SDL_CreateWindow("ceda cemu", SDL_WINDOWPOS_UNDEFINED,
@@ -98,12 +78,13 @@ void video_start(void) {
     started = true;
 }
 
-void video_poll(void) {
+static void video_poll(void) {
     last_update = time_now_ms();
 
     if (!started)
         return;
 
+// TODO -- use remaining() capabilities
 #define UPDATE_INTERVAL 20 // [ms] (20ms = 50Hz)
     static struct timeval last;
 
@@ -214,12 +195,40 @@ void video_poll(void) {
     last = now;
 }
 
-long video_remaining(void) {
+static long video_remaining(void) {
 #define UPDATE_INTERVAL 20 // [ms] 20 ms => 50 Hz
     const long now = time_now_ms();
     const long next_update = last_update + UPDATE_INTERVAL;
     const long diff = next_update - now;
     return diff;
+}
+
+void video_init(CEDAModule *mod) {
+    // mod init
+    memset(mod, 0, sizeof(*mod));
+    mod->init = video_init;
+    mod->start = video_start;
+    mod->poll = video_poll;
+    mod->remaining = video_remaining;
+    mod->cleanup = NULL;
+
+    // default to character memory
+    mem = mem_char;
+
+    // load character generator rom
+    FILE *fp = fopen(CHAR_ROM_PATH, "rb");
+    if (fp == NULL) {
+        LOG_ERR("missing char rom file\n");
+        abort();
+    }
+
+    size_t r = fread(char_rom, 1, CHAR_ROM_SIZE, fp);
+    if (r != CHAR_ROM_SIZE) {
+        LOG_ERR("bad char rom file size: %lu\n", r);
+        abort();
+    }
+
+    fclose(fp);
 }
 
 zuint8 video_ram_read(void *context, zuint16 address) {

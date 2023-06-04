@@ -18,52 +18,66 @@
 #define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
 
+static CEDAModule mod_cpu;
+static CEDAModule mod_cli;
+static CEDAModule mod_gui;
+static CEDAModule mod_video;
+static CEDAModule mod_speaker;
+
+static CEDAModule *modules[] = {
+    &mod_cli, &mod_gui, &mod_cpu, &mod_video, &mod_speaker,
+};
+
 void ceda_init(void) {
-    cli_init();
-    gui_init();
+    cli_init(&mod_cli);
+    gui_init(&mod_gui);
 
     upd8255_init();
     rom_bios_init();
-    video_init();
-    speaker_init();
+    video_init(&mod_video);
+    speaker_init(&mod_speaker);
     bus_init();
-    cpu_init();
+    cpu_init(&mod_cpu);
 }
 
 void ceda_run(void) {
-    cli_start();
-    gui_start();
+    // start all modules
+    for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
+        void (*start)(void) = modules[i]->start;
+        if (start)
+            start();
+    }
 
-    speaker_start();
-    video_start(); // crt emulation
-
+    // main loop
     for (;;) {
-        cli_poll();
-        gui_poll();
+        // poll all modules
+        for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
+            void (*poll)(void) = modules[i]->poll;
+            if (poll)
+                poll();
+        }
 
-        cpu_poll();
-        video_poll();
-
+        // decide wether to exit
         if (gui_isQuit() || cli_isQuit()) {
             break;
         }
 
-        static const remaining_handler_t remaining_handlers[] = {
-            cli_remaining,
-            gui_remaining,
-            cpu_remaining,
-            video_remaining,
-        };
-
+        // check for how long each module can sleep, and yield host cpu
         long wait = LONG_MAX;
-        for (unsigned int i = 0; i < ARRAY_SIZE(remaining_handlers); ++i) {
-            remaining_handler_t remaining = remaining_handlers[i];
+        for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
+            remaining_handler_t remaining = modules[i]->remaining;
+            if (!remaining)
+                continue;
             wait = MIN(remaining(), wait);
         }
-        wait = MAX(wait, 0);
-        usleep(wait * 1000);
+        if (wait > 0)
+            usleep(wait * 1000);
     }
 
-    gui_cleanup();
-    cli_cleanup();
+    // cleanup all modules
+    for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
+        void (*cleanup)(void) = modules[i]->cleanup;
+        if (cleanup)
+            cleanup();
+    }
 }
