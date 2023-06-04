@@ -39,6 +39,9 @@ static SDL_Surface *surface = NULL;
 static SDL_Renderer *renderer = NULL;
 static bool started = false;
 
+static float perf_value = 0;
+static const char *perf_unit = "fps";
+
 static unsigned long int fields = 0; // displayed video fields
 
 static void video_start(void) {
@@ -79,11 +82,31 @@ static void video_start(void) {
     started = true;
 }
 
+static void video_performance(float *value, const char **unit) {
+    *value = perf_value;
+    *unit = perf_unit;
+}
+
+static void video_update_performance(void) {
+    static unsigned long int last_fields = 0;
+    static us_time_t last_time = 0;
+
+    const us_time_t now = time_now_us();
+
+    const us_time_t diff_utime = now - last_time;
+    const unsigned long int diff_fields = fields - last_fields;
+
+    perf_value = diff_fields / (diff_utime / 1000.0 / 1000.0);
+
+    last_time = now;
+    last_fields = fields;
+}
+
 static void video_poll(void) {
     const us_time_t now = time_now_us();
-    if (now < last_update + 20000)
+    if (now < last_update + UPDATE_INTERVAL)
         return;
-    last_update = time_now_us();
+    last_update = now;
 
     if (!started)
         return;
@@ -178,9 +201,10 @@ static void video_poll(void) {
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
     SDL_DestroyTexture(texture);
-
-    // draw
     SDL_UpdateWindowSurface(window);
+
+    // measure performance
+    video_update_performance();
 }
 
 static us_time_t video_remaining(void) {
@@ -198,6 +222,7 @@ void video_init(CEDAModule *mod) {
     mod->poll = video_poll;
     mod->remaining = video_remaining;
     mod->cleanup = NULL;
+    mod->performance = video_performance;
 
     // default to character memory
     mem = mem_char;

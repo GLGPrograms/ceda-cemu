@@ -4,6 +4,7 @@
 #include "time.h"
 
 typedef us_time_t (*remaining_handler_t)(void);
+typedef void (*performance_handler_t)(float *value, const char **unit);
 
 typedef struct CEDAModule {
     /**
@@ -59,6 +60,16 @@ typedef struct CEDAModule {
      *
      */
     remaining_handler_t remaining;
+
+    /**
+     * @brief Return the module performance.
+     *
+     * float* Pointer to float for the metric value.
+     * const char** Pointer to null-terminated string representing the
+     * measurement unit.
+     *
+     */
+    performance_handler_t performance;
 
     /**
      * @brief Release module dynamic resources to shut it down.

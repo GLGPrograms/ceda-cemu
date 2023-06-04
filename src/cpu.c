@@ -15,8 +15,12 @@
 
 static Z80 cpu;
 static bool pause = true;
+static unsigned long int cycles = 0;
 static us_time_t last_update = 0;
 static us_time_t update_interval = 0;
+
+static float perf_value = 0;
+static const char *perf_unit = "ips";
 
 #define CPU_BREAKPOINTS 8
 static CpuBreakpoint breakpoints[CPU_BREAKPOINTS] = {0};
@@ -50,6 +54,26 @@ static zuint8 cpu_fetch_opcode(void *context, zuint16 address) {
     return bus_mem_read(context, address);
 }
 
+static void cpu_performance(float *value, const char **unit) {
+    *value = perf_value;
+    *unit = perf_unit;
+}
+
+static void cpu_update_performance(void) {
+    static unsigned long int last_cycles = 0;
+    static us_time_t last_time = 0;
+
+    const us_time_t now = time_now_us();
+
+    const us_time_t diff_utime = now - last_time;
+    const unsigned long int diff_cycles = cycles - last_cycles;
+
+    perf_value = diff_cycles / (diff_utime / 1000.0 / 1000.0);
+
+    last_time = now;
+    last_cycles = cycles;
+}
+
 static void cpu_poll(void) {
     last_update = time_now_us();
 
@@ -66,9 +90,11 @@ static void cpu_poll(void) {
     }
 
     // if there are breakpoints, step one instruction at a time
-    unsigned int cycles = (valid_breakpoints == 0) ? CPU_CHUNK_CYCLES : 1;
+    const unsigned int requested_cycles =
+        (valid_breakpoints == 0) ? CPU_CHUNK_CYCLES : 1;
 
-    z80_run(&cpu, cycles);
+    cycles += z80_run(&cpu, requested_cycles);
+    cpu_update_performance();
 }
 
 static long cpu_remaining(void) {
@@ -148,6 +174,7 @@ void cpu_init(CEDAModule *mod) {
     mod->poll = cpu_poll;
     mod->remaining = cpu_remaining;
     mod->cleanup = NULL;
+    mod->performance = cpu_performance;
 
     // init cpu
     memset(&cpu, 0, sizeof(cpu));

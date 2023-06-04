@@ -15,7 +15,6 @@
 
 #include <unistd.h>
 
-#define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
 
 static CEDAModule mod_cpu;
@@ -72,6 +71,17 @@ void ceda_run(void) {
         }
         if (wait > 0)
             usleep(wait);
+
+        // retrieve and print modules performance metrics
+        for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
+            performance_handler_t perf = modules[i]->performance;
+            if (!perf)
+                continue;
+            float value;
+            const char *unit;
+            perf(&value, &unit);
+            LOG_DEBUG("module %u: %f %s\n", i, value, unit);
+        }
     }
 
     // cleanup all modules
