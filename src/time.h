@@ -2,7 +2,9 @@
 #define CEDA_TIME_H
 
 typedef long ms_time_t;
+typedef long ms_interval_t;
 typedef long us_time_t;
+typedef long us_interval_t;
 
 /**
  * @brief Get current clock time in [ms].
