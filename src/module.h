@@ -3,7 +3,7 @@
 
 #include "time.h"
 
-typedef us_time_t (*remaining_handler_t)(void);
+typedef us_interval_t (*remaining_handler_t)(void);
 typedef void (*performance_handler_t)(float *value, const char **unit);
 
 typedef struct CEDAModule {
