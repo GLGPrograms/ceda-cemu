@@ -62,7 +62,7 @@ void ceda_run(void) {
         }
 
         // check for how long each module can sleep, and yield host cpu
-        us_time_t wait = LONG_MAX;
+        us_interval_t wait = LONG_MAX;
         for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
             remaining_handler_t remaining = modules[i]->remaining;
             if (!remaining)
@@ -70,7 +70,7 @@ void ceda_run(void) {
             wait = MIN(remaining(), wait);
         }
         if (wait > 0)
-            usleep(wait);
+            usleep((__useconds_t)wait);
 
         // retrieve and print modules performance metrics
         for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {

@@ -96,7 +96,7 @@ static void video_update_performance(void) {
     const us_time_t diff_utime = now - last_time;
     const unsigned long int diff_fields = fields - last_fields;
 
-    perf_value = diff_fields / (diff_utime / 1000.0 / 1000.0);
+    perf_value = (float)diff_fields / ((float)diff_utime / 1000.0f / 1000.0f);
 
     last_time = now;
     last_fields = fields;
@@ -118,7 +118,7 @@ static void video_poll(void) {
     for (size_t row = 0; row < VIDEO_ROWS; ++row) {
         for (size_t column = 0; column < VIDEO_COLUMNS; ++column) {
             const uint16_t crtc_start_address = crtc_startAddress();
-            const char c =
+            const char c = (char)
                 mem_char[crtc_start_address + row * VIDEO_COLUMNS + column];
             const zuint8 attr = mem_attr[row * VIDEO_COLUMNS + column];
             const zuint8 *bitmap = char_rom + c * 16;
@@ -151,10 +151,10 @@ static void video_poll(void) {
                         zuint16 wide_segment = 0;
                         for (int i = 7; i >= 0; --i) {
                             const bool lit = segment & (1 << i);
-                            wide_segment |= (lit ? 3 : 0) << (i * 2);
+                            wide_segment |= (zuint16)((lit ? 3 : 0) << (i * 2));
                         }
-                        *pixels_segment = (wide_segment >> 8) & 0xff;
-                        segment = wide_segment & 0xff;
+                        *pixels_segment = (zuint8)((wide_segment >> 8) & 0xff);
+                        segment = (zuint8)(wide_segment & 0xff);
                         ++pixels_segment;
                     }
                 }

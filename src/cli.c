@@ -179,8 +179,9 @@ static char *cli_break(const char *arg) {
     // skip argv[0]
     arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
 
-    // read argv[1] (address)
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    // extract address
+    unsigned int _address;
+    arg = cli_next_hex(&_address, arg);
 
     // no address => show current breakpoints
     if (arg == NULL) {
@@ -194,34 +195,30 @@ static char *cli_break(const char *arg) {
         for (size_t i = 0; i < n && w < LINE_BUFFER_SIZE - 1; ++i) {
             if (!breakpoints[i].valid)
                 continue;
-            w += snprintf(m + w, LINE_BUFFER_SIZE - w, "%lu\t%04x\n", i,
-                          breakpoints[i].address);
+            w += snprintf(m + w, (size_t)(LINE_BUFFER_SIZE - w), "%lu\t%04x\n",
+                          i, breakpoints[i].address);
         }
         return m;
+    } else {
+        if (_address >= 0x10000) {
+            char *m = malloc(LINE_BUFFER_SIZE);
+            strncpy(m, USER_BAD_ARG_STR "address must be 16 bit\n",
+                    LINE_BUFFER_SIZE);
+            return m;
+        }
+        const zuint16 address = (zuint16)_address;
+
+        // actually set breakpoint
+        bool r = cpu_addBreakpoint(address);
+
+        if (!r) {
+            char *m = malloc(LINE_BUFFER_SIZE);
+            strncpy(m, USER_NO_SPACE_LEFT_STR, LINE_BUFFER_SIZE);
+            return m;
+        }
+
+        return NULL;
     }
-
-    // extract address
-    unsigned int _address;
-    int n = sscanf(word, "%x", &_address);
-    if (n != 1) {
-        char *m = malloc(LINE_BUFFER_SIZE);
-        strncpy(m, USER_BAD_ARG_STR, LINE_BUFFER_SIZE);
-        return m;
-    }
-
-    zuint16 address;
-    address = _address;
-
-    // actually set breakpoint
-    bool r = cpu_addBreakpoint(address);
-
-    if (!r) {
-        char *m = malloc(LINE_BUFFER_SIZE);
-        strncpy(m, USER_NO_SPACE_LEFT_STR, LINE_BUFFER_SIZE);
-        return m;
-    }
-
-    return NULL;
 }
 
 static char *cli_delete(const char *arg) {
@@ -305,7 +302,7 @@ static char *cli_read(const char *arg) {
     // read some mem
     const size_t BLOB_SIZE = 8 * 16;
     char blob[BLOB_SIZE];
-    bus_mem_readsome(NULL, blob, address, BLOB_SIZE);
+    bus_mem_readsome(NULL, blob, (zuint16)address, BLOB_SIZE);
 
     // print nice hexdump
     int n = 0;
@@ -314,19 +311,21 @@ static char *cli_read(const char *arg) {
         const char c = blob[i];
 
         if (i % 16 == 0) {
-            n += snprintf(m + n, BLOCK_BUFFER_SIZE - n, "%04x\t", address + i);
+            n += snprintf(m + n, (size_t)(BLOCK_BUFFER_SIZE - n), "%04x\t",
+                          address + i);
         }
 
-        n += snprintf(m + n, BLOCK_BUFFER_SIZE - n, "%02x ",
+        n += snprintf(m + n, (size_t)(BLOCK_BUFFER_SIZE - n), "%02x ",
                       ((unsigned int)(c)) & 0xff);
         ascii[i % 16] = isprint(c) ? c : '.';
 
         if (i % 16 == 7) {
-            n += snprintf(m + n, BLOCK_BUFFER_SIZE - n, " ");
+            n += snprintf(m + n, (size_t)(BLOCK_BUFFER_SIZE - n), " ");
         }
 
         if (i % 16 == 15) {
-            n += snprintf(m + n, BLOCK_BUFFER_SIZE - n, "\t%s\n", ascii);
+            n += snprintf(m + n, (size_t)(BLOCK_BUFFER_SIZE - n), "\t%s\n",
+                          ascii);
         }
     }
 
@@ -341,27 +340,26 @@ static char *cli_write(const char *arg) {
     arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // extract address
-    unsigned int address;
-    arg = cli_next_hex(&address, arg);
-
+    unsigned int _address;
+    arg = cli_next_hex(&_address, arg);
     // missing address
     if (arg == NULL) {
         strncpy(m, USER_BAD_ARG_STR "bad address format\n", LINE_BUFFER_SIZE);
         return m;
     }
-
     // address >= 2^16
-    if (address >= 0x10000) {
+    if (_address >= 0x10000) {
         strncpy(m, USER_BAD_ARG_STR "address must be 16 bit\n",
                 LINE_BUFFER_SIZE);
         return m;
     }
+    const zuint16 address = (zuint16)_address;
 
     // read values, and put them in memory
-    for (unsigned int i = 0;; ++i) {
+    for (zuint16 i = 0;; ++i) {
         // extract value
-        unsigned int value;
-        arg = cli_next_hex(&value, arg);
+        unsigned int _value;
+        arg = cli_next_hex(&_value, arg);
         if (arg == NULL) {
             // first value cannot be missing
             if (i == 0) {
@@ -375,11 +373,12 @@ static char *cli_write(const char *arg) {
         }
 
         // value >= 2^8
-        if (value >= 0x100) {
+        if (_value >= 0x100) {
             strncpy(m, USER_BAD_ARG_STR "value must be 8 bit\n",
                     LINE_BUFFER_SIZE);
             return m;
         }
+        const zuint8 value = (zuint8)_value;
 
         bus_mem_write(NULL, address + i, value);
     }
@@ -409,9 +408,10 @@ static char *cli_dis(const char *arg) {
     char line[LINE_BUFFER_SIZE];
     uint8_t blob[CPU_MAX_OPCODE_LEN];
     for (int i = 0; i < 16 && n < BLOCK_BUFFER_SIZE - 1; ++i) {
-        bus_mem_readsome(NULL, blob, address + b, CPU_MAX_OPCODE_LEN);
-        b += disassemble(blob, address + b, line, BLOCK_BUFFER_SIZE);
-        n += snprintf(m + n, BLOCK_BUFFER_SIZE - n, "%s\n", line);
+        bus_mem_readsome(NULL, blob, (zuint16)(address + (unsigned int)b),
+                         CPU_MAX_OPCODE_LEN);
+        b += disassemble(blob, (int)address + b, line, BLOCK_BUFFER_SIZE);
+        n += snprintf(m + n, (size_t)(BLOCK_BUFFER_SIZE - n), "%s\n", line);
     }
 
     return m;
@@ -498,7 +498,7 @@ static char *cli_save(const char *arg) {
     blob[0] = lsb;
     blob[1] = msb;
     // payload
-    bus_mem_readsome(NULL, &blob[2], start_address, data_size);
+    bus_mem_readsome(NULL, &blob[2], (zuint16)start_address, data_size);
     // write
     size_t w = fwrite(blob, 1, alloc_size, fp);
     fclose(fp);
@@ -571,7 +571,8 @@ static char *cli_load(const char *arg) {
                 LINE_BUFFER_SIZE);
         return m;
     }
-    const unsigned int file_address = word[0] | (word[1] << 8);
+    const unsigned int file_address =
+        (word[0] & 0xff) | ((word[1] & 0xff) << 8);
 
     // use starting address from file if we are not overriding it
     if (!override_address) {
@@ -584,7 +585,7 @@ static char *cli_load(const char *arg) {
         r = fread(&c, 1, 1, fp);
         if (r == 0)
             break;
-        bus_mem_write(NULL, address++, c);
+        bus_mem_write(NULL, (zuint16)address++, (zuint8)c);
     }
 
     fclose(fp);
@@ -615,7 +616,7 @@ static char *cli_goto(const char *arg) {
     }
 
     // inconditional jump
-    cpu_goto(address);
+    cpu_goto((zuint16)address);
     return NULL;
 }
 
@@ -638,7 +639,7 @@ static char *cli_in(const char *arg) {
         return m;
     }
 
-    const zuint8 value = bus_io_in(NULL, address);
+    const zuint8 value = bus_io_in(NULL, (zuint16)address);
     snprintf(m, LINE_BUFFER_SIZE, "%02x\n", value);
     return m;
 }
@@ -674,7 +675,7 @@ static char *cli_out(const char *arg) {
         return m;
     }
 
-    bus_io_out(NULL, address, value);
+    bus_io_out(NULL, (zuint16)address, (zuint8)value);
 
     free(m);
     return NULL;
@@ -812,12 +813,12 @@ static char *cli_help(const char *arg) {
         return NULL;
     }
 
-    size_t n = 0;
+    int n = 0;
     for (size_t i = 0;
          i < ARRAY_SIZE(cli_commands) && n < BLOCK_BUFFER_SIZE - 1; ++i) {
         const cli_command *const c = &cli_commands[i];
-        n += snprintf(m + n, BLOCK_BUFFER_SIZE - n, "\t%s\n\t\t%s\n\n",
-                      c->command, c->help);
+        n += snprintf(m + n, (size_t)(BLOCK_BUFFER_SIZE - n),
+                      "\t%s\n\t\t%s\n\n", c->command, c->help);
     }
 
     return m;
@@ -895,7 +896,7 @@ static void cli_poll(void) {
                 return;
             } else {
                 // data available
-                cli_handle_incoming_data(buffer, rv);
+                cli_handle_incoming_data(buffer, (size_t)rv);
             }
         }
 
@@ -904,7 +905,7 @@ static void cli_poll(void) {
             while (!FIFO_ISEMPTY(&tx_fifo)) {
                 char *m = FIFO_POP(&tx_fifo);
 
-                int rv = send(connfd, m, strlen(m), 0);
+                ssize_t rv = send(connfd, m, strlen(m), 0);
                 free(m);
 
                 if (rv == -1) {
@@ -919,10 +920,10 @@ static void cli_poll(void) {
     }
 }
 
-static us_time_t cli_remaining(void) {
+static us_interval_t cli_remaining(void) {
     const us_time_t next_update = last_update + UPDATE_INTERVAL;
     const us_time_t now = time_now_us();
-    const us_time_t diff = next_update - now;
+    const us_interval_t diff = next_update - now;
     return diff;
 }
 

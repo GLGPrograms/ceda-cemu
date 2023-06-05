@@ -18,7 +18,7 @@
 #include "log.h"
 
 struct bus_mem_slot {
-    uint32_t base;
+    uint16_t base;
     uint32_t top;
     Z80Read read;
     Z80Write write;
@@ -31,7 +31,7 @@ struct bus_mem_slot bus_mem_slots[] = {
 };
 
 struct bus_io_slot {
-    uint32_t base;
+    uint16_t base;
     uint32_t top;
     Z80Read in;
     Z80Write out;
@@ -82,7 +82,7 @@ void bus_mem_readsome(void *context, void *_blob, zuint16 address, size_t len) {
 
     LOG_DEBUG("%s: [%04x] x %lu\n", __func__, address, len);
 
-    for (size_t i = 0; i < len; ++i) {
+    for (zuint16 i = 0; i < len; ++i) {
         blob[i] = bus_mem_read(context, address + i);
     }
 }

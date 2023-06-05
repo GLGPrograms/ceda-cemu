@@ -37,13 +37,15 @@ typedef struct {
 #define canz180() ( 1 )
 #define cancbundoc() ( 1 )
 
-#define READ_BYTE(state,val) do { \
-    val = state->blob[state->pc++ - state->blob_start]; \
+#define READ_BYTE(state) ({ \
+    uint8_t val = state->blob[state->pc++ - state->blob_start]; \
     state->instr_bytes[state->len++] = val; \
-} while (0)
+    val; \
+})
 
 #define BUF_PRINTF(fmt, ...) do { \
-    offs += snprintf(buf + offs, buflen - offs, fmt, ## __VA_ARGS__); \
+    int w = snprintf(buf + offs, buflen - offs, fmt, ## __VA_ARGS__); \
+    offs += (size_t)w; \
 } while(0)
 
 static char *handle_rot(dcontext *state,  uint8_t z)
@@ -65,9 +67,9 @@ static char *handle_rel8(dcontext *state, char *buf, size_t buflen)
     size_t  offs = 0;
     int8_t  displacement;
 
-    READ_BYTE(state, displacement);
+    displacement = (int8_t)READ_BYTE(state);
 
-    BUF_PRINTF("$%04x", (unsigned short)(state->pc + displacement));
+    BUF_PRINTF("$%04x", (unsigned short)((int)state->pc + displacement));
 
     return buf;
 }
@@ -78,8 +80,8 @@ static char *handle_addr16(dcontext *state, char *buf, size_t buflen)
     uint8_t  lsb;
     uint8_t  msb;
 
-    READ_BYTE(state, lsb);
-    READ_BYTE(state, msb);
+    lsb = READ_BYTE(state);
+    msb = READ_BYTE(state);
 
     BUF_PRINTF("$%02x%02x", msb, lsb);
 
@@ -91,7 +93,7 @@ static char *handle_immed8(dcontext *state, char *buf, size_t buflen)
     size_t offs = 0;
     uint8_t lsb;
 
-    READ_BYTE(state, lsb);
+    lsb = READ_BYTE(state);
     BUF_PRINTF("$%02x", lsb);
 
     return buf;
@@ -103,8 +105,8 @@ static char *handle_immed16(dcontext *state, char *buf, size_t buflen)
     uint8_t lsb;
     uint8_t msb;
 
-    READ_BYTE(state, lsb);
-    READ_BYTE(state, msb);
+    lsb = READ_BYTE(state);
+    msb = READ_BYTE(state);
 
     BUF_PRINTF("$%02x%02x", msb, lsb);
 
@@ -117,8 +119,8 @@ static char *handle_immed16_be(dcontext *state, char *buf, size_t buflen)
     uint8_t lsb;
     uint8_t msb;
 
-    READ_BYTE(state, msb);
-    READ_BYTE(state, lsb);
+    msb = READ_BYTE(state);
+    lsb = READ_BYTE(state);
 
     BUF_PRINTF("$%02x%02x", msb, lsb);
 
@@ -148,10 +150,10 @@ static char *handle_register8(dcontext *state, uint8_t y, char *buf, size_t bufl
         index = 0;
     }
     if ( y == 6 && index ) {
-        int8_t displacement = state->displacement;
+        int8_t displacement = (int8_t)state->displacement;
 
         if ( state->prefix != 0xcb )
-            READ_BYTE(state, displacement);
+            displacement = (int8_t)READ_BYTE(state);
 
         BUF_PRINTF("%s%s$%02x)", table[index][y], displacement < 0 ? "-" : "+", displacement < 0 ? -displacement : displacement);
         return buf;
@@ -165,7 +167,7 @@ static char *handle_displacement(dcontext *state, char *buf, size_t buflen)
     int8_t dis;
     size_t offs = 0;
 
-    READ_BYTE(state, dis);
+    dis = (int8_t)READ_BYTE(state);
     BUF_PRINTF("%s$%02x",  dis < 0 ? "-" : "+", dis < 0 ? -dis : dis);
     return buf;
 }
@@ -246,20 +248,20 @@ int disassemble(uint8_t* blob, int pc, char *bufstart, size_t buflen)
     char         opbuf2[256];
 
     state->blob = blob;
-    state->blob_start = pc;
-    state->pc = pc;
+    state->blob_start = (unsigned int)pc;
+    state->pc = (unsigned int)pc;
 
     buf = bufstart + offs;
     buflen -= offs;
 
-    offs = snprintf(buf, buflen, "%-8s", "");
+    offs = (size_t)snprintf(buf, buflen, "%-8s", "");
 
     if ( 0 ) { //address_is_code(state->pc) == 0 ) {
-        READ_BYTE(state, b);
+        b = READ_BYTE(state);
         BUF_PRINTF("%-8s$%02x","defb",b);
     } else {
         do {
-            READ_BYTE(state, b);
+            b = READ_BYTE(state);
 
             // Decoding the main page
             // x = the opcode's 1st octal digit (i.e. bits 7-6)
@@ -415,9 +417,9 @@ int disassemble(uint8_t* blob, int pc, char *bufstart, size_t buflen)
                         else if ( y == 1 ) {
                             state->prefix = 0xcb;
                             if ( state->index ) {
-                                READ_BYTE(state, state->displacement);
+                                state->displacement = READ_BYTE(state);
                             }
-                            READ_BYTE(state, b);
+                            b = READ_BYTE(state);
                             uint8_t x = b >> 6;
                             uint8_t y = ( b & 0x38) >> 3;
                             uint8_t z = b & 0x07;
@@ -490,7 +492,7 @@ int disassemble(uint8_t* blob, int pc, char *bufstart, size_t buflen)
                             else if ( p == 1 && canindex() ) { state->index = 1; continue; }
                             else if ( p == 2 && is8085() ) BUF_PRINTF("%-8shl,(de)","ld");
                             else if ( p == 2 && canindex() ) { // ED page
-                                READ_BYTE(state, b);
+                                b = READ_BYTE(state);
                                 uint8_t x = b >> 6;
                                 uint8_t y = ( b & 0x38) >> 3;
                                 uint8_t z = b & 0x07;
@@ -671,12 +673,12 @@ int disassemble(uint8_t* blob, int pc, char *bufstart, size_t buflen)
         buf[offs++] = ' ';
         buf[offs] = 0;
     }
-    offs += snprintf(buf + offs, buflen - offs, ";[%04x] ", (unsigned int)(start_pc & 0xffff));
+    offs += (size_t)snprintf(buf + offs, buflen - offs, ";[%04x] ", (unsigned int)(start_pc & 0xffff));
     for ( i = state->skip; i < state->len; i++ ) {
-        offs += snprintf(buf + offs, buflen - offs,"%s%02x", i ? " " : "", state->instr_bytes[i]);
+        offs += (size_t)snprintf(buf + offs, buflen - offs,"%s%02x", i ? " " : "", state->instr_bytes[i]);
     }
     if ( dolf ) {
-        offs += snprintf(buf + offs, buflen - offs,"\n");
+        offs += (size_t)snprintf(buf + offs, buflen - offs,"\n");
     }
 
     return state->len;

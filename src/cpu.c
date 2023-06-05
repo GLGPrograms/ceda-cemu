@@ -68,7 +68,7 @@ static void cpu_update_performance(void) {
     const us_time_t diff_utime = now - last_time;
     const unsigned long int diff_cycles = cycles - last_cycles;
 
-    perf_value = diff_cycles / (diff_utime / 1000.0 / 1000.0);
+    perf_value = (float)diff_cycles / ((float)diff_utime / 1000.0f / 1000.0f);
 
     last_time = now;
     last_cycles = cycles;
