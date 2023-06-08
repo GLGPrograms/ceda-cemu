@@ -21,9 +21,7 @@ void upd8255_init(void) {
     port[UPD8255_PORTC_REG] = 0x02; // CRTC frame sync?
 }
 
-zuint8 upd8255_in(void *context, zuint16 address) {
-    // TODO
-    (void)context;
+uint8_t upd8255_in(ceda_ioaddr_t address) {
     assert(address < UPD8255_REG_COUNT);
     LOG_DEBUG("upd8255: io_in: [%02x]\n", (zuint8)address);
 
@@ -36,8 +34,7 @@ zuint8 upd8255_in(void *context, zuint16 address) {
     return 0;
 }
 
-void upd8255_out(void *context, zuint16 address, zuint8 value) {
-    (void)context;
+void upd8255_out(ceda_ioaddr_t address, uint8_t value) {
     assert(address < UPD8255_REG_COUNT);
     LOG_DEBUG("upd8255: io_out: [%02x] <= %02x\n", (zuint8)address, value);
 

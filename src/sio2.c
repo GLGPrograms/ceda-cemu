@@ -13,10 +13,8 @@ void sio2_init(void) {
     // TODO
 }
 
-zuint8 sio2_in(void *context, zuint16 address) {
+uint8_t sio2_in(ceda_ioaddr_t address) {
     assert(address < SIO2_REG_NUM);
-
-    (void)context;
 
     if (address == SIO2_CHA_DATA_REG) {
         // TODO -- read external RS232
@@ -35,10 +33,9 @@ zuint8 sio2_in(void *context, zuint16 address) {
     return 0x00;
 }
 
-void sio2_out(void *context, zuint16 address, zuint8 value) {
+void sio2_out(ceda_ioaddr_t address, uint8_t value) {
     assert(address < SIO2_REG_NUM);
 
-    (void)context;
     (void)address;
     (void)value;
 }

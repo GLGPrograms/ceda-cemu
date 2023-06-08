@@ -243,15 +243,13 @@ void video_init(CEDAModule *mod) {
     fclose(fp);
 }
 
-zuint8 video_ram_read(void *context, zuint16 address) {
-    (void)context;
+zuint8 video_ram_read(ceda_address_t address) {
     assert(address < VIDEO_CHAR_MEM_SIZE);
 
     return mem[address];
 }
 
-void video_ram_write(void *context, zuint16 address, zuint8 value) {
-    (void)context;
+void video_ram_write(ceda_address_t address, uint8_t value) {
     assert(address < VIDEO_CHAR_MEM_SIZE);
 
     LOG_DEBUG("write [%04x] <= %02x\n", address, value);

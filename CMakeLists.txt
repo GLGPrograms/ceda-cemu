@@ -50,3 +50,7 @@ target_link_libraries(ceda
     criterion
 )
 
+find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
+set(CLANG_TIDY_COMMAND "${CLANG_TIDY_EXE}" "--use-color")
+set_target_properties(ceda PROPERTIES C_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
+

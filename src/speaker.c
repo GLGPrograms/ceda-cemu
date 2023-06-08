@@ -62,8 +62,7 @@ void speaker_init(CEDAModule *mod) {
     }
 }
 
-zuint8 speaker_in(void *context, zuint16 address) {
-    (void)context;
+uint8_t speaker_in(ceda_ioaddr_t address) {
     (void)address;
 
     speaker_trigger();
@@ -71,8 +70,7 @@ zuint8 speaker_in(void *context, zuint16 address) {
     return 0;
 }
 
-void speaker_out(void *context, zuint16 address, zuint8 value) {
-    (void)context;
+void speaker_out(ceda_ioaddr_t address, uint8_t value) {
     (void)address;
     (void)value;
 

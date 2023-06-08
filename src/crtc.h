@@ -1,6 +1,8 @@
 #ifndef CEDA_CRTC_H
 #define CEDA_CRTC_H
 
+#include "type.h"
+
 #include <Z80.h>
 #include <stdint.h>
 
@@ -12,8 +14,8 @@ typedef enum CRTCCursorBlink {
 
 void crtc_init(void);
 
-zuint8 crtc_in(void *context, zuint16 address);
-void crtc_out(void *context, zuint16 address, zuint8 value);
+uint8_t crtc_in(ceda_ioaddr_t address);
+void crtc_out(ceda_ioaddr_t address, uint8_t value);
 
 /**
  * @brief Check if the cursor is being blinked by the hardware.

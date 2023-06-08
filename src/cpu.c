@@ -44,14 +44,15 @@ static bool cpu_checkBreakpoints(void) {
 }
 
 static zuint8 cpu_fetch_opcode(void *context, zuint16 address) {
+    (void)context;
     LOG_DEBUGB({
         char mnemonic[256];
         uint8_t blob[16];
-        bus_mem_readsome(context, blob, address, 16);
+        bus_mem_readsome(blob, address, 16);
         disassemble(blob, address, mnemonic, 256);
         LOG_DEBUG("%s: [%04x]:\t%s\n", __func__, address, mnemonic);
     });
-    return bus_mem_read(context, address);
+    return bus_mem_read(address);
 }
 
 static void cpu_performance(float *value, const char **unit) {
@@ -174,6 +175,27 @@ size_t cpu_getBreakpoints(CpuBreakpoint *v[]) {
     return CPU_BREAKPOINTS;
 }
 
+static uint8_t cpu_mem_read(void *context, zuint16 address) {
+    (void)context;
+    return bus_mem_read(address);
+}
+
+static void cpu_mem_write(void *context, ceda_address_t address,
+                          uint8_t value) {
+    (void)context;
+    bus_mem_write(address, value);
+}
+
+static uint8_t cpu_io_in(void *context, zuint16 address) {
+    (void)context;
+    return bus_io_in(address);
+}
+
+static void cpu_io_out(void *context, zuint16 address, zuint8 value) {
+    (void)context;
+    return bus_io_out(address, value);
+}
+
 void cpu_init(CEDAModule *mod) {
     // init mod struct
     memset(mod, 0, sizeof(*mod));
@@ -187,11 +209,11 @@ void cpu_init(CEDAModule *mod) {
     // init cpu
     memset(&cpu, 0, sizeof(cpu));
     cpu.fetch_opcode = cpu_fetch_opcode;
-    cpu.fetch = bus_mem_read;
-    cpu.read = bus_mem_read;
-    cpu.write = bus_mem_write;
-    cpu.in = bus_io_in;
-    cpu.out = bus_io_out;
+    cpu.fetch = cpu_mem_read;
+    cpu.read = cpu_mem_read;
+    cpu.write = cpu_mem_write;
+    cpu.in = cpu_io_in;
+    cpu.out = cpu_io_out;
 
     z80_power(&cpu, true);
 }

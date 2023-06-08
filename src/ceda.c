@@ -1,6 +1,5 @@
 #include "ceda.h"
 
-#include "assert.h"
 #include "bios.h"
 #include "bus.h"
 #include "cli.h"
@@ -13,6 +12,7 @@
 #include "upd8255.h"
 #include "video.h"
 
+#include <assert.h>
 #include <unistd.h>
 
 #include "log.h"

@@ -4,9 +4,8 @@ void fdc_init(void) {
     // TODO
 }
 
-zuint8 fdc_in(void *context, zuint16 address) {
+uint8_t fdc_in(ceda_ioaddr_t address) {
     // TODO
-    (void)context;
     (void)address;
 
     // TODO -- this allows routine $C403 to proceed
@@ -15,9 +14,8 @@ zuint8 fdc_in(void *context, zuint16 address) {
     return 0;
 }
 
-void fdc_out(void *context, zuint16 address, zuint8 value) {
+void fdc_out(ceda_ioaddr_t address, uint8_t value) {
     // TODO
-    (void)context;
     (void)address;
     (void)value;
 }

@@ -1,0 +1,18 @@
+# altera-struct-pack-align: it's just for performance, we don't need to optimize up to this level
+# altera-unroll-loop: it's just for performance, we don't need to optimize up to this level
+# bugprone-easily-swappable-parameters: loud warnings, with no clear advice on how to fix
+# llvmlibc-restrict-system-libc-headers: this is a desktop application, libc is useful
+# cppcoreguidelines*: this is a C application, not a C++ one
+
+Checks: >
+  *,
+  -altera-struct-pack-align,
+  -altera-unroll-loops,
+  -bugprone-easily-swappable-parameters,
+  -llvmlibc-restrict-system-libc-headers,
+  -cppcoreguidelines*
+
+# CheckOptions:
+# - { key: bugprone-easily-swappable-parameters.ModelImplicitConversions, value: true }
+
+

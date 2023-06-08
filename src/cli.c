@@ -141,7 +141,7 @@ static char *cli_reg(const char *arg) {
     // disassemble current pc
     char _dis[LINE_BUFFER_SIZE];
     uint8_t blob[CPU_MAX_OPCODE_LEN];
-    bus_mem_readsome(NULL, blob, regs.pc, CPU_MAX_OPCODE_LEN);
+    bus_mem_readsome(blob, regs.pc, CPU_MAX_OPCODE_LEN);
     disassemble(blob, regs.pc, _dis, LINE_BUFFER_SIZE);
     const char *dis = _dis;
     while (*dis == ' ')
@@ -302,7 +302,7 @@ static char *cli_read(const char *arg) {
     // read some mem
     const size_t BLOB_SIZE = 8 * 16;
     char blob[BLOB_SIZE];
-    bus_mem_readsome(NULL, blob, (zuint16)address, BLOB_SIZE);
+    bus_mem_readsome(blob, (zuint16)address, BLOB_SIZE);
 
     // print nice hexdump
     int n = 0;
@@ -380,7 +380,7 @@ static char *cli_write(const char *arg) {
         }
         const zuint8 value = (zuint8)_value;
 
-        bus_mem_write(NULL, address + i, value);
+        bus_mem_write(address + i, value);
     }
 
     free(m);
@@ -408,7 +408,7 @@ static char *cli_dis(const char *arg) {
     char line[LINE_BUFFER_SIZE];
     uint8_t blob[CPU_MAX_OPCODE_LEN];
     for (int i = 0; i < 16 && n < BLOCK_BUFFER_SIZE - 1; ++i) {
-        bus_mem_readsome(NULL, blob, (zuint16)(address + (unsigned int)b),
+        bus_mem_readsome(blob, (zuint16)(address + (unsigned int)b),
                          CPU_MAX_OPCODE_LEN);
         b += disassemble(blob, (int)address + b, line, BLOCK_BUFFER_SIZE);
         n += snprintf(m + n, (size_t)(BLOCK_BUFFER_SIZE - n), "%s\n", line);
@@ -498,7 +498,7 @@ static char *cli_save(const char *arg) {
     blob[0] = lsb;
     blob[1] = msb;
     // payload
-    bus_mem_readsome(NULL, &blob[2], (zuint16)start_address, data_size);
+    bus_mem_readsome(&blob[2], (zuint16)start_address, data_size);
     // write
     size_t w = fwrite(blob, 1, alloc_size, fp);
     fclose(fp);
@@ -585,7 +585,7 @@ static char *cli_load(const char *arg) {
         r = fread(&c, 1, 1, fp);
         if (r == 0)
             break;
-        bus_mem_write(NULL, (zuint16)address++, (zuint8)c);
+        bus_mem_write((zuint16)address++, (zuint8)c);
     }
 
     fclose(fp);
@@ -639,7 +639,7 @@ static char *cli_in(const char *arg) {
         return m;
     }
 
-    const zuint8 value = bus_io_in(NULL, (zuint16)address);
+    const zuint8 value = bus_io_in((zuint16)address);
     snprintf(m, LINE_BUFFER_SIZE, "%02x\n", value);
     return m;
 }
@@ -675,7 +675,7 @@ static char *cli_out(const char *arg) {
         return m;
     }
 
-    bus_io_out(NULL, (zuint16)address, (zuint8)value);
+    bus_io_out((zuint16)address, (zuint8)value);
 
     free(m);
     return NULL;

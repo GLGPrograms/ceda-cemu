@@ -35,8 +35,7 @@ void crtc_init(void) {
     // TODO
 }
 
-zuint8 crtc_in(void *context, zuint16 address) {
-    (void)context;
+uint8_t crtc_in(ceda_ioaddr_t address) {
     (void)address;
 
     LOG_DEBUG("in: %02x\n", address);
@@ -44,9 +43,7 @@ zuint8 crtc_in(void *context, zuint16 address) {
     return 0;
 }
 
-void crtc_out(void *context, zuint16 address, zuint8 value) {
-    (void)context;
-
+void crtc_out(ceda_ioaddr_t address, uint8_t value) {
     LOG_DEBUG("out: [%02x] <= %02x\n", address, value);
 
     if (address == 0) {

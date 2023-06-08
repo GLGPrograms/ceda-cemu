@@ -1,10 +1,12 @@
 #ifndef CEDA_SIO2_H
 #define CEDA_SIO2_H
 
+#include "type.h"
+
 #include <Z80.h>
 
 void sio2_init(void);
-zuint8 sio2_in(void *context, zuint16 address);
-void sio2_out(void *context, zuint16 address, zuint8 value);
+uint8_t sio2_in(ceda_ioaddr_t address);
+void sio2_out(ceda_ioaddr_t address, uint8_t value);
 
 #endif // CEDA_SIO2_H

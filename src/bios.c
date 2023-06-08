@@ -28,9 +28,7 @@ void rom_bios_init(void) {
     fclose(fp);
 }
 
-zuint8 rom_bios_read(void *context, zuint16 address) {
-    (void)context;
-
+uint8_t rom_bios_read(ceda_address_t address) {
     const zuint8 value = bios[address];
     LOG_DEBUG("ROM [%04x] => %02x\n", address, value);
     return value;
