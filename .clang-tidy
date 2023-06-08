@@ -1,18 +1,42 @@
+# altera-id-dependent-backward-branch: it's ok to have ID-dependent loops, we have plenty of processing power and no safety critical system
 # altera-struct-pack-align: it's just for performance, we don't need to optimize up to this level
 # altera-unroll-loop: it's just for performance, we don't need to optimize up to this level
 # bugprone-easily-swappable-parameters: loud warnings, with no clear advice on how to fix
 # llvmlibc-restrict-system-libc-headers: this is a desktop application, libc is useful
 # cppcoreguidelines*: this is a C application, not a C++ one
+# readability-magic-numbers.IgnorePowersOf2IntegerValues: it's reasonable that powers of two can be pretty self-explanatory in an emulator
+# readability-braces-around-statements: disabled because auto-formatting is already enough to save us from mistakes
+# hicpp-signed-bitwise: disabled because produces false positives
+# readability-magic-numbers.IgnoredIntegerValues: allow usage of immediate masks, after all this is an emulator
+# concurrency-mt-unsafe: better to check for errors with strerror() and errno, instead of ignoring because functions are thread unsafe, don't you think?
+# clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling: disabled because everybody needs memset()
 
 Checks: >
   *,
+  -altera-id-dependent-backward-branch,
   -altera-struct-pack-align,
   -altera-unroll-loops,
   -bugprone-easily-swappable-parameters,
   -llvmlibc-restrict-system-libc-headers,
-  -cppcoreguidelines*
+  -cppcoreguidelines*,
+  -google-readability-braces-around-statements,
+  -readability-braces-around-statements,
+  -hicpp-braces-around-statements,
+  -hicpp-signed-bitwise,
+  -android*,
+  -concurrency-mt-unsafe,
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
 
-# CheckOptions:
-# - { key: bugprone-easily-swappable-parameters.ModelImplicitConversions, value: true }
+CheckOptions:
+  - key: readability-magic-numbers.IgnorePowersOf2IntegerValues
+    value: true
+  - key: readability-magic-numbers.IgnoredIntegerValues
+    value: '255'
+  - key: readability-identifier-length.IgnoredVariableNames
+    value: 'c|fp'
+  - key: readability-function-cognitive-complexity.IgnoreMacros
+    value: true
+  - key: readability-function-cognitive-complexity.Threshold
+    value: 30
 
 
