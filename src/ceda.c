@@ -39,22 +39,68 @@ void ceda_init(void) {
     cpu_init(&mod_cpu);
 }
 
-void ceda_run(void) {
-    // start all modules
+static void ceda_start(void) {
     for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
         void (*start)(void) = modules[i]->start;
-        if (start)
+        if (start) {
             start();
+        }
     }
+}
+
+static void ceda_poll(void) {
+    for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
+        void (*poll)(void) = modules[i]->poll;
+        if (poll) {
+            poll();
+        }
+    }
+}
+
+static void ceda_remaining(void) {
+    us_interval_t wait = LONG_MAX;
+    for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
+        remaining_handler_t remaining = modules[i]->remaining;
+        if (!remaining) {
+            continue;
+        }
+        wait = MIN(remaining(), wait);
+    }
+    if (wait > 0) {
+        usleep((__useconds_t)wait);
+    }
+}
+
+static void ceda_performance(void) {
+    for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
+        performance_handler_t perf = modules[i]->performance;
+        if (!perf) {
+            continue;
+        }
+        float value;
+        const char *unit;
+        perf(&value, &unit);
+        LOG_DEBUG("module %u: %f %s\n", i, value, unit);
+    }
+}
+
+static void ceda_cleanup(void) {
+    for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
+        void (*cleanup)(void) = modules[i]->cleanup;
+        if (cleanup) {
+            cleanup();
+        }
+    }
+}
+
+void ceda_run(void) {
+    // start all modules
+    ceda_start();
 
     // main loop
     for (;;) {
         // poll all modules
-        for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
-            void (*poll)(void) = modules[i]->poll;
-            if (poll)
-                poll();
-        }
+        ceda_poll();
 
         // decide wether to exit
         if (gui_isQuit() || cli_isQuit()) {
@@ -62,32 +108,12 @@ void ceda_run(void) {
         }
 
         // check for how long each module can sleep, and yield host cpu
-        us_interval_t wait = LONG_MAX;
-        for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
-            remaining_handler_t remaining = modules[i]->remaining;
-            if (!remaining)
-                continue;
-            wait = MIN(remaining(), wait);
-        }
-        if (wait > 0)
-            usleep((__useconds_t)wait);
+        ceda_remaining();
 
         // retrieve and print modules performance metrics
-        for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
-            performance_handler_t perf = modules[i]->performance;
-            if (!perf)
-                continue;
-            float value;
-            const char *unit;
-            perf(&value, &unit);
-            LOG_DEBUG("module %u: %f %s\n", i, value, unit);
-        }
+        ceda_performance();
     }
 
     // cleanup all modules
-    for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
-        void (*cleanup)(void) = modules[i]->cleanup;
-        if (cleanup)
-            cleanup();
-    }
+    ceda_cleanup();
 }
