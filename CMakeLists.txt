@@ -5,6 +5,7 @@ project(ceda VERSION 2023.06)
 add_executable(ceda
     src/bus.c
     src/ceda.c
+    src/ceda_string.c
     src/cli.c
     src/crtc.c
     src/cpu.c
