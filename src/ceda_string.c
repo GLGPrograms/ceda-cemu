@@ -111,13 +111,14 @@ const char *ceda_string_data(const ceda_string_t *str) {
 }
 
 void ceda_string_cpy(ceda_string_t *str, const char *other) {
+    assert(str->data != other);
     str->data[0] = '\0';
     str->used = 1;
     ceda_string_cat(str, other);
 }
 
 ceda_size_t ceda_string_len(const ceda_string_t *str) {
-    return str->used;
+    return str->used - 1;
 }
 
 void ceda_string_delete(ceda_string_t *str) {
@@ -169,6 +170,17 @@ Test(ceda_string, cpy) {
     ceda_string_cpy(str, "world");
     cr_assert_str_eq(ceda_string_data(str), "world");
     ceda_string_delete(str);
+}
+
+Test(ceda_string, len) {
+    ceda_string_t *str = ceda_string_new(0);
+    cr_assert_eq(ceda_string_len(str), 0);
+    ceda_string_delete(str);
+
+    ceda_string_t *str2 = ceda_string_new(4);
+    ceda_string_cpy(str2, "");
+    cr_assert_eq(ceda_string_len(str2), 0);
+    ceda_string_delete(str2);
 }
 
 #endif

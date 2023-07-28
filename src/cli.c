@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <netinet/in.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -758,7 +759,8 @@ static const cli_command cli_commands[] = {
  * @param line pointer to ceda_string_t string representing the command line
  */
 static void cli_handle_line(ceda_string_t *line) {
-    // TODO(giomba): this is a "memory leak"
+    // TODO(giomba): this is a "memory leak",
+    // because nobody is going to free this last_line ceda_string_t.
     static ceda_string_t *last_line = NULL;
     if (last_line == NULL)
         last_line = ceda_string_new(0);
@@ -784,8 +786,9 @@ static void cli_handle_line(ceda_string_t *line) {
 
         // command found
         if (strcmp(c->command, word) == 0) {
-            ceda_string_cpy(last_line,
-                            ceda_string_data(line)); // save line for next time
+            // save line for next time
+            if (last_line != line)
+                ceda_string_cpy(last_line, ceda_string_data(line));
             ceda_string_t *msg = c->handler(ceda_string_data(line));
             if (msg != NULL) {
                 cli_send_string(ceda_string_data(msg));
