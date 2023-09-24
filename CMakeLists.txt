@@ -23,10 +23,9 @@ add_executable(ceda
     src/3rd/disassembler.c
 )
 
-target_compile_options(ceda PRIVATE -W -Wformat -Wformat-signedness -Wall -Wundef -Wpointer-arith -Wcast-qual -Wwrite-strings -Wsign-compare -Wmissing-noreturn -Wextra -Wconversion)
+target_compile_options(ceda PRIVATE -W -Wformat -Wall -Wundef -Wpointer-arith -Wcast-qual -Wwrite-strings -Wsign-compare -Wmissing-noreturn -Wextra -Wconversion)
 
 set_source_files_properties(src/3rd/disassembler.c PROPERTIES COMPILE_FLAGS -Wno-discarded-qualifiers)
-
 
 if(CEDA_TEST)
     target_compile_options(ceda PRIVATE -DCEDA_TEST=1)
@@ -52,6 +51,6 @@ target_link_libraries(ceda
 )
 
 find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
-set(CLANG_TIDY_COMMAND "${CLANG_TIDY_EXE}" "--use-color")
+set(CLANG_TIDY_COMMAND "${CLANG_TIDY_EXE}" "--use-color" "--extra-arg=-Wno-unknown-warning-option")
 set_target_properties(ceda PROPERTIES C_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
 
