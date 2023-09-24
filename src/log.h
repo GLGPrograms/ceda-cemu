@@ -52,8 +52,8 @@
 	 */
 	#define LOG_ERRB(x)            x
 #else
-    #define LOG_ERR(fmt, ...)   /* Nothing */
-	#define LOG_ERRB(x)         /* Nothing */
+    #define LOG_ERR(fmt, ...)   {;} /* Nothing */
+	#define LOG_ERRB(x)         {;} /* Nothing */
 #endif
 
 #if LOG_LEVEL >= LOG_LVL_WARN
@@ -66,8 +66,8 @@
 	 */
 	#define LOG_WARNB(x)            x
 #else
-    #define LOG_WARN(fmt, ...)  /* Nothing */
-	#define LOG_WARNB(x)        /* Nothing */
+    #define LOG_WARN(fmt, ...)  {;}	/* Nothing */
+	#define LOG_WARNB(x)        {;}	/* Nothing */
 #endif
 
 #if LOG_LEVEL >= LOG_LVL_INFO
@@ -80,8 +80,8 @@
 	 */
 	#define LOG_INFOB(x)            x
 #else
-    #define LOG_INFO(fmt, ...)  /* Nothing */
-	#define LOG_INFOB(x)        /* Nothing */
+    #define LOG_INFO(fmt, ...)  {;} /* Nothing */
+	#define LOG_INFOB(x)        {;} /* Nothing */
 #endif
 /** \} */
 
@@ -89,8 +89,8 @@
     #define LOG_DEBUG(str, ...)     LOG_PRINT("DEBUG", str, ## __VA_ARGS__)
     #define LOG_DEBUGB(x)           x
 #else
-    #define LOG_DEBUG(str, ...) /* Nothing */
-    #define LOG_DEBUGB(x)       /* Nothing */
+    #define LOG_DEBUG(str, ...) {;} /* Nothing */
+    #define LOG_DEBUGB(x)       {;} /* Nothing */
 #endif
 
 #endif /* CFG_LOG_H */
