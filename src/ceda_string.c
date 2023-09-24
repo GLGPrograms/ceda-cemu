@@ -68,7 +68,7 @@ void ceda_string_cat(ceda_string_t *str, const char *data) {
         CEDA_STRONG_ASSERT_LT(str->capacity, (ceda_size_t)0x8000);
 
         // double the amount of memory allocated for the ceda_string_t
-        const uint16_t new_capacity = str->capacity * 2;
+        const uint16_t new_capacity = str->capacity + needed;
         char *new_data = malloc(new_capacity);
         CEDA_STRONG_ASSERT_VALID_PTR(new_data);
 
