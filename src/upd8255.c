@@ -18,7 +18,7 @@ uint8_t port[UPD8255_PORTS_COUNT];
 #define UPD8255_REG_COUNT 4
 
 void upd8255_init(void) {
-    port[UPD8255_PORTC_REG] = 0x02; // CRTC frame sync?
+    ;
 }
 
 uint8_t upd8255_in(ceda_ioaddr_t address) {
@@ -27,11 +27,22 @@ uint8_t upd8255_in(ceda_ioaddr_t address) {
 
     if (address == UPD8255_CONTROL_REG) {
         // nop - this register can't be read
-    } else {
-        return (zuint8)(port[address]);
+        return 0;
     }
 
-    return 0;
+    if (address == UPD8255_PORTC_REG) {
+        uint8_t port_c = 0x00;
+        // C0 -- to be implemented
+
+        // C1: CRTC frame sync
+        port_c |= (!!video_frameSync()) << 1;
+
+        // Cx -- to be implemented
+
+        return port_c;
+    }
+
+    return (zuint8)(port[address]);
 }
 
 void upd8255_out(ceda_ioaddr_t address, uint8_t value) {

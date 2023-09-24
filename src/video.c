@@ -44,6 +44,8 @@ static const char *perf_unit = "fps";
 
 static unsigned long int fields = 0; // displayed video fields
 
+static bool frame_sync = false; // set to true for each new frame
+
 static void video_start(void) {
     assert(gui_isStarted());
 
@@ -112,6 +114,7 @@ static void video_poll(void) {
         return;
 
     ++fields;
+    frame_sync = true;
 
     // get CRTC base address
     const uint16_t crtc_start_address = crtc_startAddress();
@@ -291,4 +294,23 @@ void video_bank(bool attr) {
     } else {
         mem = mem_char;
     }
+}
+
+/**
+ * @brief Reset video frame sync circuit.
+ *
+ * See schematics, 74109 JK in L9.
+ *
+ */
+void video_frameSyncReset(void) {
+    frame_sync = 0;
+}
+
+/**
+ * @brief Get current frame sync status.
+ *
+ * @return Return true when new frame sync since last reset, false otherwise.
+ */
+bool video_frameSync(void) {
+    return frame_sync;
 }

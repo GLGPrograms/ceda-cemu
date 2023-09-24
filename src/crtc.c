@@ -3,8 +3,8 @@
 #include <assert.h>
 #include <stdint.h>
 
-#define LOG_LEVEL  LOG_LVL_DEBUG
-#define LOG_FORMAT LOG_FMT_VERBOSE
+#include "video.h"
+
 #include "log.h"
 
 #define CRTC_REGISTER_COUNT 18
@@ -38,7 +38,7 @@ void crtc_init(void) {
 uint8_t crtc_in(ceda_ioaddr_t address) {
     (void)address;
 
-    LOG_DEBUG("in: %02x\n", address);
+    video_frameSyncReset();
 
     return 0;
 }
