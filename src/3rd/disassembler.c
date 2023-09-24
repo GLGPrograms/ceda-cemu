@@ -1,5 +1,7 @@
 /* from Z88DK */
 /* clang-format off */
+// NOLINTBEGIN
+
 #include <stdio.h>
 #include <inttypes.h>
 #include "disassembler.h"
@@ -683,3 +685,5 @@ int disassemble(uint8_t* blob, int pc, char *bufstart, size_t buflen)
 
     return state->len;
 }
+
+// NOLINTEND
