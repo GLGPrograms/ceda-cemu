@@ -69,7 +69,7 @@ static void cpu_update_performance(void) {
     const us_time_t diff_utime = now - last_time;
     const unsigned long int diff_cycles = cycles - last_cycles;
 
-    perf_value = (float)diff_cycles / ((float)diff_utime / 1000.0f / 1000.0f);
+    perf_value = (float)diff_cycles / ((float)diff_utime / 1000.0F / 1000.0F);
 
     last_time = now;
     last_cycles = cycles;
@@ -85,7 +85,7 @@ static void cpu_poll(void) {
     if (valid_breakpoints != 0) {
         if (cpu_checkBreakpoints()) {
             cpu_pause(true);
-            // TODO: signal the user that the breakpoint has been hit
+            // TODO(giomba): signal the user that the breakpoint has been hit
             return;
         }
     }
@@ -170,8 +170,8 @@ bool cpu_deleteBreakpoint(unsigned int index) {
     return true;
 }
 
-size_t cpu_getBreakpoints(CpuBreakpoint *v[]) {
-    *v = breakpoints;
+size_t cpu_getBreakpoints(CpuBreakpoint *vector[]) {
+    *vector = breakpoints;
     return CPU_BREAKPOINTS;
 }
 
@@ -188,12 +188,12 @@ static void cpu_mem_write(void *context, ceda_address_t address,
 
 static uint8_t cpu_io_in(void *context, zuint16 address) {
     (void)context;
-    return bus_io_in(address);
+    return bus_io_in((ceda_ioaddr_t)address);
 }
 
 static void cpu_io_out(void *context, zuint16 address, zuint8 value) {
     (void)context;
-    return bus_io_out(address, value);
+    return bus_io_out((ceda_ioaddr_t)address, value);
 }
 
 void cpu_init(CEDAModule *mod) {

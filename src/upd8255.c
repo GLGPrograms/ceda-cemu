@@ -39,20 +39,25 @@ void upd8255_out(ceda_ioaddr_t address, uint8_t value) {
     LOG_DEBUG("upd8255: io_out: [%02x] <= %02x\n", (zuint8)address, value);
 
     if (address == UPD8255_CONTROL_REG) {
-        // TODO -- set mode and PORT pins in/out
+        // TODO(giomba): set mode and PORT pins in/out
         return;
     }
 
     port[address] = value;
 
     if (address == UPD8255_PORTA_REG) {
-        /* nop */
-    } else if (address == UPD8255_PORTB_REG) {
+        // TODO(giomba): to be implemented
+        return;
+    }
+    if (address == UPD8255_PORTB_REG) {
         // bank 7 switching
         video_bank(value & 0x80);
-    } else if (address == UPD8255_PORTC_REG) {
-        /* nop */
-    } else {
-        assert(0);
+        return;
     }
+    if (address == UPD8255_PORTC_REG) {
+        // TODO(giomba): to be implemented
+        return;
+    }
+
+    assert(0);
 }

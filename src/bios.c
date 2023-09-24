@@ -8,7 +8,7 @@
 #include "log.h"
 
 #define ROM_BIOS_PATH "rom/V1.01_ROM.bin"
-#define ROM_BIOS_SIZE (4 * KiB)
+#define ROM_BIOS_SIZE (ceda_size_t)(4 * KiB)
 
 static zuint8 bios[ROM_BIOS_SIZE] = {0};
 
@@ -19,13 +19,16 @@ void rom_bios_init(void) {
         abort();
     }
 
-    size_t r = fread(bios, 1, ROM_BIOS_SIZE, fp);
-    if (r != ROM_BIOS_SIZE) {
-        LOG_ERR("bad bios rom file size: %lu\n", r);
+    const size_t read = fread(bios, 1, ROM_BIOS_SIZE, fp);
+    if (read != ROM_BIOS_SIZE) {
+        LOG_ERR("bad bios rom file size: %lu\n", read);
         abort();
     }
 
-    fclose(fp);
+    if (fclose(fp) != 0) {
+        LOG_ERR("error closing bios rom file\n");
+        abort();
+    }
 }
 
 uint8_t rom_bios_read(ceda_address_t address) {

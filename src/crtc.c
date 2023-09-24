@@ -32,7 +32,7 @@ unsigned int rselect = 0; // current register selected
 #define CRTC_NOT_IMPLEMENTED_STR "not implemented\n"
 
 void crtc_init(void) {
-    // TODO
+    // TODO(giomba): missing initialization
 }
 
 uint8_t crtc_in(ceda_ioaddr_t address) {
@@ -134,8 +134,8 @@ void crtc_cursorRasterSize(uint8_t *start, uint8_t *end) {
 }
 
 uint16_t crtc_startAddress(void) {
-    const uint16_t start_address =
-        (regs[REG_START_ADDRESS_H] << 8) | (regs[REG_START_ADDRESS_L]);
+    const uint16_t start_address = (uint16_t)((regs[REG_START_ADDRESS_H] << 8) |
+                                              (regs[REG_START_ADDRESS_L]));
 
     return start_address;
 }

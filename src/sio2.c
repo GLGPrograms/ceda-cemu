@@ -10,22 +10,26 @@
 #define SIO2_CHB_CONTROL_REG 0x03
 
 void sio2_init(void) {
-    // TODO
+    // TODO(giomba): to be implemented
 }
 
 uint8_t sio2_in(ceda_ioaddr_t address) {
     assert(address < SIO2_REG_NUM);
 
     if (address == SIO2_CHA_DATA_REG) {
-        // TODO -- read external RS232
+        // TODO(giomba): read external RS232
         return 0;
-    } else if (address == SIO2_CHA_CONTROL_REG) {
-        // TODO
-    } else if (address == SIO2_CHB_DATA_REG) {
-        // TODO -- read keyboard
+    }
+    if (address == SIO2_CHA_CONTROL_REG) {
+        // TODO(giomba)
         return 0;
-    } else if (address == SIO2_CHB_CONTROL_REG) {
-        // TODO
+    }
+    if (address == SIO2_CHB_DATA_REG) {
+        // TODO(giomba): read keyboard
+        return 0;
+    }
+    if (address == SIO2_CHB_CONTROL_REG) {
+        // TODO(giomba)
         return 0x01; // "character available"
     }
 

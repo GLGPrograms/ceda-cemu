@@ -24,7 +24,7 @@
 #define CRT_PIXEL_HEIGHT 400
 
 #define CHAR_ROM_PATH "rom/CGV7.2_ROM.bin"
-#define CHAR_ROM_SIZE (4 * KiB)
+#define CHAR_ROM_SIZE (ceda_size_t)(4 * KiB)
 
 #define UPDATE_INTERVAL 20000 // [us] 20 ms => 50 Hz
 static us_time_t last_update = 0;
@@ -96,7 +96,7 @@ static void video_update_performance(void) {
     const us_time_t diff_utime = now - last_time;
     const unsigned long int diff_fields = fields - last_fields;
 
-    perf_value = (float)diff_fields / ((float)diff_utime / 1000.0f / 1000.0f);
+    perf_value = (float)diff_fields / ((float)diff_utime / 1000.0F / 1000.0F);
 
     last_time = now;
     last_fields = fields;
@@ -121,12 +121,12 @@ static void video_poll(void) {
             const char c = (char)
                 mem_char[crtc_start_address + row * VIDEO_COLUMNS + column];
             const zuint8 attr = mem_attr[row * VIDEO_COLUMNS + column];
-            const zuint8 *bitmap = char_rom + c * 16;
+            const zuint8 *bitmap = char_rom + (ptrdiff_t)c * 16;
 
             bool stretch = attr & 0x08;
             for (int i = 0; i < 16; ++i) {
                 zuint8 *pixels_segment = pixels + (row * 16) * VIDEO_COLUMNS +
-                                         column + i * VIDEO_COLUMNS;
+                                         column + (ptrdiff_t)i * VIDEO_COLUMNS;
                 zuint8 segment = bitmap[i];
 
                 // mangle segment depending on text attribute, if any
@@ -185,13 +185,14 @@ static void video_poll(void) {
     default:
         assert(0);
     }
-    uint8_t cursor_raster_start, cursor_raster_end;
+    uint8_t cursor_raster_start;
+    uint8_t cursor_raster_end;
     crtc_cursorRasterSize(&cursor_raster_start, &cursor_raster_end);
     if (blink_period == 0 || ((fields % blink_period) < (blink_period / 2))) {
         for (uint8_t raster = cursor_raster_start; raster <= cursor_raster_end;
              ++raster) {
-            *(pixels + (row * 16) * VIDEO_COLUMNS + column +
-              raster * VIDEO_COLUMNS) = 0xff;
+            *(pixels + ((ptrdiff_t)row * 16) * VIDEO_COLUMNS + column +
+              (ptrdiff_t)raster * VIDEO_COLUMNS) = 0xff;
         }
     }
 
@@ -234,13 +235,16 @@ void video_init(CEDAModule *mod) {
         abort();
     }
 
-    size_t r = fread(char_rom, 1, CHAR_ROM_SIZE, fp);
-    if (r != CHAR_ROM_SIZE) {
-        LOG_ERR("bad char rom file size: %lu\n", r);
+    const size_t read = fread(char_rom, 1, CHAR_ROM_SIZE, fp);
+    if (read != CHAR_ROM_SIZE) {
+        LOG_ERR("bad char rom file size: %lu\n", read);
         abort();
     }
 
-    fclose(fp);
+    if (fclose(fp) != 0) {
+        LOG_ERR("error closing char rom file\n");
+        abort();
+    }
 }
 
 zuint8 video_ram_read(ceda_address_t address) {

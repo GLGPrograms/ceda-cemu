@@ -85,7 +85,7 @@ static void ceda_performance(void) {
 }
 
 static void ceda_cleanup(void) {
-    for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
+    for (int i = ARRAY_SIZE(modules) - 1; i >= 0; --i) {
         void (*cleanup)(void) = modules[i]->cleanup;
         if (cleanup) {
             cleanup();

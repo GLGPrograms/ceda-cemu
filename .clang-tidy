@@ -10,6 +10,9 @@
 # readability-magic-numbers.IgnoredIntegerValues: allow usage of immediate masks, after all this is an emulator
 # concurrency-mt-unsafe: better to check for errors with strerror() and errno, instead of ignoring because functions are thread unsafe, don't you think?
 # clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling: disabled because everybody needs memset()
+# modernize-macro-to-enum: too much noise for harmless notation
+# readability-function-cognitive-complexity: difficult to decide a meaningful threshold, this has been chosen pretty random
+# readability-magic-numbers: this is an emulator, we need magic numbers here and there, otherwise code will get too bloated
 
 Checks: >
   *,
@@ -25,7 +28,9 @@ Checks: >
   -hicpp-signed-bitwise,
   -android*,
   -concurrency-mt-unsafe,
-  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
+  -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
+  -modernize-macro-to-enum,
+  -readability-magic-numbers
 
 CheckOptions:
   - key: readability-magic-numbers.IgnorePowersOf2IntegerValues
@@ -37,6 +42,6 @@ CheckOptions:
   - key: readability-function-cognitive-complexity.IgnoreMacros
     value: true
   - key: readability-function-cognitive-complexity.Threshold
-    value: 30
+    value: 70
 
 
