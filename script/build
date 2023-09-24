@@ -16,7 +16,7 @@ case ${1-help} in
         banner "Building RELEASE"
         mkdir -p build/release
         cmake -B build/release -DCMAKE_BUILD_TYPE=Release
-        make -C build/release
+        make -C build/release -j
         ;;
 
     debug)
