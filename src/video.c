@@ -75,7 +75,7 @@ static void video_start(void) {
 
     surface = SDL_CreateRGBSurfaceWithFormat(SDL_SWSURFACE, CRT_PIXEL_WIDTH,
                                              CRT_PIXEL_HEIGHT, 1,
-                                             SDL_PIXELFORMAT_INDEX1LSB);
+                                             SDL_PIXELFORMAT_INDEX1MSB);
     SDL_Color colors[2] = {{0, 0, 0, 255}, {0, 192, 0, 255}};
     SDL_SetPaletteColors(surface->format->palette, colors, 0, 2);
 
@@ -113,20 +113,39 @@ static void video_poll(void) {
 
     ++fields;
 
-    // update characters on screen
+    // get CRTC base address
+    const uint16_t crtc_start_address = crtc_startAddress();
+
+    // get base pointer of SDL surface bitmap
     zuint8 *pixels = (zuint8 *)(surface->pixels);
+
     for (size_t row = 0; row < VIDEO_ROWS; ++row) {
         for (size_t column = 0; column < VIDEO_COLUMNS; ++column) {
-            const uint16_t crtc_start_address = crtc_startAddress();
+            // get character at (row,column) position in video memory, and its
+            // attributes
             const char c = (char)
                 mem_char[crtc_start_address + row * VIDEO_COLUMNS + column];
-            const zuint8 attr = mem_attr[row * VIDEO_COLUMNS + column];
+            const zuint8 attr =
+                mem_attr[crtc_start_address + row * VIDEO_COLUMNS + column];
+
+            // pointer to bitmap in the char rom,
+            // for the character we need to draw
             const zuint8 *bitmap = char_rom + (ptrdiff_t)c * 16;
 
-            bool stretch = attr & 0x08;
+            // need to stretch char horizontally?
+            const bool stretch = attr & 0x08;
+
+            // draw the 16 lines which compose the character on the screen
+            // this does not emulate 100% the CRTC scan lines, but it's easier
+            // and no one cares
             for (int i = 0; i < 16; ++i) {
+                // compute pointer to SDL frame buffer memory where char will
+                // reside
                 zuint8 *pixels_segment = pixels + (row * 16) * VIDEO_COLUMNS +
                                          column + (ptrdiff_t)i * VIDEO_COLUMNS;
+
+                // retrieve i-th horizontal segment which composes the gliph,
+                // from the char rom
                 zuint8 segment = bitmap[i];
 
                 // mangle segment depending on text attribute, if any
