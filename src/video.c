@@ -123,7 +123,7 @@ static void video_poll(void) {
         for (size_t column = 0; column < VIDEO_COLUMNS; ++column) {
             // get character at (row,column) position in video memory, and its
             // attributes
-            const char c = (char)
+            const unsigned char c = (unsigned char)
                 mem_char[crtc_start_address + row * VIDEO_COLUMNS + column];
             const zuint8 attr =
                 mem_attr[crtc_start_address + row * VIDEO_COLUMNS + column];
