@@ -34,7 +34,7 @@ endif()
 if(CMAKE_BUILD_TYPE MATCHES "Release")
     target_compile_options(ceda PRIVATE -Werror)
 elseif(CMAKE_BUILD_TYPE MATCHES "Debug")
-    set(Z80_WITH_HTML_DOCUMENTATION YES)
+    # set(Z80_WITH_HTML_DOCUMENTATION YES)
 endif()
 
 set(CMAKE_C_STANDARD 17)
