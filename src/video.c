@@ -136,7 +136,7 @@ static void video_poll(void) {
             const zuint8 *bitmap = char_rom + (ptrdiff_t)c * 16;
 
             // need to stretch char horizontally?
-            const bool stretch = attr & 0x08;
+            const bool hstretch = attr & 0x08;
 
             // draw the 16 lines which compose the character on the screen
             // this does not emulate 100% the CRTC scan lines, but it's easier
@@ -151,24 +151,78 @@ static void video_poll(void) {
                 // from the char rom
                 zuint8 segment = bitmap[i];
 
+                // index 28L22 glue ROM for special chars effects (emulated)
+                const zuint8 attr_index = (attr >> 4) & 0x7;
+                switch (attr_index) {
+                // plain gliph from char ROM
+                case 0:
+                    break;
+
+                // enable underline when line 13 comes
+                case 1:
+                    if (i == 0xd)
+                        segment = 0xff;
+                    break;
+
+                // enable underline when line 13 comes, but also blink
+                case 2:
+                    if (i == 0xd)
+                        segment = (fields % 32 < 16) ? 0x0 : 0xff;
+                    break;
+
+                // enable overline when line 0 comes
+                case 3:
+                    if (i == 0)
+                        segment = 0xff;
+                    break;
+
+                // hide
+                case 4:
+                    segment = 0;
+                    break;
+
+                // enable underline and overline
+                case 5:
+                    if (i == 0x0 || i == 0xd)
+                        segment = 0xff;
+                    break;
+
+                // enable vertical stretch (upper part)
+                case 6:
+                    segment = bitmap[i / 2];
+                    break;
+
+                // enable vertical stretch (lower part)
+                case 7:
+                    if (i <= 6 * 2)
+                        segment = bitmap[7 + i / 2];
+                    else
+                        segment = 0;
+                    break;
+
+                default:
+                    assert(false);
+                }
+
                 // mangle segment depending on text attribute, if any
                 if (attr) {
                     // invert colors
                     if (attr & 0x01)
                         segment ^= 0xff;
-                    // underline
-                    if ((attr & 0x10 || attr & 0x20) && i == 0x0d)
-                        segment = 0xff;
-                    // hide
-                    if (attr & 0x40)
-                        segment = 0;
+
                     // blink
-                    if (attr & 0x02 || attr & 0x20) {
+                    if (attr & 0x02) {
                         if (fields % 32 < 16)
                             segment = 0;
                     }
-                    // stretch
-                    if (stretch) {
+
+                    // unknown / cursor? attribute?
+                    if (attr & 0x04) {
+                        ;
+                    }
+
+                    // horizontal stretch
+                    if (hstretch) {
                         // compute widened char segment
                         zuint16 wide_segment = 0;
                         for (int i = 7; i >= 0; --i) {
@@ -183,7 +237,7 @@ static void video_poll(void) {
                 *pixels_segment = segment;
             }
             // stretch implies skipping char on your right
-            if (stretch)
+            if (hstretch)
                 ++column;
         }
     }
