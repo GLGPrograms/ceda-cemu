@@ -596,6 +596,10 @@ static ceda_string_t *cli_load(const char *arg) {
 
     // extract starting address from file
     FILE *fp = fopen(filename, "rb");
+    if (fp == NULL) {
+        ceda_string_cpy(msg, "unable to open file\n");
+        return msg;
+    }
     size_t ret = fread(word, 1, 2, fp);
     if (ret != 2) {
         (void)fclose(fp);
