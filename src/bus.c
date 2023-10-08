@@ -84,7 +84,7 @@ uint8_t bus_mem_read(ceda_address_t address) {
 }
 
 void bus_mem_readsome(uint8_t *blob, ceda_address_t address, ceda_size_t len) {
-    LOG_DEBUG("%s: [%04x] x %lu\n", __func__, address, len);
+    LOG_DEBUG("%s: [%04x] x %hu\n", __func__, address, len);
 
     for (zuint16 i = 0; i < len; ++i) {
         blob[i] = bus_mem_read(address + i);
