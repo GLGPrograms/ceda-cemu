@@ -33,7 +33,7 @@ typedef struct {
 #define isz180() ( 0 )
 #define isez80() ( 0 )
 #define canaltreg() ( 0 )
-#define canindex() ( 0 )
+#define canindex() ( 1 )
 #define canixh() ( 1 )
 #define cansll() ( 1 )
 #define canz180() ( 1 )
