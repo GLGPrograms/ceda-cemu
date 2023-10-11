@@ -268,7 +268,7 @@ static void video_poll(void) {
         for (uint8_t raster = cursor_raster_start; raster <= cursor_raster_end;
              ++raster) {
             *(pixels + ((ptrdiff_t)row * 16) * VIDEO_COLUMNS + column +
-              (ptrdiff_t)raster * VIDEO_COLUMNS) = 0xff;
+              (ptrdiff_t)raster * VIDEO_COLUMNS) ^= 0xff;
         }
     }
 
