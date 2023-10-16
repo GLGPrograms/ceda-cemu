@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-#define LOG_LEVEL LOG_LVL_DEBUG
+#define LOG_LEVEL LOG_LVL_WARN
 #include "log.h"
 
 #define VIDEO_CHAR_MEM_SIZE 0x1000

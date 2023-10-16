@@ -23,7 +23,6 @@ void upd8255_init(void) {
 
 uint8_t upd8255_in(ceda_ioaddr_t address) {
     assert(address < UPD8255_REG_COUNT);
-    LOG_DEBUG("upd8255: io_in: [%02x]\n", (zuint8)address);
 
     if (address == UPD8255_CONTROL_REG) {
         // nop - this register can't be read
@@ -47,7 +46,6 @@ uint8_t upd8255_in(ceda_ioaddr_t address) {
 
 void upd8255_out(ceda_ioaddr_t address, uint8_t value) {
     assert(address < UPD8255_REG_COUNT);
-    LOG_DEBUG("upd8255: io_out: [%02x] <= %02x\n", (zuint8)address, value);
 
     if (address == UPD8255_CONTROL_REG) {
         // TODO(giomba): set mode and PORT pins in/out

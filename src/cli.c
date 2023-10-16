@@ -19,8 +19,7 @@
 #include <sys/select.h>
 #include <unistd.h>
 
-#define LOG_FORMAT LOG_FMT_VERBOSE
-#define LOG_LEVEL  LOG_LVL_DEBUG
+#define LOG_LEVEL LOG_LVL_INFO
 #include "log.h"
 
 static const uint16_t CLI_PORT = 0xceda;

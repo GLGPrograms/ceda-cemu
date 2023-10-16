@@ -5,7 +5,7 @@
 #include <SDL2/SDL_mixer.h>
 #include <stdbool.h>
 
-#define LOG_LEVEL LOG_LVL_DEBUG
+#define LOG_LEVEL LOG_LVL_INFO
 #include "log.h"
 
 // fallback mode, a.k.a. your actual terminal speaker
