@@ -544,31 +544,7 @@ static ceda_string_t *cli_save(const char *arg) {
     return NULL;
 }
 
-/**
- * @brief Load a chunk of memory from disk.
- *
- * Expected command line syntax:
- *  load <filename> [start]
- * where
- *  filename: name of the file from which to load the dump (no spaces allowed)
- *  start: starting memory address, in hex
- *
- * When loading, this routine will use the starting address saves inside the
- * file, unless a starting address is explicitly specified on the command line,
- * in which case, the starting address of the file will be overridden.
- *
- * Example: load video memory dump, but one row below
- *  load video.crt d050
- *
- * File format: .prg
- * First two octets represent the starting address in little endian,
- * then actual data follows.
- *
- * @param arg Pointer to the command line string.
- *
- * @return char* NULL in case of success, pointer to error message otherwise.
- */
-static ceda_string_t *cli_load(const char *arg) {
+static ceda_string_t *cli_load_and_run(const char *arg, bool run) {
     char word[LINE_BUFFER_SIZE];
     ceda_string_t *msg = ceda_string_new(0);
 
@@ -613,6 +589,10 @@ static ceda_string_t *cli_load(const char *arg) {
         address = file_address;
     }
 
+    // if autorun, set CPU program counter
+    if (run)
+        cpu_goto((ceda_address_t)address);
+
     // read data until the end, and write it in memory
     for (;;) {
         char c;
@@ -626,6 +606,38 @@ static ceda_string_t *cli_load(const char *arg) {
 
     ceda_string_delete(msg);
     return NULL;
+}
+
+/**
+ * @brief Load a chunk of memory from disk.
+ *
+ * Expected command line syntax:
+ *  load <filename> [start]
+ * where
+ *  filename: name of the file from which to load the dump (no spaces allowed)
+ *  start: starting memory address, in hex
+ *
+ * When loading, this routine will use the starting address saves inside the
+ * file, unless a starting address is explicitly specified on the command line,
+ * in which case, the starting address of the file will be overridden.
+ *
+ * Example: load video memory dump, but one row below
+ *  load video.crt d050
+ *
+ * File format: .prg
+ * First two octets represent the starting address in little endian,
+ * then actual data follows.
+ *
+ * @param arg Pointer to the command line string.
+ *
+ * @return char* NULL in case of success, pointer to error message otherwise.
+ */
+static ceda_string_t *cli_load(const char *arg) {
+    return cli_load_and_run(arg, false);
+}
+
+static ceda_string_t *cli_run(const char *arg) {
+    return cli_load_and_run(arg, true);
 }
 
 static ceda_string_t *cli_goto(const char *arg) {
@@ -748,6 +760,7 @@ static const cli_command cli_commands[] = {
     {"in", "read from io", cli_in},
     {"out", "write to io", cli_out},
     {"load", "load binary from file", cli_load},
+    {"run", "load binary from file and run", cli_run},
     {"save", "save memory dump to file", cli_save},
     {"quit", "quit the emulator", cli_quit},
     {"help", "show this help", cli_help},
