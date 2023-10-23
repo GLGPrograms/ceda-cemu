@@ -545,6 +545,15 @@ static ceda_string_t *cli_save(const char *arg) {
 }
 
 static ceda_string_t *cli_load_and_run(const char *arg, bool run) {
+    // autocompletion permanent context
+    static ceda_string_t *prev_filename = NULL;
+    static ceda_address_t prev_address = 0;
+    if (prev_filename == NULL) {
+        prev_filename = ceda_string_new(0);
+    }
+    bool use_old = false;
+
+    // context
     char word[LINE_BUFFER_SIZE];
     ceda_string_t *msg = ceda_string_new(0);
 
@@ -554,20 +563,23 @@ static ceda_string_t *cli_load_and_run(const char *arg, bool run) {
     // extract filename
     char filename[LINE_BUFFER_SIZE];
     arg = cli_next_word(filename, arg, LINE_BUFFER_SIZE);
-    if (arg == NULL) {
+    // if there is a valid filename, save it also for next time,
+    // else if there is an old filename, set flag to use old data,
+    // else abort mission
+    if (arg != NULL) {
+        ceda_string_cpy(prev_filename, filename);
+        LOG_DEBUG("save for later: %s\n", ceda_string_data(prev_filename));
+    } else if (ceda_string_len(prev_filename) > 0) {
+        LOG_DEBUG("using old filename: %s\n", ceda_string_data(prev_filename));
+        use_old = true;
+    } else {
         ceda_string_cpy(msg, USER_BAD_ARG_STR "missing filename\n");
         return msg;
     }
 
-    // extract starting address
-    // (optional, override what's inside the file)
-    unsigned int address;
-    arg = cli_next_hex(&address, arg);
-    const bool override_address = arg != NULL;
-    if (arg != NULL && address >= 0x10000) {
-        ceda_string_cpy(msg, USER_BAD_ARG_STR "address must be 16 bit\n");
-        return msg;
-    }
+    if (use_old)
+        cli_next_word(filename, ceda_string_data(prev_filename),
+                      LINE_BUFFER_SIZE);
 
     // extract starting address from file
     FILE *fp = fopen(filename, "rb");
@@ -584,14 +596,32 @@ static ceda_string_t *cli_load_and_run(const char *arg, bool run) {
     const ceda_address_t file_address =
         (ceda_address_t)((word[0] & 0xff) | ((word[1] & 0xff) << 8));
 
-    // use starting address from file if we are not overriding it
-    if (!override_address) {
-        address = file_address;
+    // extract starting address
+    // (optional, override what's inside the file)
+    unsigned int address;
+    if (!use_old) {
+        arg = cli_next_hex(&address, arg);
+        if (arg != NULL && address >= 0x10000) {
+            ceda_string_cpy(msg, USER_BAD_ARG_STR "address must be 16 bit\n");
+            return msg;
+        }
+        // use starting address from file if we are not overriding it
+        if (arg == NULL) {
+            address = file_address;
+        }
+
+        // save address for later
+        prev_address = (ceda_address_t)address;
+    } else {
+        // override anyhow, if using old settings
+        address = prev_address;
     }
 
     // if autorun, set CPU program counter
     if (run)
         cpu_goto((ceda_address_t)address);
+
+    LOG_DEBUG("loading stuff at address: %04x\n", address);
 
     // read data until the end, and write it in memory
     for (;;) {
