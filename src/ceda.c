@@ -4,6 +4,7 @@
 #include "bus.h"
 #include "cli.h"
 #include "cpu.h"
+#include "fdc.h"
 #include "gui.h"
 #include "int.h"
 #include "limits.h"
@@ -37,6 +38,7 @@ void ceda_init(void) {
     cli_init(&mod_cli);
     gui_init(&mod_gui);
 
+    fdc_init();
     upd8255_init();
     rom_bios_init();
     video_init(&mod_video);
