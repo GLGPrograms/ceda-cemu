@@ -65,6 +65,7 @@ typedef struct fdc_operation_t {
 /* Command callbacks prototypes */
 static void pre_exec_specify(void);
 static void pre_exec_recalibrate(void);
+static void post_exec_sense_interrupt(void);
 
 /* Local variables */
 // The command descriptors
@@ -82,7 +83,15 @@ static const fdc_operation_t fdc_operations[] = {
      .result_len = 0,
      .pre_exec = pre_exec_recalibrate,
      .exec = NULL,
-     .post_exec = NULL}};
+     .post_exec = NULL},
+     {.cmd = SENSE_INTERRUPT,
+     .args_len = 0,
+     .exec_len = 0,
+     .result_len = 2,
+     .pre_exec = NULL,
+     .exec = NULL,
+     .post_exec = post_exec_sense_interrupt},
+     };
 // Current FDC status
 static fdc_status_t fdc_status = CMD;
 // Currently selected operation
@@ -122,12 +131,28 @@ static void pre_exec_recalibrate(void) {
     LOG_DEBUG("Drive: %d\n", args[0] & 0x3);
 }
 
+// Sense interrupt:
+static void post_exec_sense_interrupt(void) {
+    LOG_DEBUG("FDC Sense Interrupt\n");
+    /* Status Register 0 */
+    // Drive number, head address (last addressed) - TODO(giulio)
+    result[0] = 0x00;
+    // Seek End - TODO(giulio)
+    result[0] |= 1U << 5;
+    /* PCN  - (current track position) */
+    // TODO(giulio)
+    result[1] = 0x00;
+}
+
 /* * * * * * * * * * * * * * *  Utility routines  * * * * * * * * * * * * * * */
 
 static void fdc_compute_next_status(void) {
     rwcount++;
 
     if (fdc_status == CMD) {
+        // Set DIO to write for ARGS phase
+        statusreg &= ~(1U << 6);
+
         fdc_status = ARGS;
         if (fdc_currop)
             rwcount_max = fdc_currop->args_len;
@@ -135,6 +160,7 @@ static void fdc_compute_next_status(void) {
     }
 
     if (fdc_status == ARGS && rwcount == rwcount_max) {
+        // exec should set DIO according to direction
         if (fdc_currop && fdc_currop->pre_exec)
             fdc_currop->pre_exec();
 
@@ -145,6 +171,9 @@ static void fdc_compute_next_status(void) {
     }
 
     if (fdc_status == EXEC && rwcount == rwcount_max) {
+        // Set DIO to read for RESULT phase
+        statusreg |= (1U << 6);
+
         if (fdc_currop && fdc_currop->post_exec)
             fdc_currop->post_exec();
 
@@ -155,6 +184,9 @@ static void fdc_compute_next_status(void) {
     }
 
     if (fdc_status == RESULT && rwcount == rwcount_max) {
+        // Set DIO to write for CMD and ARGS phases
+        statusreg &= ~(1U << 6);
+
         fdc_status = CMD;
         rwcount_max = 0;
         rwcount = 0;
