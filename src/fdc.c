@@ -49,7 +49,6 @@ typedef struct fdc_operation_t {
     cmd_t cmd;
     // An FDC operation is splitted into 4 steps.
     // If a step len is 0, that step must be skipped.
-    // If a step len is -1, its value is based on the arguments.
     size_t args_len;
     size_t exec_len;
     size_t result_len;
@@ -64,6 +63,9 @@ typedef struct fdc_operation_t {
 
 /* Command callbacks prototypes */
 static void pre_exec_specify(void);
+static void pre_exec_read_data(void);
+static uint8_t exec_read_data(uint8_t value);
+static void post_exec_read_data(void);
 static void pre_exec_recalibrate(void);
 static void post_exec_sense_interrupt(void);
 
@@ -77,6 +79,13 @@ static const fdc_operation_t fdc_operations[] = {
      .pre_exec = pre_exec_specify,
      .exec = NULL,
      .post_exec = NULL},
+    {.cmd = READ_DATA,
+     .args_len = 8,
+     .exec_len = 0,
+     .result_len = 7,
+     .pre_exec = pre_exec_read_data,
+     .exec = exec_read_data,
+     .post_exec = post_exec_read_data},
     {.cmd = RECALIBRATE,
      .args_len = 1,
      .exec_len = 0,
@@ -84,14 +93,14 @@ static const fdc_operation_t fdc_operations[] = {
      .pre_exec = pre_exec_recalibrate,
      .exec = NULL,
      .post_exec = NULL},
-     {.cmd = SENSE_INTERRUPT,
+    {.cmd = SENSE_INTERRUPT,
      .args_len = 0,
      .exec_len = 0,
      .result_len = 2,
      .pre_exec = NULL,
      .exec = NULL,
      .post_exec = post_exec_sense_interrupt},
-     };
+};
 // Current FDC status
 static fdc_status_t fdc_status = CMD;
 // Currently selected operation
@@ -121,6 +130,43 @@ static void pre_exec_specify(void) {
     LOG_DEBUG("SRT: %d\n", args[0] >> 4);
     LOG_DEBUG("ND: %d\n", args[1] & 1);
     LOG_DEBUG("HLT: %d\n", args[1] >> 1);
+}
+
+// Read data:
+static void pre_exec_read_data(void) {
+    LOG_DEBUG("FDC Read Data\n");
+    LOG_DEBUG("SK: %d\n", (command_args >> 5) & 0x01);
+    LOG_DEBUG("MF: %d\n", (command_args >> 6) & 0x01);
+    LOG_DEBUG("MT: %d\n", (command_args >> 7) & 0x01);
+    LOG_DEBUG("Drive: %d\n", args[0] & 0x3);
+    LOG_DEBUG("HD: %d\n", (args[0] >> 2) & 0x1);
+    LOG_DEBUG("Cyl: %d\n", args[1]);
+    LOG_DEBUG("Head: %d\n", args[2]);
+    LOG_DEBUG("Record: %d\n", args[3]);
+    LOG_DEBUG("N: %d\n", args[4]);
+    LOG_DEBUG("EOT: %d\n", args[5]);
+    LOG_DEBUG("GPL: %d\n", args[6]);
+    LOG_DEBUG("DTL: %d\n", args[7]);
+
+    // let's use DTL as read data
+    rwcount_max = args[7] + 1;
+    // Set DIO to read for Execution phase
+    statusreg |= (1U << 6);
+}
+
+static uint8_t exec_read_data(uint8_t value) {
+    // read doesn't care of in value
+    (void)value;
+
+    // TODO(giulio): just serve HALT opcode
+    return 0x76;
+}
+
+static void post_exec_read_data(void) {
+    LOG_DEBUG("Read has ended\n");
+    // TODO(giulio): populate result (which is pretty the same for read,
+    // write, ...)
+    memset(result, 0x00, sizeof(result));
 }
 
 // Recalibrate:
@@ -160,19 +206,24 @@ static void fdc_compute_next_status(void) {
     }
 
     if (fdc_status == ARGS && rwcount == rwcount_max) {
+        fdc_status = EXEC;
+        if (fdc_currop)
+            rwcount_max = fdc_currop->exec_len;
+        // Set execution phase in main status register
+        statusreg |= (1U << 5);
+
         // exec should set DIO according to direction
         if (fdc_currop && fdc_currop->pre_exec)
             fdc_currop->pre_exec();
 
-        fdc_status = EXEC;
-        if (fdc_currop)
-            rwcount_max = fdc_currop->exec_len;
         rwcount = 0;
     }
 
     if (fdc_status == EXEC && rwcount == rwcount_max) {
         // Set DIO to read for RESULT phase
         statusreg |= (1U << 6);
+        // Clear exm flag
+        statusreg &= ~(1U << 5);
 
         if (fdc_currop && fdc_currop->post_exec)
             fdc_currop->post_exec();
