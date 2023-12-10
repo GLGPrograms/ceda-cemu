@@ -61,6 +61,27 @@ typedef struct fdc_operation_t {
     void (*post_exec)(void);
 } fdc_operation_t;
 
+// Main status register bitfield
+typedef union main_status_register_t {
+    uint8_t value;
+    struct {
+        // Drive x is in Seek mode
+        uint8_t fdd0_busy : 1;
+        uint8_t fdd1_busy : 1;
+        uint8_t fdd2_busy : 1;
+        uint8_t fdd3_busy : 1;
+        // Controller has already accepted a command
+        uint8_t fdc_busy : 1;
+        // Execution mode
+        uint8_t exm : 1;
+        // Data I/O, set if FDC is read from CPU, clear otherwise
+        uint8_t dio : 1;
+        // Request From Master, set if FDC is ready to receive or send data
+        uint8_t rqm : 1;
+        uint8_t : 0;
+    };
+} main_status_register_t;
+
 /* Command callbacks prototypes */
 static void pre_exec_specify(void);
 static void pre_exec_read_data(void);
@@ -118,7 +139,7 @@ static uint8_t result[7];
 
 /* FDC internal registers */
 // Main Status Register
-static uint8_t statusreg;
+static main_status_register_t status_register;
 
 /* * * * * * * * * * * * * * *  Command routines  * * * * * * * * * * * * * * */
 
@@ -151,7 +172,7 @@ static void pre_exec_read_data(void) {
     // let's use DTL as read data
     rwcount_max = args[7] + 1;
     // Set DIO to read for Execution phase
-    statusreg |= (1U << 6);
+    status_register.dio = 1;
 }
 
 static uint8_t exec_read_data(uint8_t value) {
@@ -197,7 +218,7 @@ static void fdc_compute_next_status(void) {
 
     if (fdc_status == CMD) {
         // Set DIO to write for ARGS phase
-        statusreg &= ~(1U << 6);
+        status_register.dio = 0;
 
         fdc_status = ARGS;
         if (fdc_currop)
@@ -209,8 +230,6 @@ static void fdc_compute_next_status(void) {
         fdc_status = EXEC;
         if (fdc_currop)
             rwcount_max = fdc_currop->exec_len;
-        // Set execution phase in main status register
-        statusreg |= (1U << 5);
 
         // exec should set DIO according to direction
         if (fdc_currop && fdc_currop->pre_exec)
@@ -221,9 +240,7 @@ static void fdc_compute_next_status(void) {
 
     if (fdc_status == EXEC && rwcount == rwcount_max) {
         // Set DIO to read for RESULT phase
-        statusreg |= (1U << 6);
-        // Clear exm flag
-        statusreg &= ~(1U << 5);
+        status_register.dio = 1;
 
         if (fdc_currop && fdc_currop->post_exec)
             fdc_currop->post_exec();
@@ -236,12 +253,16 @@ static void fdc_compute_next_status(void) {
 
     if (fdc_status == RESULT && rwcount == rwcount_max) {
         // Set DIO to write for CMD and ARGS phases
-        statusreg &= ~(1U << 6);
+        status_register.dio = 0;
 
         fdc_status = CMD;
         rwcount_max = 0;
         rwcount = 0;
     }
+
+    // Update step dependant bits in main status register
+    status_register.exm = fdc_status == EXEC;
+    status_register.fdc_busy = fdc_status != CMD;
 }
 
 /* * * * * * * * * * * * * * *  Public routines   * * * * * * * * * * * * * * */
@@ -249,13 +270,15 @@ static void fdc_compute_next_status(void) {
 void fdc_init(void) {
     fdc_status = CMD;
     rwcount_max = 0;
-    statusreg = 0x80;
+    status_register.value = 0x00;
+    // FDC is always ready
+    status_register.rqm = 1;
 }
 
 uint8_t fdc_in(ceda_ioaddr_t address) {
     switch (address & 0x01) {
     case ADDR_STATUS_REGISTER:
-        return statusreg;
+        return status_register.value;
     case ADDR_DATA_REGISTER: {
         uint8_t value = 0;
 
