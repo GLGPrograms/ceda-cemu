@@ -141,6 +141,10 @@ static uint8_t result[7];
 // Main Status Register
 static main_status_register_t status_register;
 
+/* Floppy disk status */
+// Current track position
+static uint8_t track[4];
+
 /* * * * * * * * * * * * * * *  Command routines  * * * * * * * * * * * * * * */
 
 // Specify:
@@ -194,21 +198,29 @@ static void post_exec_read_data(void) {
 // Just print the register values.
 // TODO(giuliof): actually set drive x's track to 0
 static void pre_exec_recalibrate(void) {
+    uint8_t drive = args[0] & 0x3;
+
     LOG_DEBUG("FDC Recalibrate\n");
-    LOG_DEBUG("Drive: %d\n", args[0] & 0x3);
+    LOG_DEBUG("Drive: %d\n", drive);
+
+    track[drive] = 0;
 }
 
 // Sense interrupt:
 static void post_exec_sense_interrupt(void) {
+    // TODO(giuliof): last accessed drive
+    uint8_t drive = 0;
+
     LOG_DEBUG("FDC Sense Interrupt\n");
     /* Status Register 0 */
-    // Drive number, head address (last addressed) - TODO(giulio)
-    result[0] = 0x00;
+    // Drive number
+    result[0] = drive;
+    // head address (last addressed) - TODO(giulio)
+    // result[0] |= ...;
     // Seek End - TODO(giulio)
     result[0] |= 1U << 5;
     /* PCN  - (current track position) */
-    // TODO(giulio)
-    result[1] = 0x00;
+    result[1] = track[drive];
 }
 
 /* * * * * * * * * * * * * * *  Utility routines  * * * * * * * * * * * * * * */
