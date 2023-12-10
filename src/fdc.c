@@ -64,16 +64,25 @@ typedef struct fdc_operation_t {
 
 /* Command callbacks prototypes */
 static void pre_exec_specify(void);
+static void pre_exec_recalibrate(void);
 
 /* Local variables */
 // The command descriptors
-static const fdc_operation_t fdc_operations[] = {{.cmd = SPECIFY,
-                                                  .args_len = 2,
-                                                  .exec_len = 0,
-                                                  .result_len = 0,
-                                                  .pre_exec = pre_exec_specify,
-                                                  .exec = NULL,
-                                                  .post_exec = NULL}};
+static const fdc_operation_t fdc_operations[] = {
+    {.cmd = SPECIFY,
+     .args_len = 2,
+     .exec_len = 0,
+     .result_len = 0,
+     .pre_exec = pre_exec_specify,
+     .exec = NULL,
+     .post_exec = NULL},
+    {.cmd = RECALIBRATE,
+     .args_len = 1,
+     .exec_len = 0,
+     .result_len = 0,
+     .pre_exec = pre_exec_recalibrate,
+     .exec = NULL,
+     .post_exec = NULL}};
 // Current FDC status
 static fdc_status_t fdc_status = CMD;
 // Currently selected operation
@@ -103,6 +112,14 @@ static void pre_exec_specify(void) {
     LOG_DEBUG("SRT: %d\n", args[0] >> 4);
     LOG_DEBUG("ND: %d\n", args[1] & 1);
     LOG_DEBUG("HLT: %d\n", args[1] >> 1);
+}
+
+// Recalibrate:
+// Just print the register values.
+// TODO(giuliof): actually set drive x's track to 0
+static void pre_exec_recalibrate(void) {
+    LOG_DEBUG("FDC Recalibrate\n");
+    LOG_DEBUG("Drive: %d\n", args[0] & 0x3);
 }
 
 /* * * * * * * * * * * * * * *  Utility routines  * * * * * * * * * * * * * * */
