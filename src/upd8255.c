@@ -37,6 +37,12 @@ uint8_t upd8255_in(ceda_ioaddr_t address) {
         // C1: CRTC frame sync
         port_c |= (!!video_frameSync()) << 1;
 
+        // C2: FDC INT pin.
+        // TODO(giulio): After Execution Phase or EOR sector read, INT=1
+        // (beginning of result phase). When first byte of result phase data
+        // is read, INT=0.
+        port_c |= 1U << 2;
+
         // Cx -- to be implemented
 
         return port_c;
