@@ -6,6 +6,8 @@
 #define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
 
+uint8_t tc_status = 0;
+
 // The FDC virtually expose two registers, which can be both read or written
 #define ADDR_STATUS_REGISTER (0x00)
 #define ADDR_DATA_REGISTER   (0x01)
@@ -50,7 +52,6 @@ typedef struct fdc_operation_t {
     // An FDC operation is splitted into 4 steps.
     // If a step len is 0, that step must be skipped.
     size_t args_len;
-    size_t exec_len;
     size_t result_len;
     // Called when args fetching is ended
     void (*pre_exec)(void);
@@ -95,28 +96,24 @@ static void post_exec_sense_interrupt(void);
 static const fdc_operation_t fdc_operations[] = {
     {.cmd = SPECIFY,
      .args_len = 2,
-     .exec_len = 0,
      .result_len = 0,
      .pre_exec = pre_exec_specify,
      .exec = NULL,
      .post_exec = NULL},
     {.cmd = READ_DATA,
      .args_len = 8,
-     .exec_len = 0,
      .result_len = 7,
      .pre_exec = pre_exec_read_data,
      .exec = exec_read_data,
      .post_exec = post_exec_read_data},
     {.cmd = RECALIBRATE,
      .args_len = 1,
-     .exec_len = 0,
      .result_len = 0,
      .pre_exec = pre_exec_recalibrate,
      .exec = NULL,
      .post_exec = NULL},
     {.cmd = SENSE_INTERRUPT,
      .args_len = 0,
-     .exec_len = 0,
      .result_len = 2,
      .pre_exec = NULL,
      .exec = NULL,
@@ -173,8 +170,6 @@ static void pre_exec_read_data(void) {
     LOG_DEBUG("GPL: %d\n", args[6]);
     LOG_DEBUG("DTL: %d\n", args[7]);
 
-    // let's use DTL as read data
-    rwcount_max = args[7] + 1;
     // Set DIO to read for Execution phase
     status_register.dio = 1;
 }
@@ -226,6 +221,9 @@ static void post_exec_sense_interrupt(void) {
 /* * * * * * * * * * * * * * *  Utility routines  * * * * * * * * * * * * * * */
 
 static void fdc_compute_next_status(void) {
+    if (!fdc_currop)
+        return;
+
     rwcount++;
 
     if (fdc_status == CMD) {
@@ -233,33 +231,30 @@ static void fdc_compute_next_status(void) {
         status_register.dio = 0;
 
         fdc_status = ARGS;
-        if (fdc_currop)
-            rwcount_max = fdc_currop->args_len;
+        rwcount_max = fdc_currop->args_len;
         rwcount = 0;
     }
 
     if (fdc_status == ARGS && rwcount == rwcount_max) {
         fdc_status = EXEC;
-        if (fdc_currop)
-            rwcount_max = fdc_currop->exec_len;
 
         // exec should set DIO according to direction
-        if (fdc_currop && fdc_currop->pre_exec)
+        if (fdc_currop->pre_exec)
             fdc_currop->pre_exec();
 
         rwcount = 0;
     }
 
-    if (fdc_status == EXEC && rwcount == rwcount_max) {
+    if (fdc_status == EXEC && (tc_status || fdc_currop->exec == NULL)) {
+        tc_status = 0;
         // Set DIO to read for RESULT phase
         status_register.dio = 1;
 
-        if (fdc_currop && fdc_currop->post_exec)
+        if (fdc_currop->post_exec)
             fdc_currop->post_exec();
 
         fdc_status = RESULT;
-        if (fdc_currop)
-            rwcount_max = fdc_currop->result_len;
+        rwcount_max = fdc_currop->result_len;
         rwcount = 0;
     }
 
@@ -362,5 +357,19 @@ void fdc_out(ceda_ioaddr_t address, uint8_t value) {
 
         fdc_compute_next_status();
     } break;
+    }
+}
+
+// This IO line is directly connected to TC (Terminal Count) pin, which stops
+// the exec step.
+void fdc_tc_out(ceda_ioaddr_t address, uint8_t value) {
+    (void)address;
+    (void)value;
+
+    if (fdc_status == EXEC) {
+        // TODO(giuliof) tc may be an argument to the fdc_compute_next_status,
+        // since it is just a trigger.
+        tc_status = 1;
+        fdc_compute_next_status();
     }
 }
