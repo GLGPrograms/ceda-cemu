@@ -5,6 +5,7 @@
 #include "type.h"
 
 #include <Z80.h>
+#include <stdbool.h>
 #include <stddef.h>
 
 void bus_init(CEDAModule *mod);
@@ -44,5 +45,7 @@ void bus_intPush(uint8_t byte, bus_int_ack_callback_t callback);
  * @return uint8_t the device-provided byte
  */
 uint8_t bus_intPop(void);
+
+void bus_memSwitch(bool switched);
 
 #endif // CEDA_BUS_H

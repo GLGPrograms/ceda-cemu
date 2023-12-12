@@ -35,6 +35,8 @@ static const struct bus_mem_slot bus_mem_slots[] = {
     {0xD000, 0xE000, video_ram_read, video_ram_write},
 };
 
+static bool is_mem_switched = false;
+
 typedef uint8_t (*bus_io_read_t)(ceda_ioaddr_t address);
 typedef void (*bus_io_write_t)(ceda_ioaddr_t address, uint8_t value);
 struct bus_io_slot {
@@ -72,13 +74,15 @@ DECLARE_FIFO_TYPE(int_event_t, int_events_fifo_t, 8);
 static int_events_fifo_t int_events_fifo;
 
 uint8_t bus_mem_read(ceda_address_t address) {
-    for (size_t i = 0; i < ARRAY_SIZE(bus_mem_slots); ++i) {
-        const struct bus_mem_slot *slot = &bus_mem_slots[i];
-        if (address >= slot->base && address < slot->top) {
-            if (slot->read) {
-                const zuint8 value = slot->read(address - slot->base);
-                LOG_DEBUG("%s: [%04x] => %02x\n", __func__, address, value);
-                return value;
+    if (!is_mem_switched) {
+        for (size_t i = 0; i < ARRAY_SIZE(bus_mem_slots); ++i) {
+            const struct bus_mem_slot *slot = &bus_mem_slots[i];
+            if (address >= slot->base && address < slot->top) {
+                if (slot->read) {
+                    const zuint8 value = slot->read(address - slot->base);
+                    LOG_DEBUG("%s: [%04x] => %02x\n", __func__, address, value);
+                    return value;
+                }
             }
         }
     }
@@ -100,12 +104,14 @@ void bus_mem_readsome(uint8_t *blob, ceda_address_t address, ceda_size_t len) {
 void bus_mem_write(ceda_address_t address, uint8_t value) {
     LOG_DEBUG("%s: [%04x] <= %02x\n", __func__, address, value);
 
-    for (size_t i = 0; i < ARRAY_SIZE(bus_mem_slots); ++i) {
-        const struct bus_mem_slot *slot = &bus_mem_slots[i];
-        if (address >= slot->base && address < slot->top) {
-            if (slot->write) {
-                slot->write(address - slot->base, value);
-                return;
+    if (!is_mem_switched) {
+        for (size_t i = 0; i < ARRAY_SIZE(bus_mem_slots); ++i) {
+            const struct bus_mem_slot *slot = &bus_mem_slots[i];
+            if (address >= slot->base && address < slot->top) {
+                if (slot->write) {
+                    slot->write(address - slot->base, value);
+                    return;
+                }
             }
         }
     }
@@ -195,4 +201,8 @@ void bus_init(CEDAModule *mod) {
 
     mod->init = bus_init;
     mod->poll = bus_intPoll;
+}
+
+void bus_memSwitch(bool switched) {
+    is_mem_switched = switched;
 }

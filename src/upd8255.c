@@ -1,5 +1,6 @@
 #include "upd8255.h"
 
+#include "bus.h"
 #include "video.h"
 
 #include <assert.h>
@@ -59,6 +60,7 @@ void upd8255_out(ceda_ioaddr_t address, uint8_t value) {
         return;
     }
     if (address == UPD8255_PORTB_REG) {
+        bus_memSwitch(value & 0x01);
         // bank 7 switching
         video_bank(value & 0x80);
         return;
