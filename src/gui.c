@@ -1,5 +1,6 @@
 #include "gui.h"
 
+#include "keyboard.h"
 #include "time.h"
 
 #include <SDL2/SDL.h>
@@ -33,8 +34,14 @@ static void gui_poll(void) {
     last_update = time_now_us();
 
     SDL_PollEvent(&event);
-
     quit = (event.type == SDL_QUIT);
+
+    // handle keyboard events
+    if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
+        const SDL_KeyboardEvent *key_event =
+            (const SDL_KeyboardEvent *)&event.key;
+        keyboard_handleEvent(key_event);
+    }
 }
 
 static long gui_remaining(void) {
@@ -55,4 +62,6 @@ void gui_init(CEDAModule *mod) {
     mod->poll = gui_poll;
     mod->remaining = gui_remaining;
     mod->cleanup = gui_cleanup;
+
+    keyboard_init();
 }

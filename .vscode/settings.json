@@ -1,0 +1,7 @@
+{
+    "editor.formatOnSave": true,
+    "cmake.configureOnOpen": false,
+    "files.associations": {
+        "fifo.h": "c"
+    }
+}

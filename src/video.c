@@ -84,6 +84,10 @@ static void video_start(void) {
     started = true;
 }
 
+bool video_isStarted(void) {
+    return started;
+}
+
 static void video_performance(float *value, const char **unit) {
     *value = perf_value;
     *unit = perf_unit;
