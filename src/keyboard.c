@@ -62,7 +62,36 @@ static void keyboard_toggle_modifier(SDL_Keycode code) {
 }
 
 static const ceda_associator_t associators[] = {
-    {SDLK_0, CEDA_ASSOCIATOR_NOP, NULL},
+    {SDLK_ESCAPE, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x01}},
+    {SDLK_MENU, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x4D}}, // BOOT key
+    {SDLK_q, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x20}},
+    {SDLK_w, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x2e}},
+    {SDLK_e, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x15}},
+    {SDLK_r, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x16}},
+    {SDLK_t, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x17}},
+    {SDLK_y, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x18}},
+    {SDLK_u, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x19}},
+    {SDLK_i, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x1a}},
+    {SDLK_o, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x1b}},
+    {SDLK_p, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x1c}},
+    {SDLK_a, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x13}},
+    {SDLK_s, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x21}},
+    {SDLK_d, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x22}},
+    {SDLK_f, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x23}},
+    {SDLK_g, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x24}},
+    {SDLK_h, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x25}},
+    {SDLK_j, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x26}},
+    {SDLK_k, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x27}},
+    {SDLK_l, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x28}},
+    {SDLK_m, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x29}},
+    {SDLK_z, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x14}},
+    {SDLK_x, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x2f}},
+    {SDLK_c, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x30}},
+    {SDLK_v, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x31}},
+    {SDLK_b, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x32}},
+    {SDLK_n, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x33}},
+    {SDLK_RETURN, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x2B}},
+
     {SDLK_1, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x23}},
     {SDLK_LSHIFT, CEDA_ASSOCIATOR_FUNC, keyboard_toggle_modifier},
 };

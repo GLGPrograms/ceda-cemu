@@ -1,5 +1,6 @@
 #include "sio2.h"
 
+#include "compiler.h"
 #include "keyboard.h"
 
 #include <assert.h>
