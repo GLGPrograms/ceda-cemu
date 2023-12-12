@@ -54,7 +54,7 @@ static const struct bus_io_slot bus_io_slots[] = {
     {0xC0, 0xC2, fdc_in, fdc_out},
     {0xD6, 0xD6, NULL, NULL}, // unknown
     {0xDA, 0xDB, speaker_in, speaker_out},
-    {0xDC, 0xDC, NULL, NULL}, // unknown
+    {0xDC, 0xDD, NULL, fdc_tc_out},
     {0xDE, 0xDE, NULL, NULL}, // unknown
     {0xE0, 0xE4, timer_in, timer_out},
 };
