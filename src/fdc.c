@@ -90,35 +90,51 @@ static uint8_t exec_read_data(uint8_t value);
 static void post_exec_read_data(void);
 static void pre_exec_recalibrate(void);
 static void post_exec_sense_interrupt(void);
+static void pre_exec_seek(void);
 
 /* Local variables */
 // The command descriptors
 static const fdc_operation_t fdc_operations[] = {
-    {.cmd = SPECIFY,
-     .args_len = 2,
-     .result_len = 0,
-     .pre_exec = pre_exec_specify,
-     .exec = NULL,
-     .post_exec = NULL},
-    {.cmd = READ_DATA,
-     .args_len = 8,
-     .result_len = 7,
-     .pre_exec = pre_exec_read_data,
-     .exec = exec_read_data,
-     .post_exec = post_exec_read_data},
-    {.cmd = RECALIBRATE,
-     .args_len = 1,
-     .result_len = 0,
-     .pre_exec = pre_exec_recalibrate,
-     .exec = NULL,
-     .post_exec = NULL},
-    {.cmd = SENSE_INTERRUPT,
-     .args_len = 0,
-     .result_len = 2,
-     .pre_exec = NULL,
-     .exec = NULL,
-     .post_exec = post_exec_sense_interrupt},
-};
+    {
+        .cmd = SPECIFY,
+        .args_len = 2,
+        .result_len = 0,
+        .pre_exec = pre_exec_specify,
+        .exec = NULL,
+        .post_exec = NULL,
+    },
+    {
+        .cmd = READ_DATA,
+        .args_len = 8,
+        .result_len = 7,
+        .pre_exec = pre_exec_read_data,
+        .exec = exec_read_data,
+        .post_exec = post_exec_read_data,
+    },
+    {
+        .cmd = RECALIBRATE,
+        .args_len = 1,
+        .result_len = 0,
+        .pre_exec = pre_exec_recalibrate,
+        .exec = NULL,
+        .post_exec = NULL,
+    },
+    {
+        .cmd = SENSE_INTERRUPT,
+        .args_len = 0,
+        .result_len = 2,
+        .pre_exec = NULL,
+        .exec = NULL,
+        .post_exec = post_exec_sense_interrupt,
+    },
+    {
+        .cmd = SEEK,
+        .args_len = 2,
+        .result_len = 0,
+        .pre_exec = pre_exec_seek,
+        .exec = NULL,
+        .post_exec = NULL,
+    }};
 // Current FDC status
 static fdc_status_t fdc_status = CMD;
 // Currently selected operation
@@ -216,6 +232,17 @@ static void post_exec_sense_interrupt(void) {
     result[0] |= 1U << 5;
     /* PCN  - (current track position) */
     result[1] = track[drive];
+}
+
+// Seek
+static void pre_exec_seek(void) {
+    uint8_t drive = result[0] & 0x03;
+    track[drive] = result[1];
+
+    LOG_DEBUG("FDC Seek\n");
+    LOG_DEBUG("Drive: %d\n", drive);
+    LOG_DEBUG("HD: %d\n", (result[0] >> 2) & 0x01);
+    LOG_DEBUG("NCN: %d\n", track[drive]);
 }
 
 /* * * * * * * * * * * * * * *  Utility routines  * * * * * * * * * * * * * * */
