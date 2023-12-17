@@ -660,7 +660,7 @@ static ceda_string_t *cli_load_and_run(const char *arg, bool run) {
  *
  * @param arg Pointer to the command line string.
  *
- * @return char* NULL in case of success, pointer to error message otherwise.
+ * @return NULL in case of success, pointer to error message otherwise.
  */
 static ceda_string_t *cli_load(const char *arg) {
     return cli_load_and_run(arg, false);
@@ -692,6 +692,43 @@ static ceda_string_t *cli_goto(const char *arg) {
 
     // inconditional jump
     cpu_goto((zuint16)address);
+    return NULL;
+}
+
+/**
+ * @brief Send an interrupt request.
+ *
+ * Expected command line syntax:
+ *  int <byte>
+ * where
+ * - byte: is the device-provided byte for Mode 2 interrupts
+ *
+ * @param arg Pointer to the command line string.
+ *
+ * @return NULL in case of success, pointer to error message otherwise.
+ */
+static ceda_string_t *cli_int(const char *arg) {
+    // skip argv[0]
+    char word[LINE_BUFFER_SIZE];
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+
+    // read device-provided byte
+    unsigned int byte;
+    arg = cli_next_hex(&byte, arg);
+    if (arg == NULL) {
+        ceda_string_t *msg = ceda_string_new(0);
+        ceda_string_cpy(msg, USER_BAD_ARG_STR "missing device-provided byte\n");
+        return msg;
+    }
+    if (byte >= 0x100) {
+        ceda_string_t *msg = ceda_string_new(0);
+        ceda_string_cpy(msg,
+                        USER_BAD_ARG_STR "device-provided byte but be 8 bit\n");
+        return msg;
+    }
+
+    bus_intPush((uint8_t)byte, NULL);
+
     return NULL;
 }
 
@@ -785,6 +822,7 @@ static const cli_command cli_commands[] = {
     {"reg", "show cpu registers", cli_reg},
     {"step", "step one instruction", cli_step},
     {"goto", "override cpu program counter", cli_goto},
+    {"int", "trigger interrupt request", cli_int},
     {"read", "read from memory", cli_read},
     {"write", "write to memory", cli_write},
     {"in", "read from io", cli_in},
