@@ -61,4 +61,11 @@ bool cpu_deleteBreakpoint(unsigned int index);
 
 size_t cpu_getBreakpoints(CpuBreakpoint *v[]);
 
+/**
+ * @brief Set the interrupt line of the Z80 CPU.
+ *
+ * @param state true to assert IRQ, false to de-assert.
+ */
+void cpu_int(bool state);
+
 #endif // CEDA_CPU_H

@@ -175,6 +175,10 @@ size_t cpu_getBreakpoints(CpuBreakpoint *vector[]) {
     return CPU_BREAKPOINTS;
 }
 
+void cpu_int(bool state) {
+    z80_int(&cpu, state);
+}
+
 static uint8_t cpu_mem_read(void *context, zuint16 address) {
     (void)context;
     return bus_mem_read(address);
@@ -196,6 +200,12 @@ static void cpu_io_out(void *context, zuint16 address, zuint8 value) {
     return bus_io_out((ceda_ioaddr_t)address, value);
 }
 
+static uint8_t cpu_int_read(void *context, zuint16 address) {
+    (void)context;
+    (void)address;
+    return bus_intPop();
+}
+
 void cpu_init(CEDAModule *mod) {
     // init mod struct
     memset(mod, 0, sizeof(*mod));
@@ -212,6 +222,7 @@ void cpu_init(CEDAModule *mod) {
     cpu.fetch = cpu_mem_read;
     cpu.read = cpu_mem_read;
     cpu.write = cpu_mem_write;
+    cpu.inta = cpu_int_read;
     cpu.in = cpu_io_in;
     cpu.out = cpu_io_out;
 
