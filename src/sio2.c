@@ -4,10 +4,10 @@
 
 #define SIO2_REG_NUM 4
 
-#define SIO2_CHA_DATA_REG    0x00
-#define SIO2_CHA_CONTROL_REG 0x01
-#define SIO2_CHB_DATA_REG    0x02
-#define SIO2_CHB_CONTROL_REG 0x03
+#define SIO2_CHA_DATA_REG    (0x00)
+#define SIO2_CHA_CONTROL_REG (0x01)
+#define SIO2_CHB_DATA_REG    (0x02)
+#define SIO2_CHB_CONTROL_REG (0x03)
 
 void sio2_init(void) {
     // TODO(giomba): to be implemented
