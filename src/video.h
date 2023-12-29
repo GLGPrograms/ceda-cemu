@@ -8,6 +8,7 @@
 #include <stdbool.h>
 
 void video_init(CEDAModule *mod);
+bool video_isStarted(void);
 
 uint8_t video_ram_read(ceda_address_t address);
 void video_ram_write(ceda_address_t address, uint8_t value);
