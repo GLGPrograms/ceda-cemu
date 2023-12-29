@@ -1,10 +1,10 @@
 #include "cli.h"
 
 #include "3rd/disassembler.h"
-#include "3rd/fifo.h"
 #include "bus.h"
 #include "ceda_string.h"
 #include "cpu.h"
+#include "fifo.h"
 #include "macro.h"
 #include "time.h"
 

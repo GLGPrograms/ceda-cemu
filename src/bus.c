@@ -1,10 +1,10 @@
 #include "bus.h"
 
-#include "3rd/fifo.h"
 #include "bios.h"
 #include "cpu.h"
 #include "crtc.h"
 #include "fdc.h"
+#include "fifo.h"
 #include "macro.h"
 #include "ram/dynamic.h"
 #include "sio2.h"
