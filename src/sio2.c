@@ -6,6 +6,7 @@
 
 #include "bus.h"
 #include "fifo.h"
+#include "keyboard.h"
 #include "macro.h"
 
 #define LOG_LEVEL LOG_LVL_DEBUG
@@ -411,4 +412,7 @@ void sio2_init(CEDAModule *mod) {
 
     for (size_t i = 0; i < ARRAY_SIZE(channels); ++i)
         sio_channel_init(&channels[i]);
+
+    // attach keyboard to channel B
+    channels[CHANNEL_B].getc = keyboard_getChar;
 }
