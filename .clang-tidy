@@ -38,7 +38,9 @@ CheckOptions:
   - key: readability-magic-numbers.IgnoredIntegerValues
     value: '255'
   - key: readability-identifier-length.IgnoredVariableNames
-    value: 'c|fp'
+    value: 'c|fp|ok'
+  - key: readability-identifier-length.IgnoredParameterNames
+    value: 'c'
   - key: readability-function-cognitive-complexity.IgnoreMacros
     value: true
   - key: readability-function-cognitive-complexity.Threshold
