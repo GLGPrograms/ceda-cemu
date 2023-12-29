@@ -147,11 +147,7 @@ static uint8_t sio_channel_read_control(SIOChannel *channel) {
     return channel->read_regs[channel->reg_index];
 }
 
-static void sio_channel_write_control(SIOChannel *channel, uint8_t value) {
-    if (channel->reg_index == 0) {
-        // select register
-        channel->reg_index = value & 0x7;
-
+static void write_register_0(SIOChannel *channel, uint8_t value) {
 #if 0
         // Execute additional command.
         // Additional commands must be executed before normal commands,
@@ -170,53 +166,54 @@ static void sio_channel_write_control(SIOChannel *channel, uint8_t value) {
         }
 #endif
 
-        // Execute normal command.
-        switch (value >> 3 & 0x7) {
-        case 2:
-            // reset interrupts status
-            sio2_pending_interrupt = false;
-            // Note: maybe we should also stop pulling the IRQ line low,
-            // but... we need an interface to pull interrupt requests back
-            // from the bus, first.
-            break;
-        case 3:
-            // reset channel
-            sio_channel_reinit(channel);
-            LOG_DEBUG("sio channel reset, reg_index = %d\n",
-                      channel->reg_index);
-            break;
-        case 4:
-            // enable RX interrupt
-            (void)4;
-            break;
-        case 5:
-            // reset pending TX interrupt
-            (void)5;
-            break;
-        case 6:
-            // reset error
-            (void)6;
-            break;
-        case 7:
-            // return from INT (only channel A)
-            (void)7;
-            break;
+    // Execute normal command.
+    switch (value >> 3 & 0x7) {
+    case 2:
+        // reset interrupts status
+        sio2_pending_interrupt = false;
+        // Note: maybe we should also stop pulling the IRQ line low,
+        // but... we need an interface to pull interrupt requests back
+        // from the bus, first.
+        break;
+    case 3:
+        // reset channel
+        sio_channel_reinit(channel);
+        LOG_DEBUG("sio channel reset, reg_index = %d\n", channel->reg_index);
+        break;
+    case 4:
+        // enable RX interrupt
+        (void)4;
+        break;
+    case 5:
+        // reset pending TX interrupt
+        (void)5;
+        break;
+    case 6:
+        // reset error
+        (void)6;
+        break;
+    case 7:
+        // return from INT (only channel A)
+        (void)7;
+        break;
 
-        default:
-            break;
-        }
-    } else if (channel->reg_index == 1) {
-        switch (value >> 3 & 0x3) {
-        case 0:
-            // RX interrupt disable
-            LOG_DEBUG("sio2: disable interrupts channel %c\n",
-                      (channel == &channels[CHANNEL_A]) ? 'A' : 'B');
-            channel->rx_int_enabled = false;
-            break;
-        case 1:
-            // RX interrupt on first character received
-            // TODO(giomba): to be implemented
-            break;
+    default:
+        break;
+    }
+}
+
+static void write_register_1(SIOChannel *channel, uint8_t value) {
+    switch (value >> 3 & 0x3) {
+    case 0:
+        // RX interrupt disable
+        LOG_DEBUG("sio2: disable interrupts channel %c\n",
+                  (channel == &channels[CHANNEL_A]) ? 'A' : 'B');
+        channel->rx_int_enabled = false;
+        break;
+    case 1:
+        // RX interrupt on first character received
+        // TODO(giomba): to be implemented
+        break;
 #if 0
         case 2:
             // RX interrupt on all received characters (parity affects vector)
@@ -224,51 +221,77 @@ static void sio_channel_write_control(SIOChannel *channel, uint8_t value) {
             // errors cannot be actually produced.
             break;
 #endif
-        case 3:
-            // RX interrupt on all received characters.
-            // (parity does not affect vector)
-            LOG_DEBUG("sio2: enable interrupts channel %c\n",
-                      (channel == &channels[CHANNEL_A]) ? 'A' : 'B');
-            channel->rx_int_enabled = true;
-            break;
-        }
-        channel->reg_index = 0;
-    } else if (channel->reg_index == 2) {
-        // SIO/2 interrupt vector
-        sio_interrupt_vector = value;
-        channel->reg_index = 0;
-    } else if (channel->reg_index == 3) {
-        // RX enable
-        channel->rx_enabled = value & 0x1;
-
-        // only 8 bit bytes are supported in this emulator
-        if ((value >> 6 & 0x3) != 3)
-            LOG_WARN("SIO/2 configured to receive with byte width != 8 bit\n");
-
-        channel->reg_index = 0;
-    } else if (channel->reg_index == 4) {
-        // baud rate selection and parity check/generation
-        // do we need to implement this?
-        (void)4;
-        channel->reg_index = 0;
-    } else if (channel->reg_index == 5) {
-        // TX enable
-        channel->tx_enabled = value & 0x8;
-
-        if ((value >> 5 & 0x3) != 3)
-            LOG_WARN("SIO/2 configured to transmit with byte width != 8 bit\n");
-        channel->reg_index = 0;
-    } else if (channel->reg_index == 6) {
-        // not implemented
-        (void)6;
-        channel->reg_index = 0;
-    } else if (channel->reg_index == 7) {
-        // not implemented
-        (void)7;
-        channel->reg_index = 0;
-    } else {
-        assert(0);
+    case 3:
+        // RX interrupt on all received characters.
+        // (parity does not affect vector)
+        LOG_DEBUG("sio2: enable interrupts channel %c\n",
+                  (channel == &channels[CHANNEL_A]) ? 'A' : 'B');
+        channel->rx_int_enabled = true;
+        break;
     }
+}
+
+static void write_register_2(SIOChannel *channel, uint8_t value) {
+    (void)channel;
+    // SIO/2 interrupt vector
+    sio_interrupt_vector = value;
+}
+
+static void write_register_3(SIOChannel *channel, uint8_t value) {
+    // RX enable
+    channel->rx_enabled = value & 0x1;
+
+    // only 8 bit bytes are supported in this emulator
+    if ((value >> 6 & 0x3) != 3)
+        LOG_WARN("SIO/2 configured to receive with byte width != 8 bit\n");
+}
+
+static void write_register_4(SIOChannel *channel, uint8_t value) {
+    // not implemented
+    (void)channel;
+    (void)value;
+}
+
+static void write_register_5(SIOChannel *channel, uint8_t value) {
+    // TX enable
+    channel->tx_enabled = value & 0x8;
+
+    if ((value >> 5 & 0x3) != 3)
+        LOG_WARN("SIO/2 configured to transmit with byte width != 8 bit\n");
+    channel->reg_index = 0;
+}
+
+static void write_register_6(SIOChannel *channel, uint8_t value) {
+    // not implemented
+    (void)channel;
+    (void)value;
+}
+
+static void write_register_7(SIOChannel *channel, uint8_t value) {
+    // not implemented
+    (void)channel;
+    (void)value;
+}
+
+typedef void (*write_register_handler_t)(SIOChannel *, uint8_t);
+
+static const write_register_handler_t write_register_handlers[] = {
+    write_register_0, write_register_1, write_register_2, write_register_3,
+    write_register_4, write_register_5, write_register_6, write_register_7,
+};
+
+static void sio_channel_write_control(SIOChannel *channel, uint8_t value) {
+    uint8_t indexed = 0;
+
+    // select register when writing to write register 0
+    if (channel->reg_index == 0)
+        indexed = value & 0x7;
+
+    const write_register_handler_t handler =
+        write_register_handlers[channel->reg_index];
+    handler(channel, value);
+
+    channel->reg_index = indexed;
 }
 
 uint8_t sio2_in(ceda_ioaddr_t address) {
