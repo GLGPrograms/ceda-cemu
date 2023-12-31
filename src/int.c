@@ -5,61 +5,82 @@
 
 #include <stdbool.h>
 
-// Interrupt event representation
-typedef struct int_event_t {
-    int_ack_callback_t callback;
+// Interrupt request event representation
+typedef struct irq_t {
+    // true if IRQ is asserted by the peripheral
+    bool request;
+
+    // byte placed on the bus by the peripheral, when doing
+    // interrupt handshake with Z80
     uint8_t byte;
-} int_event_t;
+} irq_t;
 
-// Note: a FIFO is not the suitable struct to handle interrupt requests,
-// because we have to handle priority, but:
-// - I don't know the Z80 and its peripherals enough
-// - we already have a nice FIFO implementation
-// - we don't have a priority queue implementation
-// So, let's just make this work first, then we will fix.
-DECLARE_FIFO_TYPE(int_event_t, int_events_fifo_t, 8);
-static int_events_fifo_t int_events_fifo;
+// number of peripherals with pending interrupt requests
+static unsigned int pending = 0;
+// interrupt requests lines status (sort of)
+static irq_t irqs[INTPRIO_COUNT];
 
-void int_push(uint8_t byte, int_ack_callback_t callback) {
-    if (FIFO_ISFULL(&int_events_fifo))
-        return;
+void int_irq(int_priority_t priority, uint8_t byte) {
+    assert(priority >= 0);
+    assert(priority < ARRAY_SIZE(irqs));
 
-    const int_event_t event = {
-        .byte = byte,
-        .callback = callback,
-    };
+    if (!irqs[priority].request)
+        ++pending;
 
-    FIFO_PUSH(&int_events_fifo, event);
+    irqs[priority].request = true;
+    irqs[priority].byte = byte;
 }
 
 static void int_poll(void) {
-    if (FIFO_ISEMPTY(&int_events_fifo))
+    if (pending == 0)
         return;
 
     cpu_int(true);
 }
 
+void int_cancel(int_priority_t priority) {
+    assert(priority >= 0);
+    assert(priority < ARRAY_SIZE(irqs));
+
+    if (irqs[priority].request)
+        --pending;
+
+    irqs[priority].request = false;
+}
+
 uint8_t int_pop(void) {
-    assert(!FIFO_ISEMPTY(&int_events_fifo));
+    assert(pending);
 
-    const int_event_t event = FIFO_POP(&int_events_fifo);
+    // byte to be returned by the peripheral handshake
+    uint8_t byte = 0;
 
-    // acknowledge interrupt with I/O device provided callback (if any)
-    if (event.callback)
-        event.callback();
+    // find interrupt request with maximum priority
+    for (size_t i = 0; i < ARRAY_SIZE(irqs); ++i) {
+        if (irqs[i].request) {
+            byte = irqs[i].byte;
+            irqs[i].request = false;
+            break;
+        }
+    }
+
+    // remember one less interrupt request is pending
+    --pending;
 
     // de-assert IRQ line, but only if there are no more pending interrupts
-    if (FIFO_ISEMPTY(&int_events_fifo))
+    if (pending == 0)
         cpu_int(false);
 
     // return device supplied byte
-    return event.byte;
+    return byte;
 }
 
 void int_init(CEDAModule *mod) {
-    // prepare interrupt queue
-    FIFO_INIT(&int_events_fifo);
+    // cancel any pending interrupt request
+    for (size_t i = 0; i < ARRAY_SIZE(irqs); ++i) {
+        irqs[i].request = false;
+    }
 
+    // initialize module struct
     mod->init = int_init;
     mod->poll = int_poll;
 }
