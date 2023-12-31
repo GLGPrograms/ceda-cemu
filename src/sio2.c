@@ -63,8 +63,6 @@ static SIOChannel channels[2];
 
 // vector byte to pass back to Z80 when an interrupt must be generated
 static uint8_t sio_interrupt_vector = 0;
-// true if waiting for acknoweledgment from Z80, false otherwise
-static bool sio2_pending_interrupt = false;
 
 /**
  * @brief Reinitialize an already initialized channel.
@@ -171,10 +169,7 @@ static void write_register_0(SIOChannel *channel, uint8_t value) {
     switch (value >> 3 & 0x7) {
     case 2:
         // reset interrupts status
-        sio2_pending_interrupt = false;
-        // Note: maybe we should also stop pulling the IRQ line low,
-        // but... we need an interface to pull interrupt requests back
-        // from the bus, first.
+        int_cancel(INTPRIO_SIO2);
         break;
     case 3:
         // reset channel
@@ -353,10 +348,6 @@ static void sio2_cleanup(void) {
     // (nothing to do at the moment)
 }
 
-static void sio2_irq_ack(void) {
-    sio2_pending_interrupt = false;
-}
-
 static void sio2_poll(void) {
     // try to read data from external serial peripherals
     for (size_t i = 0; i < ARRAY_SIZE(channels); ++i) {
@@ -385,20 +376,20 @@ static void sio2_poll(void) {
 
         // put char in RX fifo
         FIFO_PUSH(&channel->rx_fifo, c);
+    }
+
+    for (size_t i = 0; i < ARRAY_SIZE(channels); ++i) {
+        SIOChannel *channel = &channels[i];
+
+        if (FIFO_ISEMPTY(&channel->rx_fifo))
+            continue;
 
         // signal RX char available
         channel->read_regs[0] |= (1U << RX_CHAR_AVAILABLE_BIT);
 
-        LOG_DEBUG("interrupt enabled: %d\n", channel->rx_int_enabled);
-
         // generate interrupt request, if interrupts are enabled
-        if (channel->rx_int_enabled) {
-            if (!sio2_pending_interrupt) {
-                LOG_DEBUG("sio2: send interrupt!\n");
-                int_push(sio_interrupt_vector, sio2_irq_ack);
-            }
-            sio2_pending_interrupt = true;
-        }
+        if (channel->rx_int_enabled)
+            int_irq(INTPRIO_SIO2, sio_interrupt_vector);
     }
 
     // try to write data to external serial peripherals

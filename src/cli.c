@@ -728,7 +728,7 @@ static ceda_string_t *cli_int(const char *arg) {
         return msg;
     }
 
-    int_push((uint8_t)byte, NULL);
+    int_irq(INTPRIO_EXT, (uint8_t)byte);
 
     return NULL;
 }
