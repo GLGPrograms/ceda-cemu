@@ -5,6 +5,7 @@
 #include "cli.h"
 #include "cpu.h"
 #include "gui.h"
+#include "int.h"
 #include "limits.h"
 #include "macro.h"
 #include "module.h"
@@ -25,9 +26,11 @@ static CEDAModule mod_gui;
 static CEDAModule mod_video;
 static CEDAModule mod_speaker;
 static CEDAModule mod_sio2;
+static CEDAModule mod_int;
 
 static CEDAModule *modules[] = {
-    &mod_cli, &mod_gui, &mod_bus, &mod_cpu, &mod_video, &mod_speaker, &mod_sio2,
+    &mod_cli,   &mod_gui,     &mod_bus, &mod_cpu,
+    &mod_video, &mod_speaker, &mod_int, &mod_sio2,
 };
 
 void ceda_init(void) {
@@ -40,6 +43,7 @@ void ceda_init(void) {
     speaker_init(&mod_speaker);
     bus_init(&mod_bus);
     cpu_init(&mod_cpu);
+    int_init(&mod_int);
     sio2_init(&mod_sio2);
 }
 

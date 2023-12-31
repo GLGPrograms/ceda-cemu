@@ -2,6 +2,7 @@
 
 #include "3rd/disassembler.h"
 #include "bus.h"
+#include "int.h"
 #include "time.h"
 
 #include <string.h>
@@ -203,7 +204,7 @@ static void cpu_io_out(void *context, zuint16 address, zuint8 value) {
 static uint8_t cpu_int_read(void *context, zuint16 address) {
     (void)context;
     (void)address;
-    return bus_intPop();
+    return int_pop();
 }
 
 void cpu_init(CEDAModule *mod) {

@@ -6,6 +6,7 @@
 
 #include "bus.h"
 #include "fifo.h"
+#include "int.h"
 #include "keyboard.h"
 #include "macro.h"
 
@@ -394,7 +395,7 @@ static void sio2_poll(void) {
         if (channel->rx_int_enabled) {
             if (!sio2_pending_interrupt) {
                 LOG_DEBUG("sio2: send interrupt!\n");
-                bus_intPush(sio_interrupt_vector, sio2_irq_ack);
+                int_push(sio_interrupt_vector, sio2_irq_ack);
             }
             sio2_pending_interrupt = true;
         }
