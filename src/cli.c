@@ -5,6 +5,7 @@
 #include "ceda_string.h"
 #include "cpu.h"
 #include "fifo.h"
+#include "int.h"
 #include "macro.h"
 #include "time.h"
 
@@ -727,7 +728,7 @@ static ceda_string_t *cli_int(const char *arg) {
         return msg;
     }
 
-    bus_intPush((uint8_t)byte, NULL);
+    int_push((uint8_t)byte, NULL);
 
     return NULL;
 }
