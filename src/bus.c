@@ -4,7 +4,6 @@
 #include "cpu.h"
 #include "crtc.h"
 #include "fdc.h"
-#include "fifo.h"
 #include "macro.h"
 #include "ram/dynamic.h"
 #include "sio2.h"
@@ -16,6 +15,7 @@
 #include <Z80.h>
 #include <inttypes.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "log.h"
 
@@ -57,21 +57,6 @@ static const struct bus_io_slot bus_io_slots[] = {
     {0xDE, 0xDE, NULL, NULL}, // unknown
     {0xE0, 0xE4, timer_in, timer_out},
 };
-
-// Interrupt event representation
-typedef struct int_event_t {
-    bus_int_ack_callback_t callback;
-    uint8_t byte;
-} int_event_t;
-
-// Note: a FIFO is not the suitable struct to handle interrupt requests,
-// because we have to handle priority, but:
-// - I don't know the Z80 and its peripherals enough
-// - we already have a nice FIFO implementation
-// - we don't have a priority queue implementation
-// So, let's just make this work first, then we will fix.
-DECLARE_FIFO_TYPE(int_event_t, int_events_fifo_t, 8);
-static int_events_fifo_t int_events_fifo;
 
 uint8_t bus_mem_read(ceda_address_t address) {
     if (!is_mem_switched) {
@@ -150,42 +135,6 @@ void bus_io_out(ceda_ioaddr_t _address, uint8_t value) {
     }
 }
 
-void bus_intPush(uint8_t byte, bus_int_ack_callback_t callback) {
-    if (FIFO_ISFULL(&int_events_fifo))
-        return;
-
-    const int_event_t event = {
-        .byte = byte,
-        .callback = callback,
-    };
-
-    FIFO_PUSH(&int_events_fifo, event);
-}
-
-static void bus_intPoll(void) {
-    if (FIFO_ISEMPTY(&int_events_fifo))
-        return;
-
-    cpu_int(true);
-}
-
-uint8_t bus_intPop(void) {
-    assert(!FIFO_ISEMPTY(&int_events_fifo));
-
-    const int_event_t event = FIFO_POP(&int_events_fifo);
-
-    // acknowledge interrupt with I/O device provided callback (if any)
-    if (event.callback)
-        event.callback();
-
-    // de-assert IRQ line, but only if there are no more pending interrupts
-    if (FIFO_ISEMPTY(&int_events_fifo))
-        cpu_int(false);
-
-    // return device supplied byte
-    return event.byte;
-}
-
 void bus_init(CEDAModule *mod) {
     // when starting, BIOS ROM is mounted at 0x0,
     // until the first I/O access is performed,
@@ -196,11 +145,7 @@ void bus_init(CEDAModule *mod) {
         dyn_ram_write(address, jmp[address]);
     }
 
-    // prepare interrupt queue
-    FIFO_INIT(&int_events_fifo);
-
-    mod->init = bus_init;
-    mod->poll = bus_intPoll;
+    memset(mod, 0, sizeof(*mod));
 }
 
 void bus_memSwitch(bool switched) {
