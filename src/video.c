@@ -15,7 +15,7 @@
 #define LOG_LEVEL LOG_LVL_WARN
 #include "log.h"
 
-#define VIDEO_CHAR_MEM_SIZE 0x1000
+#define VIDEO_CHAR_MEM_SIZE 0x800
 #define VIDEO_ATTR_MEM_SIZE VIDEO_CHAR_MEM_SIZE
 #define VIDEO_COLUMNS       80
 #define VIDEO_ROWS          25
