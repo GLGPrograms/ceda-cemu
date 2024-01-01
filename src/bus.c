@@ -32,7 +32,8 @@ struct bus_mem_slot {
 static const struct bus_mem_slot bus_mem_slots[] = {
     {0xB000, 0xC000, NULL, NULL}, // alt_ram_read/write - TODO
     {0xC000, 0xD000, rom_bios_read, NULL},
-    {0xD000, 0xE000, video_ram_read, video_ram_write},
+    {0xD000, 0xD800, video_ram_read, video_ram_write},
+    {0xD800, 0xE000, video_ram_read, video_ram_write},
 };
 
 static bool is_mem_switched = false;
