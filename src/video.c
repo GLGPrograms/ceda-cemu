@@ -131,9 +131,11 @@ static void video_poll(void) {
             // get character at (row,column) position in video memory, and its
             // attributes
             const unsigned char c = (unsigned char)
-                mem_char[crtc_start_address + row * VIDEO_COLUMNS + column];
+                mem_char[(crtc_start_address + row * VIDEO_COLUMNS + column) %
+                         ARRAY_SIZE(mem_char)];
             const zuint8 attr =
-                mem_attr[crtc_start_address + row * VIDEO_COLUMNS + column];
+                mem_attr[(crtc_start_address + row * VIDEO_COLUMNS + column) %
+                         ARRAY_SIZE(mem_attr)];
 
             // pointer to bitmap in the char rom,
             // for the character we need to draw
@@ -144,7 +146,7 @@ static void video_poll(void) {
 
             // draw the 16 lines which compose the character on the screen
             // this does not emulate 100% the CRTC scan lines, but it's easier
-            // and no one cares
+            // and no one cares (yet)
             for (int i = 0; i < 16; ++i) {
                 // compute pointer to SDL frame buffer memory where char will
                 // reside
