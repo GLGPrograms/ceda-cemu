@@ -65,7 +65,7 @@ static void keyboard_toggle_modifier(SDL_Keycode code) {
 
 static const ceda_associator_t associators[] = {
     // row 0
-    // {} BOOT (0x4D)
+    {SDLK_INSERT, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x4D}},
     {SDLK_F1, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x4E}},
     {SDLK_F2, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x4F}},
     {SDLK_F3, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x50}},
