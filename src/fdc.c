@@ -3,6 +3,8 @@
 #include <assert.h>
 #include <string.h>
 
+#include "floppy.h"
+
 #define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
 
@@ -32,6 +34,13 @@ typedef enum cmd_t {
     SCAN_LOW_EQUAL = 0x19,
     SCAN_HIGH_EQUAL = 0x1D
 } cmd_t;
+
+// Some commands carry argument bits in MSb
+#define CMD_COMMAND_bm (0x1F)
+#define CMD_ARGS_bm    (0xE0)
+#define CMD_ARGS_MT_bm (0x80)
+#define CMD_ARGS_MF_bm (0x40)
+#define CMD_ARGS_SK_bm (0x20)
 
 // Each FDC command sequence can be split in four phases.
 // The single-byte command must be always sent (CMD).
@@ -83,6 +92,21 @@ typedef union main_status_register_t {
     };
 } main_status_register_t;
 
+// Parsing structure for read and write arguments
+// TODO(giuliof): this is not portable
+typedef struct rw_args_t {
+    uint8_t unit_select : 2;
+    uint8_t head_address : 1;
+    uint8_t : 0;
+    uint8_t cylinder;
+    uint8_t head;
+    uint8_t record;
+    uint8_t n;
+    uint8_t eot;
+    uint8_t gpl;
+    uint8_t stp;
+} rw_args_t;
+
 /* Command callbacks prototypes */
 static void pre_exec_specify(void);
 static void pre_exec_read_data(void);
@@ -91,6 +115,10 @@ static void post_exec_read_data(void);
 static void pre_exec_recalibrate(void);
 static void post_exec_sense_interrupt(void);
 static void pre_exec_seek(void);
+/* Utility routines prototypes */
+static void fdc_compute_next_status(void);
+// Update read buffer with the data from current ths
+static void buffer_update(void);
 
 /* Local variables */
 // The command descriptors
@@ -147,6 +175,10 @@ static size_t rwcount = 0;
 static size_t rwcount_max = 0;
 // Arguments buffer. Each command has maximum 8 bytes as argument.
 static uint8_t args[8];
+// Execution buffer, will keep sector's information
+// TODO(giuliof): at the moment its size is the maximum allowed on CEDA, but
+// FDC can theoretically handle bigger sector sizes
+static uint8_t exec_buffer[1024];
 // Result buffer. Each command has maximum 7 bytes as argument.
 static uint8_t result[7];
 
@@ -172,6 +204,7 @@ static void pre_exec_specify(void) {
 
 // Read data:
 static void pre_exec_read_data(void) {
+    // TODO(giuliof): eventually: use the appropriate structure
     LOG_DEBUG("FDC Read Data\n");
     LOG_DEBUG("SK: %d\n", (command_args >> 5) & 0x01);
     LOG_DEBUG("MF: %d\n", (command_args >> 6) & 0x01);
@@ -188,14 +221,43 @@ static void pre_exec_read_data(void) {
 
     // Set DIO to read for Execution phase
     status_register.dio = 1;
+
+    // TODO(giuliof) create handles to manage more than one floppy image at a
+    // time
+    // floppy_read_buffer(exec_buffer, track_size, head, track, sector);
+    // TODO(giuliof): may be a good idea to pass a sort of "floppy context"
+    buffer_update();
 }
 
 static uint8_t exec_read_data(uint8_t value) {
+    rw_args_t *rw_args = (rw_args_t *)args;
+
     // read doesn't care of in value
     (void)value;
+    uint8_t ret = exec_buffer[rwcount++];
 
-    // TODO(giulio): just serve HALT opcode
-    return 0x76;
+    if (rwcount == rwcount_max) {
+        // Multi-sector mode (enabled by default).
+        // If read is not interrupted at the end of the sector, the next logical
+        // sector is loaded
+        rw_args->record++;
+
+        // Last sector of the track
+        if (rw_args->record > rw_args->eot) {
+            // Multi track mode, if enabled the read operation go on on the next
+            // side of the same track
+            if (command_args & CMD_ARGS_MT_bm) {
+                rw_args->head_address = !rw_args->head_address;
+                rw_args->head = !rw_args->head;
+            };
+
+            // In any case, reached the end of track we start back from sector 1
+            rw_args->record = 1;
+        }
+
+        buffer_update();
+    }
+    return ret;
 }
 
 static void post_exec_read_data(void) {
@@ -203,6 +265,8 @@ static void post_exec_read_data(void) {
     // TODO(giulio): populate result (which is pretty the same for read,
     // write, ...)
     memset(result, 0x00, sizeof(result));
+
+    // TODO(giuliof): populate result as in datasheet (see table 2)
 }
 
 // Recalibrate:
@@ -251,7 +315,9 @@ static void fdc_compute_next_status(void) {
     if (!fdc_currop)
         return;
 
-    rwcount++;
+    // rwcount during execution phase is handled directly by the exec callback
+    if (fdc_status != EXEC)
+        rwcount++;
 
     if (fdc_status == CMD) {
         // Set DIO to write for ARGS phase
@@ -297,6 +363,35 @@ static void fdc_compute_next_status(void) {
     // Update step dependant bits in main status register
     status_register.exm = fdc_status == EXEC;
     status_register.fdc_busy = fdc_status != CMD;
+}
+
+static void buffer_update(void) {
+    rw_args_t *rw_args = (rw_args_t *)args;
+
+    uint8_t sector = rw_args->record;
+
+    // FDC counts sectors from 1
+    assert(sector != 0);
+
+    // But all other routines counts sectors from 0
+    sector--;
+
+    ssize_t ret = floppy_read_buffer(
+        NULL, rw_args->unit_select, rw_args->head_address,
+        track[rw_args->unit_select], rw_args->head, rw_args->cylinder, sector);
+    assert(ret > 0);
+    // TODO(giuliof): At the moment we do not support error codes, we assume the
+    // image is always loaded and valid
+    assert((size_t)ret <= sizeof(exec_buffer));
+
+    ret = floppy_read_buffer(exec_buffer, rw_args->unit_select,
+                             rw_args->head_address, track[rw_args->unit_select],
+                             rw_args->head, rw_args->cylinder, sector);
+    assert(ret > 0);
+
+    rwcount = 0;
+    // TODO(giuliof) rwcount_max = min(DTL, ret)
+    rwcount_max = (size_t)ret;
 }
 
 /* * * * * * * * * * * * * * *  Public routines   * * * * * * * * * * * * * * */
@@ -352,8 +447,8 @@ void fdc_out(ceda_ioaddr_t address, uint8_t value) {
     case ADDR_DATA_REGISTER: {
         if (fdc_status == CMD) {
             // Split the command itself from option bits
-            uint8_t cmd = value & 0x1F;
-            command_args = value & 0xE0;
+            uint8_t cmd = value & CMD_COMMAND_bm;
+            command_args = value & CMD_ARGS_bm;
 
             // Unroll the command list and place it in the current execution
             fdc_currop = NULL;
