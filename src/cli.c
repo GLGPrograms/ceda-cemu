@@ -5,6 +5,7 @@
 #include "ceda_string.h"
 #include "cpu.h"
 #include "fifo.h"
+#include "floppy.h"
 #include "int.h"
 #include "macro.h"
 #include "time.h"
@@ -639,18 +640,73 @@ static ceda_string_t *cli_load_and_run(const char *arg, bool run) {
     return NULL;
 }
 
+static ceda_string_t *cli_fload(const char *arg) {
+    char filename[LINE_BUFFER_SIZE];
+    unsigned int drive = 0;
+
+    // skip argv[0]
+    arg = cli_next_word(filename, arg, LINE_BUFFER_SIZE);
+
+    if (arg == NULL) {
+        ceda_string_t *msg = ceda_string_new(0);
+        ceda_string_cpy(msg, "no file specified\n");
+        return msg;
+    }
+
+    // Actual filename fetch
+    arg = cli_next_word(filename, arg, LINE_BUFFER_SIZE);
+
+    // Fetch drive number if specified
+    if (arg != NULL) {
+        cli_next_int(&drive, arg);
+    }
+
+    // TODO(giuliof): some error codes and appropriate messages will be
+    // implemented
+    if (floppy_load_image(filename, drive) < 0) {
+        ceda_string_t *msg = ceda_string_new(0);
+        ceda_string_cpy(msg, "unable to open file\n");
+        return msg;
+    }
+
+    return NULL;
+}
+
+static ceda_string_t *cli_funload(const char *arg) {
+    char word[LINE_BUFFER_SIZE];
+    unsigned int drive = 0;
+
+    // skip argv[0]
+    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+
+    // Fetch drive number if specified
+    if (arg != NULL) {
+        cli_next_int(&drive, arg);
+    }
+
+    // TODO(giuliof): some error codes and appropriate messages will be
+    // implemented
+    if (floppy_unload_image(drive) < 0) {
+        ceda_string_t *msg = ceda_string_new(0);
+        ceda_string_cpy(msg, "unable to unload drive\n");
+        return msg;
+    }
+
+    return NULL;
+}
+
 /**
  * @brief Load a chunk of memory from disk.
  *
  * Expected command line syntax:
  *  load <filename> [start]
  * where
- *  filename: name of the file from which to load the dump (no spaces allowed)
- *  start: starting memory address, in hex
+ *  filename: name of the file from which to load the dump (no spaces
+ * allowed) start: starting memory address, in hex
  *
  * When loading, this routine will use the starting address saves inside the
- * file, unless a starting address is explicitly specified on the command line,
- * in which case, the starting address of the file will be overridden.
+ * file, unless a starting address is explicitly specified on the command
+ * line, in which case, the starting address of the file will be overridden.
  *
  * Example: load video memory dump, but one row below
  *  load video.crt d050
@@ -828,6 +884,10 @@ static const cli_command cli_commands[] = {
     {"write", "write to memory", cli_write},
     {"in", "read from io", cli_in},
     {"out", "write to io", cli_out},
+    {"fload", "load floppy image in from specified drive (deafult is 0)",
+     cli_fload},
+    {"funload", "unload floppy from specified drive (deafult is 0)",
+     cli_funload},
     {"load", "load binary from file", cli_load},
     {"run", "load binary from file and run", cli_run},
     {"save", "save memory dump to file", cli_save},
