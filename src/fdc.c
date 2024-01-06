@@ -236,8 +236,8 @@ static void post_exec_sense_interrupt(void) {
 
 // Seek
 static void pre_exec_seek(void) {
-    uint8_t drive = result[0] & 0x03;
-    track[drive] = result[1];
+    uint8_t drive = args[0] & 0x03;
+    track[drive] = args[1];
 
     LOG_DEBUG("FDC Seek\n");
     LOG_DEBUG("Drive: %d\n", drive);
