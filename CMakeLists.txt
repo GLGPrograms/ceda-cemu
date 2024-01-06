@@ -10,6 +10,7 @@ add_executable(ceda
     src/crtc.c
     src/cpu.c
     src/fdc.c
+    src/floppy.c
     src/gui.c
     src/int.c
     src/keyboard.c
