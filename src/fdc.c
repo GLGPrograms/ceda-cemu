@@ -271,7 +271,6 @@ static void post_exec_read_data(void) {
 
 // Recalibrate:
 // Just print the register values.
-// TODO(giuliof): actually set drive x's track to 0
 static void pre_exec_recalibrate(void) {
     uint8_t drive = args[0] & 0x3;
 
