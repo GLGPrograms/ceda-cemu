@@ -1,5 +1,5 @@
-#ifndef FLOPPY_H
-#define FLOPPY_H
+#ifndef CEDA_FLOPPY_H
+#define CEDA_FLOPPY_H
 
 #include <stdbool.h>
 #include <stdint.h>
