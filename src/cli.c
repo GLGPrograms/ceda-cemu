@@ -640,7 +640,7 @@ static ceda_string_t *cli_load_and_run(const char *arg, bool run) {
     return NULL;
 }
 
-static ceda_string_t *cli_fload(const char *arg) {
+static ceda_string_t *cli_mount(const char *arg) {
     char filename[LINE_BUFFER_SIZE];
     unsigned int drive = 0;
 
@@ -672,7 +672,7 @@ static ceda_string_t *cli_fload(const char *arg) {
     return NULL;
 }
 
-static ceda_string_t *cli_funload(const char *arg) {
+static ceda_string_t *cli_umount(const char *arg) {
     char word[LINE_BUFFER_SIZE];
     unsigned int drive = 0;
 
@@ -884,10 +884,9 @@ static const cli_command cli_commands[] = {
     {"write", "write to memory", cli_write},
     {"in", "read from io", cli_in},
     {"out", "write to io", cli_out},
-    {"fload", "load floppy image in from specified drive (deafult is 0)",
-     cli_fload},
-    {"funload", "unload floppy from specified drive (deafult is 0)",
-     cli_funload},
+    {"mount", "load floppy image in from specified drive (default is 0)",
+     cli_mount},
+    {"umount", "unload floppy from specified drive (default is 0)", cli_umount},
     {"load", "load binary from file", cli_load},
     {"run", "load binary from file and run", cli_run},
     {"save", "save memory dump to file", cli_save},
