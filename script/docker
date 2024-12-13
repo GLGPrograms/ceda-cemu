@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# script/docker
+#
+# Run command in development container
+
+set -euo pipefail
+
+cd "$(dirname "$0")/.."
+
+docker run --rm -ti -u builder \
+    -v "$(pwd)":/home/builder/workspace \
+    -v /tmp:/tmp \
+    -w /home/builder/workspace \
+    giomba/ceda-cemu-builder:1 \
+    "$@"
