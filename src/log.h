@@ -85,7 +85,7 @@
 #endif
 /** \} */
 
-#if LOG_LEVEL >= LOG_LVL_DEBUG
+#if LOG_LEVEL >= LOG_LVL_DEBUG && defined(DEBUG) && DEBUG == 1
     #define LOG_DEBUG(str, ...)     LOG_PRINT("DEBUG", str, ## __VA_ARGS__)
     #define LOG_DEBUGB(x)           x
 #else
