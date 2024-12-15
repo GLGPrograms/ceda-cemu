@@ -1,5 +1,6 @@
 #include "video.h"
 
+#include "conf.h"
 #include "crtc.h"
 #include "gui.h"
 #include "macro.h"
@@ -12,7 +13,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-#define LOG_LEVEL LOG_LVL_WARN
+#define LOG_LEVEL LOG_LVL_INFO
 #include "log.h"
 
 #define VIDEO_CHAR_MEM_SIZE 0x800
@@ -25,6 +26,8 @@
 
 #define CHAR_ROM_PATH "rom/CGV7.2_ROM.bin"
 #define CHAR_ROM_SIZE (ceda_size_t)(4 * KiB)
+#define CGE_ROM_PATH  "rom/CGE.bin"
+#define CGE_ROM_SIZE  (ceda_size_t)(4 * KiB)
 
 #define UPDATE_INTERVAL 20000 // [us] 20 ms => 50 Hz
 static us_time_t last_update = 0;
@@ -33,6 +36,8 @@ static zuint8 mem_char[VIDEO_CHAR_MEM_SIZE];
 static zuint8 mem_attr[VIDEO_ATTR_MEM_SIZE];
 static zuint8 *mem = NULL; // pointer to current selected memory bank
 static zuint8 char_rom[CHAR_ROM_SIZE];
+static zuint8 cge_rom[CGE_ROM_SIZE];
+static bool cge_installed = false;
 
 static SDL_Window *window = NULL;
 static SDL_Surface *surface = NULL;
@@ -137,9 +142,13 @@ static void video_poll(void) {
                 mem_attr[(crtc_start_address + row * VIDEO_COLUMNS + column) %
                          ARRAY_SIZE(mem_attr)];
 
+            const zuint8 *selected_char_rom =
+                (cge_installed) ? ((attr & 0x80) ? cge_rom : char_rom)
+                                : char_rom;
+
             // pointer to bitmap in the char rom,
             // for the character we need to draw
-            const zuint8 *bitmap = char_rom + (ptrdiff_t)c * 16;
+            const zuint8 *bitmap = selected_char_rom + (ptrdiff_t)c * 16;
 
             // need to stretch char horizontally?
             const bool hstretch = attr & 0x08;
@@ -311,21 +320,49 @@ void video_init(CEDAModule *mod) {
     mem = mem_char;
 
     // load character generator rom
-    FILE *fp = fopen(CHAR_ROM_PATH, "rb");
-    if (fp == NULL) {
-        LOG_ERR("missing char rom file\n");
-        abort();
+    {
+        FILE *fp = fopen(CHAR_ROM_PATH, "rb");
+        if (fp == NULL) {
+            LOG_ERR("missing char rom file\n");
+            abort();
+        }
+
+        const size_t read = fread(char_rom, 1, CHAR_ROM_SIZE, fp);
+        if (read != CHAR_ROM_SIZE) {
+            LOG_ERR("bad char rom file size: %lu\n", read);
+            abort();
+        }
+
+        if (fclose(fp) != 0) {
+            LOG_ERR("error closing char rom file\n");
+            abort();
+        }
     }
 
-    const size_t read = fread(char_rom, 1, CHAR_ROM_SIZE, fp);
-    if (read != CHAR_ROM_SIZE) {
-        LOG_ERR("bad char rom file size: %lu\n", read);
-        abort();
-    }
+    // load extended character generator rom (custom mod)
+    bool *conf_cge_installed = conf_getBool("mod", "cge_installed");
+    if (conf_cge_installed)
+        cge_installed = *conf_cge_installed;
 
-    if (fclose(fp) != 0) {
-        LOG_ERR("error closing char rom file\n");
-        abort();
+    if (cge_installed) {
+        FILE *fp = fopen(CGE_ROM_PATH, "rb");
+        if (fp == NULL) {
+            LOG_WARN("cge: extended char rom not found\n");
+            return;
+        }
+
+        const size_t read = fread(cge_rom, 1, CGE_ROM_SIZE, fp);
+        if (read != CGE_ROM_SIZE) {
+            LOG_WARN("cge: extended character rom found, but cannot read\n");
+            return;
+        }
+
+        if (fclose(fp) != 0) {
+            LOG_ERR("cge: error closing extended char rom file\n");
+            abort();
+        }
+
+        LOG_INFO("cge: mod installed ok\n");
     }
 }
 
