@@ -21,9 +21,7 @@ static const char *CONF_PATH_HOME =
 #include "log.h"
 
 // Emulator dynamic configuration
-static struct {
-    bool cge;
-} conf;
+static struct { bool cge_installed; } conf;
 
 typedef enum conf_type_t {
     CONF_NONE,
@@ -42,7 +40,7 @@ typedef struct conf_tuple_t {
 } conf_tuple_t;
 
 static conf_tuple_t conf_tuples[] = {
-    {"mod", "cge", CONF_BOOL, &conf.cge},
+    {"mod", "cge_installed", CONF_BOOL, &conf.cge_installed},
     {NULL, NULL, CONF_NONE, NULL},
 };
 
