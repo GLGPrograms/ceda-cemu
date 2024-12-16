@@ -9,29 +9,43 @@ This time, written in plain old C.
 ```
 git submodule init
 git submodule update
-script/build release
+script/docker script/build release
 ```
 
 ## Run
-Place a copy of BIOS and Character ROM inside `rom/`, then:
+First, you need a copy of the ROMs inside the `rom/` directory:
+- [BIOS ROM](https://github.com/GLGPrograms/ceda-home/blob/main/README.md#rom)
+- [character ROM](https://github.com/GLGPrograms/ceda-home/blob/main/README.md#rom)
+
+Optionally (but strongly suggested) you also need:
+- [CP/M disk](https://github.com/GLGPrograms/ceda-cpm) (.bin)
+
+Then:
 ```
-build/release/ceda
-telnet 127.0.0.1 52954
+build/release/ceda      # run the emulator
+telnet 127.0.0.1 52954  # connect to command line interface
 ```
 
-Emulation can be started/stopped/resumed via the provided command line debugger.
+Lore: *52954* is just the decimal version of `0xCEDA`.
 
-In case you are wondering, *52954* is just the decimal version of `0xCEDA`.
+Emulation can be started/stopped/resumed via the provided command line debugger accessible via the telnet session.
+
+In the command line, type:
+- `mount <image.bin>` to mount the CP/M floppy image (optional);
+- `continue` to start the execution;
+- `help` to get a full list of all supported commands;
+
+To emulate the `BOOT` key of the original keyboard, press `INS`.
 
 ## Development
 - to add debug symbols:
 ```
-script/build debug
+script/docker script/build debug
 ```
 
 - to compile tests
 ```
-script/build test
+script/docker script/build test
 ```
 
 - to run tests:
@@ -41,6 +55,8 @@ build/test/ceda
 
 ### Script
 The `script/` directory contains some useful script for development.
+It is suggested to run them in the docker container by prefixing them with `script/docker` in order to use the correct version of the dev tools.
+
 - `format`: clang-format sources
 - `valgrind`: check for memory leaks
 
