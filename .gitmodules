@@ -4,3 +4,6 @@
 [submodule "vendor/Z80"]
 	path = vendor/Z80
 	url = https://github.com/redcode/Z80
+[submodule "vendor/inih"]
+	path = vendor/inih
+	url = https://github.com/benhoyt/inih
