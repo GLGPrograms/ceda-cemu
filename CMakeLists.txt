@@ -19,6 +19,7 @@ add_executable(ceda
     src/speaker.c
     src/time.c
     src/timer.c
+    src/tokenizer.c
     src/upd8255.c
     src/video.c
     src/ram/auxram.c

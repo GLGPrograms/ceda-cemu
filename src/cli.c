@@ -9,6 +9,7 @@
 #include "int.h"
 #include "macro.h"
 #include "time.h"
+#include "tokenizer.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -60,101 +61,6 @@ static void cli_send_string(const char *str) {
     ceda_string_t *message = ceda_string_new(0);
     ceda_string_cpy(message, str);
     FIFO_PUSH(&tx_fifo, message);
-}
-
-/**
- * @brief Extract the first word from a null-terminated C string.
- *
- * @param word Pointer to destination null-terminated string.
- * @param src Pointer to input string to inspect.
- * @param size Size of destination word buffer.
- *
- * @return const char* Pointer to first char after the word in the input string.
- * NULL if there are no more words.
- */
-static const char *cli_next_word(char *word, const char *src, size_t size) {
-    bool started = false;
-
-    assert(src);
-    if (*src == '\0') {
-        return NULL;
-    }
-
-    size_t idx = 0; // index of current char under examination
-    size_t len = 0; // toekn/word length
-    for (; len < size - 1; ++idx) {
-        if (src[idx] == ' ') {
-            if (started) {
-                break;
-            }
-            continue;
-        }
-        started = true;
-        word[len++] = src[idx];
-
-        if (src[idx] == '\0') {
-            break;
-        }
-    }
-
-    word[len++] = '\0';
-    return src + idx;
-}
-
-/**
- * @brief Extract an unsigned int expressed in hex format from a C string.
- *
- * @param dst Pointer to unsigned int to write into.
- * @param src Pointer to input string to inspect.
-
- * @return const char* Pointer to first char after the unsigned int in the input
- * string. NULL if there has been an error during integer parsing.
- */
-static const char *cli_next_hex(unsigned int *dst, const char *src) {
-    assert(src);
-
-    char *endptr = NULL;
-    char word[LINE_BUFFER_SIZE] = {0};
-    src = cli_next_word(word, src, LINE_BUFFER_SIZE);
-    if (src == NULL) {
-        return NULL;
-    }
-    // TODO(giomba)
-    // sooner or later, better if the handle hex8, hex16, hex32 separately
-    *dst = (unsigned int)strtol(word, &endptr, 0x10);
-    if (errno == EINVAL || errno == ERANGE || endptr == word) {
-        return NULL;
-    }
-
-    return src;
-}
-
-/**
- * @brief Extract an unsigned int express in dec format from a C string.
- *
- * @param dst Pointer to unsigned int to write into.
- * @param src Pointer to input string to inspect.
-
- * @return const char* Pointer to first char after the unsigned int in the input
- * string. NULL if there has been an error during integer parsing.
- */
-static const char *cli_next_int(unsigned int *dst, const char *src) {
-    assert(src);
-    static const int base = 10;
-
-    char *endptr = NULL;
-    char word[LINE_BUFFER_SIZE] = {0};
-    src = cli_next_word(word, src, LINE_BUFFER_SIZE);
-    if (src == NULL) {
-        return NULL;
-    }
-
-    *dst = (unsigned int)strtol(word, &endptr, base);
-    if (errno == EINVAL || errno == ERANGE || endptr == word) {
-        return NULL;
-    }
-
-    return src;
 }
 
 static ceda_string_t *cli_quit(const char *arg) {
@@ -220,11 +126,11 @@ static ceda_string_t *cli_break(const char *arg) {
     char word[LINE_BUFFER_SIZE];
 
     // skip argv[0]
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // extract address
     unsigned int _address;
-    arg = cli_next_hex(&_address, arg);
+    arg = tokenizer_next_hex(&_address, arg);
 
     // no address => show current breakpoints
     if (arg == NULL) {
@@ -269,11 +175,11 @@ static ceda_string_t *cli_delete(const char *arg) {
     ceda_string_t *msg = ceda_string_new(0);
 
     // skip argv[0]
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
 
     char what[LINE_BUFFER_SIZE];
     // extract what to delete (breakpoint, watchpoint, ...)
-    arg = cli_next_word(what, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(what, arg, LINE_BUFFER_SIZE);
 
     // missing what
     if (arg == NULL) {
@@ -282,7 +188,7 @@ static ceda_string_t *cli_delete(const char *arg) {
     }
 
     // extract index
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // missing index
     if (arg == NULL) {
@@ -292,7 +198,7 @@ static ceda_string_t *cli_delete(const char *arg) {
 
     // atoi index
     unsigned int index;
-    arg = cli_next_int(&index, word);
+    arg = tokenizer_next_int(&index, word);
     if (arg == NULL) {
         ceda_string_cpy(msg, USER_BAD_ARG_STR "bad index format\n");
         return msg;
@@ -321,11 +227,11 @@ static ceda_string_t *cli_read(const char *arg) {
     ceda_string_t *msg = ceda_string_new(0);
 
     // skip argv[0]
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // extract address
     unsigned int address;
-    arg = cli_next_hex(&address, arg);
+    arg = tokenizer_next_hex(&address, arg);
 
     // missing address
     if (arg == NULL) {
@@ -372,11 +278,11 @@ static ceda_string_t *cli_write(const char *arg) {
     ceda_string_t *msg = ceda_string_new(0);
 
     // skip argv[0]
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // extract address
     unsigned int _address;
-    arg = cli_next_hex(&_address, arg);
+    arg = tokenizer_next_hex(&_address, arg);
     // missing address
     if (arg == NULL) {
         ceda_string_cpy(msg, USER_BAD_ARG_STR "bad address format\n");
@@ -393,7 +299,7 @@ static ceda_string_t *cli_write(const char *arg) {
     for (zuint16 i = 0;; ++i) {
         // extract value
         unsigned int _value;
-        arg = cli_next_hex(&_value, arg);
+        arg = tokenizer_next_hex(&_value, arg);
         if (arg == NULL) {
             // first value cannot be missing
             if (i == 0) {
@@ -424,10 +330,10 @@ static ceda_string_t *cli_dis(const char *arg) {
     ceda_string_t *msg = ceda_string_new(0);
 
     // skip argv[0]
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
 
     unsigned int address;
-    arg = cli_next_hex(&address, arg);
+    arg = tokenizer_next_hex(&address, arg);
     // if no address specified, use current pc
     if (arg == NULL) {
         CpuRegs regs;
@@ -476,25 +382,25 @@ static ceda_string_t *cli_save(const char *arg) {
     ceda_string_t *msg = ceda_string_new(0);
 
     // skip argv[0]
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // extract file name
     char filename[LINE_BUFFER_SIZE];
-    arg = cli_next_word(filename, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(filename, arg, LINE_BUFFER_SIZE);
     if (arg == NULL) {
         ceda_string_cpy(msg, USER_BAD_ARG_STR "missing file name\n");
         return msg;
     }
 
     unsigned int start_address;
-    arg = cli_next_hex(&start_address, arg);
+    arg = tokenizer_next_hex(&start_address, arg);
     if (arg == NULL) {
         ceda_string_cpy(msg, USER_BAD_ARG_STR "bad start address\n");
         return msg;
     }
 
     unsigned int end_address;
-    arg = cli_next_hex(&end_address, arg);
+    arg = tokenizer_next_hex(&end_address, arg);
     if (arg == NULL) {
         ceda_string_cpy(msg, USER_BAD_ARG_STR "bad end address\n");
         return msg;
@@ -560,11 +466,11 @@ static ceda_string_t *cli_load_and_run(const char *arg, bool run) {
     ceda_string_t *msg = ceda_string_new(0);
 
     // skip argv[0]
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // extract filename
     char filename[LINE_BUFFER_SIZE];
-    arg = cli_next_word(filename, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(filename, arg, LINE_BUFFER_SIZE);
     // if there is a valid filename, save it also for next time,
     // else if there is an old filename, set flag to use old data,
     // else abort mission
@@ -580,8 +486,8 @@ static ceda_string_t *cli_load_and_run(const char *arg, bool run) {
     }
 
     if (use_old)
-        cli_next_word(filename, ceda_string_data(prev_filename),
-                      LINE_BUFFER_SIZE);
+        tokenizer_next_word(filename, ceda_string_data(prev_filename),
+                            LINE_BUFFER_SIZE);
 
     // extract starting address from file
     FILE *fp = fopen(filename, "rb");
@@ -602,7 +508,7 @@ static ceda_string_t *cli_load_and_run(const char *arg, bool run) {
     // (optional, override what's inside the file)
     unsigned int address;
     if (!use_old) {
-        arg = cli_next_hex(&address, arg);
+        arg = tokenizer_next_hex(&address, arg);
         if (arg != NULL && address >= 0x10000) {
             ceda_string_cpy(msg, USER_BAD_ARG_STR "address must be 16 bit\n");
             return msg;
@@ -645,7 +551,7 @@ static ceda_string_t *cli_mount(const char *arg) {
     unsigned int drive = 0;
 
     // skip argv[0]
-    arg = cli_next_word(filename, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(filename, arg, LINE_BUFFER_SIZE);
 
     if (arg == NULL) {
         ceda_string_t *msg = ceda_string_new(0);
@@ -654,11 +560,11 @@ static ceda_string_t *cli_mount(const char *arg) {
     }
 
     // Actual filename fetch
-    arg = cli_next_word(filename, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(filename, arg, LINE_BUFFER_SIZE);
 
     // Fetch drive number if specified
     if (arg != NULL) {
-        cli_next_int(&drive, arg);
+        tokenizer_next_int(&drive, arg);
     }
 
     // TODO(giuliof): some error codes and appropriate messages will be
@@ -677,11 +583,11 @@ static ceda_string_t *cli_umount(const char *arg) {
     unsigned int drive = 0;
 
     // skip argv[0]
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // Fetch drive number if specified
     if (arg != NULL) {
-        cli_next_int(&drive, arg);
+        tokenizer_next_int(&drive, arg);
     }
 
     // TODO(giuliof): some error codes and appropriate messages will be
@@ -731,11 +637,11 @@ static ceda_string_t *cli_goto(const char *arg) {
     char word[LINE_BUFFER_SIZE];
 
     // skip argv[0]
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // extract address and perform sanity check
     unsigned int address;
-    arg = cli_next_hex(&address, arg);
+    arg = tokenizer_next_hex(&address, arg);
     if (arg == NULL) {
         ceda_string_t *msg = ceda_string_new(0);
         ceda_string_cpy(msg, USER_BAD_ARG_STR "missing address\n");
@@ -767,11 +673,11 @@ static ceda_string_t *cli_goto(const char *arg) {
 static ceda_string_t *cli_int(const char *arg) {
     // skip argv[0]
     char word[LINE_BUFFER_SIZE];
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // read device-provided byte
     unsigned int byte;
-    arg = cli_next_hex(&byte, arg);
+    arg = tokenizer_next_hex(&byte, arg);
     if (arg == NULL) {
         ceda_string_t *msg = ceda_string_new(0);
         ceda_string_cpy(msg, USER_BAD_ARG_STR "missing device-provided byte\n");
@@ -794,11 +700,11 @@ static ceda_string_t *cli_in(const char *arg) {
     ceda_string_t *msg = ceda_string_new(0);
 
     // skip argv[0]
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // extract io address
     unsigned int address;
-    arg = cli_next_hex(&address, arg);
+    arg = tokenizer_next_hex(&address, arg);
     if (arg == NULL) {
         ceda_string_cpy(msg, USER_BAD_ARG_STR "missing address\n");
         return msg;
@@ -818,11 +724,11 @@ static ceda_string_t *cli_out(const char *arg) {
     ceda_string_t *msg = ceda_string_new(0);
 
     // skip argv[0]
-    arg = cli_next_word(word, arg, LINE_BUFFER_SIZE);
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
 
     // extract address
     unsigned int address;
-    arg = cli_next_hex(&address, arg);
+    arg = tokenizer_next_hex(&address, arg);
     if (arg == NULL) {
         ceda_string_cpy(msg, USER_BAD_ARG_STR "missing address\n");
         return msg;
@@ -834,7 +740,7 @@ static ceda_string_t *cli_out(const char *arg) {
 
     // extract value
     unsigned int value;
-    arg = cli_next_hex(&value, arg);
+    arg = tokenizer_next_hex(&value, arg);
     if (arg == NULL) {
         ceda_string_cpy(msg, USER_BAD_ARG_STR "missing value\n");
         return msg;
@@ -922,7 +828,7 @@ static void cli_handle_line(ceda_string_t *line) {
 
     // search for first word
     char word[LINE_BUFFER_SIZE];
-    cli_next_word(word, ceda_string_data(line), LINE_BUFFER_SIZE);
+    tokenizer_next_word(word, ceda_string_data(line), LINE_BUFFER_SIZE);
 
     // look for `word` in the command set
     for (size_t i = 0; i < ARRAY_SIZE(cli_commands); ++i) {
@@ -1249,55 +1155,6 @@ Test(cli, delete, .init = cli_test_setup) {
     };
     /* clang-format on */
     run_tests(tests, ARRAY_SIZE(tests));
-}
-
-Test(cli, next_word) {
-    const char *prompt = "   The quick  brown   fox";
-    const char *words[] = {"The", "quick", "brown", "fox"};
-
-    // check tokenize capability
-    char word[LINE_BUFFER_SIZE];
-    for (size_t i = 0; i < ARRAY_SIZE(words); ++i) {
-        prompt = cli_next_word(word, prompt, LINE_BUFFER_SIZE);
-        cr_assert_str_eq(word, words[i]);
-    }
-
-    // no more words
-    prompt = cli_next_word(word, prompt, LINE_BUFFER_SIZE);
-    cr_assert_eq(prompt, NULL);
-
-    // check length constraints
-    const size_t constraint = 6;
-    cli_next_word(word, "supercalifragilisticexpialidocious", constraint);
-    cr_assert_str_eq(word, "super");
-}
-
-Test(cli, next_hex) {
-    const char *prompt = " 12 ab xx 77 ";
-    const unsigned int values[] = {0x12, 0xab};
-
-    unsigned int value = 0;
-    for (size_t i = 0; i < ARRAY_SIZE(values); ++i) {
-        prompt = cli_next_hex(&value, prompt);
-        cr_assert_eq(value, values[i]);
-    }
-
-    prompt = cli_next_hex(&value, prompt);
-    cr_assert_eq(prompt, NULL);
-}
-
-Test(cli, next_int) {
-    const char *prompt = "12 432 7a a7";
-    const unsigned int values[] = {12, 432, 7};
-
-    unsigned int value;
-    for (size_t i = 0; i < ARRAY_SIZE(values); ++i) {
-        prompt = cli_next_int(&value, prompt);
-        cr_assert_eq(value, values[i]);
-    }
-
-    prompt = cli_next_int(&value, prompt);
-    cr_assert_eq(prompt, NULL);
 }
 
 #endif
