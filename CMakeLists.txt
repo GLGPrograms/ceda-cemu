@@ -7,11 +7,13 @@ add_executable(ceda
     src/ceda.c
     src/ceda_string.c
     src/cli.c
-    src/crtc.c
+    src/conf.c
     src/cpu.c
+    src/crtc.c
     src/fdc.c
     src/floppy.c
     src/gui.c
+    src/hexdump.c
     src/int.c
     src/keyboard.c
     src/main.c
@@ -45,6 +47,9 @@ endif()
 
 set(CMAKE_C_STANDARD 17)
 
+add_library(inih STATIC vendor/inih/ini.c)
+include_directories(vendor/inih)
+
 include_directories(vendor/Z80/API)
 set(Z80_SHARED_LIBS NO CACHE BOOL "")
 add_subdirectory(vendor/Z80)
@@ -54,6 +59,7 @@ target_link_libraries(ceda
     SDL2
     SDL2_mixer
     criterion
+    inih
 )
 
 find_program(CLANG_TIDY_EXE NAMES "clang-tidy")
