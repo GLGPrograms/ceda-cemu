@@ -3,6 +3,7 @@
 #include "bios.h"
 #include "bus.h"
 #include "cli.h"
+#include "conf.h"
 #include "cpu.h"
 #include "fdc.h"
 #include "gui.h"
@@ -35,6 +36,7 @@ static CEDAModule *modules[] = {
 };
 
 void ceda_init(void) {
+    conf_init();
     cli_init(&mod_cli);
     gui_init(&mod_gui);
 
@@ -126,4 +128,5 @@ void ceda_run(void) {
 
     // cleanup all modules
     ceda_cleanup();
+    conf_cleanup();
 }
