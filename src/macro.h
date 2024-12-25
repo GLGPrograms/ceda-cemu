@@ -17,14 +17,14 @@
 
 #define CEDA_STRONG_ASSERT_VALID_PTR(p)                                        \
     ({                                                                         \
-        if (p == NULL) {                                                       \
+        if ((p) == NULL) {                                                     \
             abort();                                                           \
         }                                                                      \
     })
 
 #define CEDA_STRONG_ASSERT_TRUE(b)                                             \
     ({                                                                         \
-        if (!(b == true)) {                                                    \
+        if (!((b) == true)) {                                                  \
             abort();                                                           \
         }                                                                      \
     })
