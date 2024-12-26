@@ -109,16 +109,23 @@ typedef struct rw_args_t {
 
 /* Command callbacks prototypes */
 static void pre_exec_specify(void);
+static void pre_exec_write_data(void);
+static uint8_t exec_write_data(uint8_t value);
+static void post_exec_write_data(void);
 static void pre_exec_read_data(void);
 static uint8_t exec_read_data(uint8_t value);
 static void post_exec_read_data(void);
 static void pre_exec_recalibrate(void);
 static void post_exec_sense_interrupt(void);
+static void pre_exec_format_track(void);
+static uint8_t exec_format_track(uint8_t value);
+static void post_exec_format_track(void);
 static void pre_exec_seek(void);
 /* Utility routines prototypes */
 static void fdc_compute_next_status(void);
 // Update read buffer with the data from current ths
 static void buffer_update(void);
+static void buffer_write_size(void);
 
 /* Local variables */
 // The command descriptors
@@ -130,6 +137,14 @@ static const fdc_operation_t fdc_operations[] = {
         .pre_exec = pre_exec_specify,
         .exec = NULL,
         .post_exec = NULL,
+    },
+    {
+        .cmd = WRITE_DATA,
+        .args_len = 8,
+        .result_len = 7,
+        .pre_exec = pre_exec_write_data,
+        .exec = exec_write_data,
+        .post_exec = post_exec_write_data,
     },
     {
         .cmd = READ_DATA,
@@ -154,6 +169,14 @@ static const fdc_operation_t fdc_operations[] = {
         .pre_exec = NULL,
         .exec = NULL,
         .post_exec = post_exec_sense_interrupt,
+    },
+    {
+        .cmd = FORMAT_TRACK,
+        .args_len = 5,
+        .result_len = 7,
+        .pre_exec = pre_exec_format_track,
+        .exec = exec_format_track,
+        .post_exec = post_exec_format_track,
     },
     {
         .cmd = SEEK,
@@ -200,6 +223,78 @@ static void pre_exec_specify(void) {
     LOG_DEBUG("SRT: %d\n", args[0] >> 4);
     LOG_DEBUG("ND: %d\n", args[1] & 1);
     LOG_DEBUG("HLT: %d\n", args[1] >> 1);
+}
+
+// Write data:
+static void pre_exec_write_data(void) {
+    // TODO(giuliof): eventually: use the appropriate structure
+    LOG_DEBUG("FDC Write Data\n");
+    LOG_DEBUG("MF: %d\n", (command_args >> 6) & 0x01);
+    LOG_DEBUG("MT: %d\n", (command_args >> 7) & 0x01);
+    LOG_DEBUG("Drive: %d\n", args[0] & 0x3);
+    LOG_DEBUG("HD: %d\n", (args[0] >> 2) & 0x1);
+    LOG_DEBUG("Cyl: %d\n", args[1]);
+    LOG_DEBUG("Head: %d\n", args[2]);
+    LOG_DEBUG("Record: %d\n", args[3]);
+    LOG_DEBUG("N: %d\n", args[4]);
+    LOG_DEBUG("EOT: %d\n", args[5]);
+    LOG_DEBUG("GPL: %d\n", args[6]);
+    LOG_DEBUG("DTL: %d\n", args[7]);
+
+    // Set DIO to read for Execution phase
+    status_register.dio = 1;
+
+    buffer_write_size();
+}
+
+static uint8_t exec_write_data(uint8_t value) {
+    rw_args_t *rw_args = (rw_args_t *)args;
+
+    exec_buffer[rwcount++] = value;
+
+    if (rwcount == rwcount_max) {
+        uint8_t sector = rw_args->record;
+        // FDC counts sectors from 1
+        assert(sector != 0);
+        // But all other routines counts sectors from 0
+        sector--;
+        int ret = floppy_write_buffer(exec_buffer, rw_args->unit_select,
+                                      rw_args->head_address,
+                                      track[rw_args->unit_select],
+                                      rw_args->head, rw_args->cylinder, sector);
+        assert(ret > 0);
+        // TODO(giuliof): At the moment we do not support error codes, we assume
+        // the image is always loaded and valid
+        assert((size_t)ret <= sizeof(exec_buffer));
+
+        // Multi-sector mode (enabled by default).
+        // If read is not interrupted at the end of the sector, the next logical
+        // sector is loaded
+        rw_args->record++;
+
+        // Last sector of the track
+        if (rw_args->record > rw_args->eot) {
+            // Multi track mode, if enabled the read operation go on on the next
+            // side of the same track
+            if (command_args & CMD_ARGS_MT_bm) {
+                rw_args->head_address = !rw_args->head_address;
+                rw_args->head = !rw_args->head;
+            };
+
+            // In any case, reached the end of track we start back from sector 1
+            rw_args->record = 1;
+        }
+
+        buffer_write_size();
+    }
+    return 0;
+}
+
+static void post_exec_write_data(void) {
+    LOG_DEBUG("Write has ended\n");
+    // TODO(giulio): populate result (which is pretty the same for read,
+    // write, ...)
+    memset(result, 0x00, sizeof(result));
 }
 
 // Read data:
@@ -297,6 +392,19 @@ static void post_exec_sense_interrupt(void) {
     result[1] = track[drive];
 }
 
+// Format track
+static void pre_exec_format_track(void) {
+    LOG_DEBUG("FDC Format track\n");
+}
+
+static uint8_t exec_format_track(uint8_t value) {
+    return value;
+}
+
+static void post_exec_format_track(void) {
+    LOG_DEBUG("FDC end Format track\n");
+}
+
 // Seek
 static void pre_exec_seek(void) {
     uint8_t drive = args[0] & 0x03;
@@ -387,6 +495,30 @@ static void buffer_update(void) {
                              rw_args->head_address, track[rw_args->unit_select],
                              rw_args->head, rw_args->cylinder, sector);
     assert(ret > 0);
+
+    rwcount = 0;
+    // TODO(giuliof) rwcount_max = min(DTL, ret)
+    rwcount_max = (size_t)ret;
+}
+
+static void buffer_write_size(void) {
+    rw_args_t *rw_args = (rw_args_t *)args;
+
+    uint8_t sector = rw_args->record;
+
+    // FDC counts sectors from 1
+    assert(sector != 0);
+
+    // But all other routines counts sectors from 0
+    sector--;
+
+    int ret = floppy_write_buffer(
+        NULL, rw_args->unit_select, rw_args->head_address,
+        track[rw_args->unit_select], rw_args->head, rw_args->cylinder, sector);
+    assert(ret > 0);
+    // TODO(giuliof): At the moment we do not support error codes, we assume the
+    // image is always loaded and valid
+    assert((size_t)ret <= sizeof(exec_buffer));
 
     rwcount = 0;
     // TODO(giuliof) rwcount_max = min(DTL, ret)
