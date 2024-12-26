@@ -75,12 +75,11 @@ static const ceda_associator_t associators[] = {
     {SDLK_F7, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x54}},
     {SDLK_F8, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x55}},
     {SDLK_F9, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x56}},
-    {SDLK_F10, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x57}},
+    {SDLK_F10, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x5C}},
     {SDLK_F11, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x58}},
     {SDLK_F12, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x59}},
     {SDLK_F13, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x5A}},
     {SDLK_F14, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x5B}},
-    {SDLK_F15, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x5C}},
 
     // row 1
     {SDLK_ESCAPE, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x01}},
@@ -101,7 +100,7 @@ static const ceda_associator_t associators[] = {
     {SDLK_CARET, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x10}},
 
     // row 2
-    // {} BREAK (0x11)
+    {SDLK_HOME, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x11}},
     {SDLK_TAB, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x12}},
     {SDLK_a, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x13}},
     {SDLK_z, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x14}},
@@ -135,7 +134,7 @@ static const ceda_associator_t associators[] = {
     {SDLK_KP_LEFTBRACE, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x2C}},
 
     // row 4
-    // {} CAN (0x2D)
+    {SDLK_CANCEL, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x2D}},
     {SDLK_LSHIFT, CEDA_ASSOCIATOR_FUNC, keyboard_toggle_modifier},
     {SDLK_w, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x2E}},
     {SDLK_x, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x2F}},
