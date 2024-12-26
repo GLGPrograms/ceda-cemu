@@ -185,7 +185,8 @@ static const fdc_operation_t fdc_operations[] = {
         .pre_exec = pre_exec_seek,
         .exec = NULL,
         .post_exec = NULL,
-    }};
+    },
+};
 // Current FDC status
 static fdc_status_t fdc_status = CMD;
 // Currently selected operation
