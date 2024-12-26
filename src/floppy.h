@@ -44,4 +44,7 @@ ssize_t floppy_read_buffer(uint8_t *buffer, uint8_t unit_number, bool phy_head,
                            uint8_t phy_track, bool head, uint8_t track,
                            uint8_t sector);
 
+int floppy_write_buffer(uint8_t *buffer, uint8_t unit_number, bool phy_head,
+                        uint8_t phy_track, bool head, uint8_t track,
+                        uint8_t sector);
 #endif
