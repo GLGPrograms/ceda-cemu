@@ -21,7 +21,7 @@ ssize_t floppy_load_image(const char *filename, unsigned int unit_number) {
     floppy_unload_image(unit_number);
 
     // TODO(giuliof): if extension is ..., then image format is ...
-    FILE *fd = fopen(filename, "rb");
+    FILE *fd = fopen(filename, "rb+");
 
     if (fd == NULL)
         return -1;
@@ -66,8 +66,62 @@ ssize_t floppy_read_buffer(uint8_t *buffer, uint8_t unit_number, bool phy_head,
     if (fd == NULL)
         return -1;
 
-    // TODO(giuliof): at the moment we support only drive 0
-    if (unit_number != 0)
+    // Due to its structure, with Ceda File Format the physical head and track
+    // must be same as their logical counterpart.
+    if (phy_head != head)
+        return -1;
+    if (phy_track != track)
+        return -1;
+
+    // CFF has up to 80 tracks
+    if (track > 79)
+        return -1;
+
+    // Locate sector start
+    if (track == 0 && head == 0) {
+        // First track has max 16 sectors
+        if (sector > 15)
+            return -1;
+        // Compute byte offset to sector start
+        offset = (long)sector * 256;
+    } else {
+        if (sector > 5)
+            return -1;
+
+        // Compute byte offset to sector start
+        offset = (long)track * 1024 * 5 * 2;
+        offset += (long)head * 1024 * 5;
+        offset += (long)sector * 1024;
+
+        // First track has a different format
+        offset -= (long)1024 * 5;
+        offset += (long)256 * 16;
+
+        len = 1024;
+    }
+
+    // If requested, load sector into buffer
+    if (buffer) {
+        if (fseek(fd, offset, SEEK_SET) < 0)
+            return -1;
+
+        len = fread(buffer, sizeof(uint8_t), len, fd);
+    }
+
+    return (int)len;
+}
+
+int floppy_write_buffer(uint8_t *buffer, uint8_t unit_number, bool phy_head,
+                        uint8_t phy_track, bool head, uint8_t track,
+                        uint8_t sector) {
+    assert(unit_number < ARRAY_SIZE(floppy_units));
+
+    FILE *fd = floppy_units[unit_number].fd;
+    size_t len = 256;
+    long offset;
+
+    // No disk loaded, raise error
+    if (fd == NULL)
         return -1;
 
     // Due to its structure, with Ceda File Format the physical head and track
@@ -109,7 +163,7 @@ ssize_t floppy_read_buffer(uint8_t *buffer, uint8_t unit_number, bool phy_head,
         if (fseek(fd, offset, SEEK_SET) < 0)
             return -1;
 
-        len = fread(buffer, sizeof(uint8_t), len, fd);
+        len = fwrite(buffer, sizeof(uint8_t), len, fd);
     }
 
     return (int)len;
