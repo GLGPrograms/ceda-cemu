@@ -5,6 +5,7 @@
 #include "crtc.h"
 #include "fdc.h"
 #include "macro.h"
+#include "ram/auxram.h"
 #include "ram/dynamic.h"
 #include "sio2.h"
 #include "speaker.h"
@@ -30,7 +31,8 @@ struct bus_mem_slot {
 };
 
 static const struct bus_mem_slot bus_mem_slots[] = {
-    {0xB000, 0xC000, NULL, NULL}, // alt_ram_read/write - TODO
+    {0xB000, 0xB800, auxram_read, auxram_write},
+    {0xB800, 0xC000, auxram_read, auxram_write},
     {0xC000, 0xD000, rom_bios_read, NULL},
     {0xD000, 0xD800, video_ram_read, video_ram_write},
     {0xD800, 0xE000, video_ram_read, video_ram_write},

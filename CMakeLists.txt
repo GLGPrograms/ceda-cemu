@@ -21,6 +21,7 @@ add_executable(ceda
     src/timer.c
     src/upd8255.c
     src/video.c
+    src/ram/auxram.c
     src/ram/dynamic.c
     src/bios.c
     src/3rd/disassembler.c
