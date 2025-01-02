@@ -134,23 +134,20 @@ void conf_init(void) {
     const char *loaded_path = NULL;
 
     // load ini from local working directory
-    if (ini_parse(CONF_PATH_CWD, conf_handler, conf_tuples) >= 0) {
+    if (ini_parse(CONF_PATH_CWD, conf_handler, conf_tuples) >= 0)
         loaded_path = CONF_PATH_CWD;
-        goto end;
-    }
 
-    // load ini from user home
-    const char *home = getenv("HOME");
-    if (home) {
-        char path[CONF_PATH_SIZE];
-        (void)snprintf(path, CONF_PATH_SIZE, "%s/%s", home, CONF_PATH_HOME);
-        if (ini_parse(path, conf_handler, conf_tuples) >= 0) {
-            loaded_path = path;
-            goto end;
+    // load ini from user home, if not in local directory
+    if (loaded_path == NULL) {
+        const char *home = getenv("HOME");
+        if (home) {
+            char path[CONF_PATH_SIZE];
+            (void)snprintf(path, CONF_PATH_SIZE, "%s/%s", home, CONF_PATH_HOME);
+            if (ini_parse(path, conf_handler, conf_tuples) >= 0)
+                loaded_path = path;
         }
     }
 
-end:
     if (loaded_path)
         LOG_INFO("load INI configuration from: %s\n", loaded_path);
     else
