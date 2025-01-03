@@ -11,6 +11,7 @@
 #include "limits.h"
 #include "macro.h"
 #include "module.h"
+#include "serial.h"
 #include "sio2.h"
 #include "speaker.h"
 #include "upd8255.h"
@@ -29,10 +30,11 @@ static CEDAModule mod_video;
 static CEDAModule mod_speaker;
 static CEDAModule mod_sio2;
 static CEDAModule mod_int;
+static CEDAModule mod_serial;
 
 static CEDAModule *modules[] = {
-    &mod_cli,   &mod_gui,     &mod_bus, &mod_cpu,
-    &mod_video, &mod_speaker, &mod_int, &mod_sio2,
+    &mod_cli,     &mod_gui, &mod_bus,    &mod_cpu,  &mod_video,
+    &mod_speaker, &mod_int, &mod_serial, &mod_sio2,
 };
 
 void ceda_init(void) {
@@ -48,6 +50,7 @@ void ceda_init(void) {
     bus_init(&mod_bus);
     cpu_init(&mod_cpu);
     int_init(&mod_int);
+    serial_init(&mod_serial);
     sio2_init(&mod_sio2);
 }
 
