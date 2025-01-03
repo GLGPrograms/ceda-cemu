@@ -4,11 +4,14 @@
 #include "type.h"
 
 #include <Z80.h>
+#include <stdbool.h>
 
 void fdc_init(void);
 
 uint8_t fdc_in(ceda_ioaddr_t address);
 void fdc_out(ceda_ioaddr_t address, uint8_t value);
 void fdc_tc_out(ceda_ioaddr_t address, uint8_t value);
+bool fdc_getIntStatus(void);
+void fdc_kickDiskImage(void);
 
 #endif // CEDA_FDC_H
