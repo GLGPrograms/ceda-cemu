@@ -8,6 +8,7 @@
 #include "floppy.h"
 #include "int.h"
 #include "macro.h"
+#include "serial.h"
 #include "time.h"
 #include "tokenizer.h"
 
@@ -756,6 +757,34 @@ static ceda_string_t *cli_out(const char *arg) {
     return NULL;
 }
 
+static ceda_string_t *cli_serial(const char *arg) {
+    char word[LINE_BUFFER_SIZE];
+    ceda_string_t *msg = ceda_string_new(0);
+
+    // skip argv[0]
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
+
+    // extract command
+    arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
+
+    if (arg == NULL) {
+        ceda_string_cpy(msg, USER_BAD_ARG_STR "missing command\n");
+        return msg;
+    }
+
+    if (strcmp(word, "open") == 0) {
+        serial_open(0);
+    } else if (strcmp(word, "close") == 0) {
+        serial_close();
+    } else {
+        ceda_string_cpy(msg, USER_BAD_ARG_STR "expected open or close\n");
+        return msg;
+    }
+
+    ceda_string_delete(msg);
+    return NULL;
+}
+
 /*
     A cli_command_handler_t is a command line handler.
     It takes a pointer to the line buffer.
@@ -793,6 +822,7 @@ static const cli_command cli_commands[] = {
     {"mount", "load floppy image in from specified drive (default is 0)",
      cli_mount},
     {"umount", "unload floppy from specified drive (default is 0)", cli_umount},
+    {"serial", "open tcp socket to emulate serial port", cli_serial},
     {"load", "load binary from file", cli_load},
     {"run", "load binary from file and run", cli_run},
     {"save", "save memory dump to file", cli_save},
