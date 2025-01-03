@@ -1,7 +1,6 @@
 #include "sio2.h"
 
 #include <assert.h>
-#include <stdbool.h>
 #include <string.h>
 
 #include "bus.h"
@@ -12,9 +11,6 @@
 
 #define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
-
-typedef bool (*sio_channel_try_read_t)(uint8_t *c);
-typedef bool (*sio_channel_try_write_t)(uint8_t c);
 
 DECLARE_FIFO_TYPE(uint8_t, SIOFIFO, (3 + 1));
 
@@ -57,9 +53,7 @@ typedef struct SIOChannel {
 // Read Register 2
 // Only available for Channel B, holds the interrupt vector octet.
 
-#define CHANNEL_A (0)
-#define CHANNEL_B (1)
-static SIOChannel channels[2];
+static SIOChannel channels[SIO_CHANNEL_CNT];
 
 // vector byte to pass back to Z80 when an interrupt must be generated
 static uint8_t sio_interrupt_vector = 0;
@@ -135,7 +129,7 @@ static void sio_channel_write_data(SIOChannel *channel, uint8_t value) {
 static uint8_t sio_channel_read_control(SIOChannel *channel) {
 #if 0
     LOG_DEBUG("read control: channel = %c, reg_index = %d\n",
-              (channel == &channels[CHANNEL_A]) ? 'A' : 'B',
+              (channel == &channels[SIO_CHANNEL_A]) ? 'A' : 'B',
               channel->reg_index);
 #endif
 
@@ -203,7 +197,7 @@ static void write_register_1(SIOChannel *channel, uint8_t value) {
     case 0:
         // RX interrupt disable
         LOG_DEBUG("sio2: disable interrupts channel %c\n",
-                  (channel == &channels[CHANNEL_A]) ? 'A' : 'B');
+                  (channel == &channels[SIO_CHANNEL_A]) ? 'A' : 'B');
         channel->rx_int_enabled = false;
         break;
     case 1:
@@ -221,7 +215,7 @@ static void write_register_1(SIOChannel *channel, uint8_t value) {
         // RX interrupt on all received characters.
         // (parity does not affect vector)
         LOG_DEBUG("sio2: enable interrupts channel %c\n",
-                  (channel == &channels[CHANNEL_A]) ? 'A' : 'B');
+                  (channel == &channels[SIO_CHANNEL_A]) ? 'A' : 'B');
         channel->rx_int_enabled = true;
         break;
     }
@@ -299,17 +293,17 @@ uint8_t sio2_in(ceda_ioaddr_t address) {
 
     if (address == SIO2_CHA_DATA_REG) {
         // TODO(giomba): read external RS232
-        return sio_channel_read_data(&channels[CHANNEL_A]);
+        return sio_channel_read_data(&channels[SIO_CHANNEL_A]);
     }
     if (address == SIO2_CHA_CONTROL_REG) {
-        return sio_channel_read_control(&channels[CHANNEL_A]);
+        return sio_channel_read_control(&channels[SIO_CHANNEL_A]);
     }
     if (address == SIO2_CHB_DATA_REG) {
         // TODO(giomba): read keyboard input
-        return sio_channel_read_data(&channels[CHANNEL_B]);
+        return sio_channel_read_data(&channels[SIO_CHANNEL_B]);
     }
     if (address == SIO2_CHB_CONTROL_REG) {
-        return sio_channel_read_control(&channels[CHANNEL_B]);
+        return sio_channel_read_control(&channels[SIO_CHANNEL_B]);
     }
 
     assert(0);
@@ -323,14 +317,14 @@ void sio2_out(ceda_ioaddr_t address, uint8_t value) {
 
     if (address == SIO2_CHA_DATA_REG) {
         // TODO(giomba): write external RS232
-        sio_channel_write_data(&channels[CHANNEL_A], value);
+        sio_channel_write_data(&channels[SIO_CHANNEL_A], value);
     } else if (address == SIO2_CHA_CONTROL_REG) {
-        sio_channel_write_control(&channels[CHANNEL_A], value);
+        sio_channel_write_control(&channels[SIO_CHANNEL_A], value);
     } else if (address == SIO2_CHB_DATA_REG) {
         // TODO(giomba): write to keyboard/auxiliary serial
-        sio_channel_write_data(&channels[CHANNEL_B], value);
+        sio_channel_write_data(&channels[SIO_CHANNEL_B], value);
     } else if (address == SIO2_CHB_CONTROL_REG) {
-        sio_channel_write_control(&channels[CHANNEL_B], value);
+        sio_channel_write_control(&channels[SIO_CHANNEL_B], value);
     } else {
         assert(0);
     }
@@ -429,5 +423,5 @@ void sio2_init(CEDAModule *mod) {
         sio_channel_init(&channels[i]);
 
     // attach keyboard to channel B
-    channels[CHANNEL_B].getc = keyboard_getChar;
+    channels[SIO_CHANNEL_B].getc = keyboard_getChar;
 }
