@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "fdc.h"
 #include "macro.h"
 
 // TODO(giuliof): this structure will contain the type of image loaded.
@@ -27,6 +28,8 @@ ssize_t floppy_load_image(const char *filename, unsigned int unit_number) {
         return -1;
 
     floppy_units[unit_number].fd = fd;
+
+    fdc_kickDiskImage();
 
     return 0;
 }
@@ -64,7 +67,7 @@ ssize_t floppy_read_buffer(uint8_t *buffer, uint8_t unit_number, bool phy_head,
 
     // No disk loaded, raise error
     if (fd == NULL)
-        return -1;
+        return 0; // TODO(giuliof): no disk loaded error
 
     // Due to its structure, with Ceda File Format the physical head and track
     // must be same as their logical counterpart.
@@ -122,7 +125,7 @@ int floppy_write_buffer(uint8_t *buffer, uint8_t unit_number, bool phy_head,
 
     // No disk loaded, raise error
     if (fd == NULL)
-        return -1;
+        return 0; // TODO(giuliof): no disk loaded error
 
     // Due to its structure, with Ceda File Format the physical head and track
     // must be same as their logical counterpart.
