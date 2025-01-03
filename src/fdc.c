@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "floppy.h"
+#include "macro.h"
 
 #define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
@@ -205,6 +206,7 @@ static uint8_t args[8];
 static uint8_t exec_buffer[1024];
 // Result buffer. Each command has maximum 7 bytes as argument.
 static uint8_t result[7];
+static bool isReady = false;
 
 /* FDC internal registers */
 // Main Status Register
@@ -263,10 +265,11 @@ static uint8_t exec_write_data(uint8_t value) {
                                       rw_args->head_address,
                                       track[rw_args->unit_select],
                                       rw_args->head, rw_args->cylinder, sector);
-        assert(ret > 0);
         // TODO(giuliof): At the moment we do not support error codes, we assume
         // the image is always loaded and valid
-        assert((size_t)ret <= sizeof(exec_buffer));
+        CEDA_STRONG_ASSERT_TRUE(ret > 0);
+        // Buffer is statically allocated, be sure that the data can fit it
+        CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
 
         // Multi-sector mode (enabled by default).
         // If read is not interrupted at the end of the sector, the next logical
@@ -374,12 +377,18 @@ static void pre_exec_recalibrate(void) {
     LOG_DEBUG("Drive: %d\n", drive);
 
     track[drive] = 0;
+
+    // We don't have to actually move the head. The drive is immediately ready
+    isReady = true;
 }
 
 // Sense interrupt:
 static void post_exec_sense_interrupt(void) {
     // TODO(giuliof): last accessed drive
     uint8_t drive = 0;
+
+    // After reading interrupt status, ready can be deasserted
+    isReady = false;
 
     LOG_DEBUG("FDC Sense Interrupt\n");
     /* Status Register 0 */
@@ -415,6 +424,9 @@ static void pre_exec_seek(void) {
     LOG_DEBUG("Drive: %d\n", drive);
     LOG_DEBUG("HD: %d\n", (result[0] >> 2) & 0x01);
     LOG_DEBUG("NCN: %d\n", track[drive]);
+
+    // We don't have to actually move the head. The drive is immediately ready
+    isReady = true;
 }
 
 /* * * * * * * * * * * * * * *  Utility routines  * * * * * * * * * * * * * * */
@@ -487,15 +499,29 @@ static void buffer_update(void) {
     ssize_t ret = floppy_read_buffer(
         NULL, rw_args->unit_select, rw_args->head_address,
         track[rw_args->unit_select], rw_args->head, rw_args->cylinder, sector);
-    assert(ret > 0);
-    // TODO(giuliof): At the moment we do not support error codes, we assume the
-    // image is always loaded and valid
-    assert((size_t)ret <= sizeof(exec_buffer));
 
-    ret = floppy_read_buffer(exec_buffer, rw_args->unit_select,
-                             rw_args->head_address, track[rw_args->unit_select],
-                             rw_args->head, rw_args->cylinder, sector);
-    assert(ret > 0);
+    if (ret != 0) {
+        // TODO(giuliof): At the moment we do not support error codes, we assume
+        // the image is always loaded and valid
+        CEDA_STRONG_ASSERT_TRUE(ret > 0);
+        // Buffer is statically allocated, be sure that the data can fit it
+        CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
+
+        ret = floppy_read_buffer(exec_buffer, rw_args->unit_select,
+                                 rw_args->head_address,
+                                 track[rw_args->unit_select], rw_args->head,
+                                 rw_args->cylinder, sector);
+        // TODO(giuliof): At the moment we do not support error codes, we assume
+        // the image is always loaded and valid
+        CEDA_STRONG_ASSERT_TRUE(ret >= 0);
+        // Ready to serve data
+        isReady = true;
+    }
+    // TODO(giuliof): add proper error code, this is no mounted image
+    else {
+        // Not ready to serve data
+        isReady = false;
+    }
 
     rwcount = 0;
     // TODO(giuliof) rwcount_max = min(DTL, ret)
@@ -516,10 +542,12 @@ static void buffer_write_size(void) {
     int ret = floppy_write_buffer(
         NULL, rw_args->unit_select, rw_args->head_address,
         track[rw_args->unit_select], rw_args->head, rw_args->cylinder, sector);
-    assert(ret > 0);
+
     // TODO(giuliof): At the moment we do not support error codes, we assume the
     // image is always loaded and valid
-    assert((size_t)ret <= sizeof(exec_buffer));
+    CEDA_STRONG_ASSERT_TRUE(ret > 0);
+    // Buffer is statically allocated, be sure that the data can fit it
+    CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
 
     rwcount = 0;
     // TODO(giuliof) rwcount_max = min(DTL, ret)
@@ -625,5 +653,22 @@ void fdc_tc_out(ceda_ioaddr_t address, uint8_t value) {
         // since it is just a trigger.
         tc_status = 1;
         fdc_compute_next_status();
+    }
+}
+
+// TODO(giuliof): After Execution Phase or EOR sector read, INT=1
+// (beginning of result phase). When first byte of result phase data
+// is read, INT=0.
+bool fdc_getIntStatus(void) {
+    return isReady;
+}
+
+void fdc_kickDiskImage(void) {
+    if (fdc_status == EXEC && fdc_currop->cmd == READ_DATA) {
+        buffer_update();
+    }
+
+    if (fdc_status == EXEC && fdc_currop->cmd == WRITE_DATA) {
+        buffer_write_size();
     }
 }
