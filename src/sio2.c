@@ -364,7 +364,8 @@ static void sio2_poll(void) {
         if (!channel->rx_enabled)
             continue;
 
-        LOG_DEBUG("sio2: channel %zu: received char: %02x\n", i, c);
+        LOG_DEBUG("sio2: channel %zu: received char: %02x (%c)\n", i, c,
+                  isprint(c) ? c : ' ');
 
         // put char in RX fifo
         FIFO_PUSH(&channel->rx_fifo, c);
