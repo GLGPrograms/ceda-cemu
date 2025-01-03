@@ -23,4 +23,10 @@ void sio2_init(CEDAModule *mod);
 uint8_t sio2_in(ceda_ioaddr_t address);
 void sio2_out(ceda_ioaddr_t address, uint8_t value);
 
+void sio2_attachPeripheral(sio_channel_idx_t channel,
+                           sio_channel_try_read_t getc,
+                           sio_channel_try_write_t putc);
+
+void sio2_detachPeripheral(sio_channel_idx_t channel);
+
 #endif // CEDA_SIO2_H
