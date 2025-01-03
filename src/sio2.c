@@ -71,6 +71,7 @@ static void sio_channel_reinit(SIOChannel *channel) {
     memset(&channel->read_regs, 0, sizeof(channel->read_regs));
     FIFO_INIT(&channel->rx_fifo);
     FIFO_INIT(&channel->tx_fifo);
+    channel->read_regs[0] |= (1 << TX_BUFFER_EMPTY_BIT);
     channel->rx_enabled = false;
     channel->tx_enabled = false;
     channel->rx_int_enabled = false;
@@ -121,8 +122,8 @@ static void sio_channel_write_data(SIOChannel *channel, uint8_t value) {
 
     FIFO_PUSH(&channel->tx_fifo, value);
 
-    if (FIFO_ISFULL(&channel->tx_fifo)) {
-        // TODO(giomba): change shift register free status bit
+    if (!FIFO_ISFULL(&channel->tx_fifo)) {
+        channel->read_regs[0] |= (1 << TX_BUFFER_EMPTY_BIT);
     }
 }
 
