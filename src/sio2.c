@@ -412,6 +412,20 @@ static void sio2_poll(void) {
     }
 }
 
+void sio2_attachPeripheral(sio_channel_idx_t channel,
+                           sio_channel_try_read_t getc,
+                           sio_channel_try_write_t putc) {
+    assert(channel < SIO_CHANNEL_CNT);
+    channels[channel].getc = getc;
+    channels[channel].putc = putc;
+}
+
+void sio2_detachPeripheral(sio_channel_idx_t channel) {
+    assert(channel < SIO_CHANNEL_CNT);
+    channels[channel].getc = NULL;
+    channels[channel].putc = NULL;
+}
+
 void sio2_init(CEDAModule *mod) {
     mod->init = sio2_init;
     mod->start = sio2_start;
