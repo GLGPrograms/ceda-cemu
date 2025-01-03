@@ -293,14 +293,12 @@ uint8_t sio2_in(ceda_ioaddr_t address) {
 #endif
 
     if (address == SIO2_CHA_DATA_REG) {
-        // TODO(giomba): read external RS232
         return sio_channel_read_data(&channels[SIO_CHANNEL_A]);
     }
     if (address == SIO2_CHA_CONTROL_REG) {
         return sio_channel_read_control(&channels[SIO_CHANNEL_A]);
     }
     if (address == SIO2_CHB_DATA_REG) {
-        // TODO(giomba): read keyboard input
         return sio_channel_read_data(&channels[SIO_CHANNEL_B]);
     }
     if (address == SIO2_CHB_CONTROL_REG) {
@@ -317,7 +315,6 @@ void sio2_out(ceda_ioaddr_t address, uint8_t value) {
     LOG_DEBUG("sio2 out: address = %02x, value = %02x\n", address, value);
 
     if (address == SIO2_CHA_DATA_REG) {
-        // TODO(giomba): write external RS232
         sio_channel_write_data(&channels[SIO_CHANNEL_A], value);
     } else if (address == SIO2_CHA_CONTROL_REG) {
         sio_channel_write_control(&channels[SIO_CHANNEL_A], value);
