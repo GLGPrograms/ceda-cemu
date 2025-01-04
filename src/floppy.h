@@ -25,26 +25,4 @@ ssize_t floppy_load_image(const char *filename, unsigned int unit_number);
  */
 ssize_t floppy_unload_image(unsigned int unit_number);
 
-/**
- * @brief Read a sector from a certain drive
- *
- * @param buffer pointer to byte buffer where to load the sector. Buffer may be
- *               NULL to only fetch sector size.
- * @param unit_number drive number where to unload the image
- * @param phy_head physical head, from which disk side will the disk be read
- * @param phy_track physical track, where the track is currently placed on the
- *                  drive
- * @param head logical head, must match with sector descriptor
- * @param track logical track, must match with sector descriptor
- * @param sector logical sector, which sector has to be read
- * @return is 0 when successful, -1 for any kind of error (no image loaded,
- *         invalid parameters, ...)
- */
-ssize_t floppy_read_buffer(uint8_t *buffer, uint8_t unit_number, bool phy_head,
-                           uint8_t phy_track, bool head, uint8_t track,
-                           uint8_t sector);
-
-int floppy_write_buffer(uint8_t *buffer, uint8_t unit_number, bool phy_head,
-                        uint8_t phy_track, bool head, uint8_t track,
-                        uint8_t sector);
 #endif

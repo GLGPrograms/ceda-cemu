@@ -6,6 +6,33 @@
 #include "fdc.h"
 #include "macro.h"
 
+#define CEDA_FORMAT_MAXIMUM_TRACKS     (80)
+#define CEDA_FORMAT_MAXIMUM_SECTORS    (80)
+#define CEDA_FORMAT_FIRST_TRACK_SECTOR (80)
+
+/**
+ * @brief Read a sector from a certain drive
+ *
+ * @param buffer pointer to byte buffer where to load the sector. Buffer may be
+ *               NULL to only fetch sector size.
+ * @param unit_number drive number where to unload the image
+ * @param phy_head physical head, from which disk side will the disk be read
+ * @param phy_track physical track, where the track is currently placed on the
+ *                  drive
+ * @param head logical head, must match with sector descriptor
+ * @param track logical track, must match with sector descriptor
+ * @param sector logical sector, which sector has to be read
+ * @return is 0 when successful, -1 for any kind of error (no image loaded,
+ *         invalid parameters, ...)
+ */
+static int floppy_read_buffer(uint8_t *buffer, uint8_t unit_number,
+                              bool phy_head, uint8_t phy_track, bool head,
+                              uint8_t track, uint8_t sector);
+
+static int floppy_write_buffer(uint8_t *buffer, uint8_t unit_number,
+                               bool phy_head, uint8_t phy_track, bool head,
+                               uint8_t track, uint8_t sector);
+
 // TODO(giuliof): this structure will contain the type of image loaded.
 // At the moment, only Ceda File Format is supported (linearized binary disk
 // image)
@@ -29,7 +56,7 @@ ssize_t floppy_load_image(const char *filename, unsigned int unit_number) {
 
     floppy_units[unit_number].fd = fd;
 
-    fdc_kickDiskImage();
+    fdc_kickDiskImage(floppy_read_buffer, floppy_write_buffer);
 
     return 0;
 }
@@ -41,6 +68,8 @@ ssize_t floppy_unload_image(unsigned int unit_number) {
         return -1;
 
     floppy_units[unit_number].fd = NULL;
+
+    fdc_kickDiskImage(NULL, NULL);
 
     if (fclose(fd) < 0)
         return -1;
@@ -56,9 +85,9 @@ ssize_t floppy_unload_image(unsigned int unit_number) {
  * first track with 256 bytes per sector and 16 sectors per track, others with
  * 1024 bps and 5 spt. The Ceda File Format reflects this formatting layout.
  */
-ssize_t floppy_read_buffer(uint8_t *buffer, uint8_t unit_number, bool phy_head,
-                           uint8_t phy_track, bool head, uint8_t track,
-                           uint8_t sector) {
+static int floppy_read_buffer(uint8_t *buffer, uint8_t unit_number,
+                              bool phy_head, uint8_t phy_track, bool head,
+                              uint8_t track, uint8_t sector) {
     assert(unit_number < ARRAY_SIZE(floppy_units));
 
     FILE *fd = floppy_units[unit_number].fd;
@@ -114,9 +143,9 @@ ssize_t floppy_read_buffer(uint8_t *buffer, uint8_t unit_number, bool phy_head,
     return (int)len;
 }
 
-int floppy_write_buffer(uint8_t *buffer, uint8_t unit_number, bool phy_head,
-                        uint8_t phy_track, bool head, uint8_t track,
-                        uint8_t sector) {
+static int floppy_write_buffer(uint8_t *buffer, uint8_t unit_number,
+                               bool phy_head, uint8_t phy_track, bool head,
+                               uint8_t track, uint8_t sector) {
     assert(unit_number < ARRAY_SIZE(floppy_units));
 
     FILE *fd = floppy_units[unit_number].fd;
