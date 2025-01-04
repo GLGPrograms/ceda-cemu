@@ -1,9 +1,9 @@
 #include "fdc.h"
 
 #include <assert.h>
+#include <stdint.h>
 #include <string.h>
 
-#include "floppy.h"
 #include "macro.h"
 
 #define LOG_LEVEL LOG_LVL_DEBUG
@@ -216,6 +216,15 @@ static main_status_register_t status_register;
 // Current track position
 static uint8_t track[4];
 
+/* Callbacks to handle floppy read and write */
+static int (*read_buffer_cb)(uint8_t *buffer, uint8_t unit_number,
+                             bool phy_head, uint8_t phy_track, bool head,
+                             uint8_t track, uint8_t sector) = NULL;
+
+static int (*write_buffer_cb)(uint8_t *buffer, uint8_t unit_number,
+                              bool phy_head, uint8_t phy_track, bool head,
+                              uint8_t track, uint8_t sector) = NULL;
+
 /* * * * * * * * * * * * * * *  Command routines  * * * * * * * * * * * * * * */
 
 // Specify:
@@ -253,6 +262,9 @@ static void pre_exec_write_data(void) {
 static uint8_t exec_write_data(uint8_t value) {
     rw_args_t *rw_args = (rw_args_t *)args;
 
+    if (write_buffer_cb == NULL)
+        return 0;
+
     exec_buffer[rwcount++] = value;
 
     if (rwcount == rwcount_max) {
@@ -261,11 +273,10 @@ static uint8_t exec_write_data(uint8_t value) {
         assert(sector != 0);
         // But all other routines counts sectors from 0
         sector--;
-        int ret = floppy_write_buffer(exec_buffer, rw_args->unit_select,
-                                      rw_args->head_address,
-                                      track[rw_args->unit_select],
-                                      rw_args->head, rw_args->cylinder, sector);
-        // TODO(giuliof): At the moment we do not support error codes, we assume
+        int ret =
+            write_buffer_cb(exec_buffer, rw_args->unit_select,
+                            rw_args->head_address, track[rw_args->unit_select],
+                            rw_args->head, rw_args->cylinder, sector);
         // the image is always loaded and valid
         CEDA_STRONG_ASSERT_TRUE(ret > 0);
         // Buffer is statically allocated, be sure that the data can fit it
@@ -323,7 +334,7 @@ static void pre_exec_read_data(void) {
 
     // TODO(giuliof) create handles to manage more than one floppy image at a
     // time
-    // floppy_read_buffer(exec_buffer, track_size, head, track, sector);
+    // read_buffer_cb(exec_buffer, track_size, head, track, sector);
     // TODO(giuliof): may be a good idea to pass a sort of "floppy context"
     buffer_update();
 }
@@ -490,15 +501,23 @@ static void buffer_update(void) {
 
     uint8_t sector = rw_args->record;
 
+    // Default: no data ready to be served
+    isReady = false;
+    rwcount_max = 0;
+
     // FDC counts sectors from 1
     assert(sector != 0);
 
     // But all other routines counts sectors from 0
     sector--;
 
-    ssize_t ret = floppy_read_buffer(
-        NULL, rw_args->unit_select, rw_args->head_address,
-        track[rw_args->unit_select], rw_args->head, rw_args->cylinder, sector);
+    if (read_buffer_cb == NULL)
+        return;
+
+    // TODO(giuliof): add proper error code, zero is no mounted image
+    int ret = read_buffer_cb(NULL, rw_args->unit_select, rw_args->head_address,
+                             track[rw_args->unit_select], rw_args->head,
+                             rw_args->cylinder, sector);
 
     if (ret != 0) {
         // TODO(giuliof): At the moment we do not support error codes, we assume
@@ -507,20 +526,15 @@ static void buffer_update(void) {
         // Buffer is statically allocated, be sure that the data can fit it
         CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
 
-        ret = floppy_read_buffer(exec_buffer, rw_args->unit_select,
-                                 rw_args->head_address,
-                                 track[rw_args->unit_select], rw_args->head,
-                                 rw_args->cylinder, sector);
+        ret = read_buffer_cb(exec_buffer, rw_args->unit_select,
+                             rw_args->head_address, track[rw_args->unit_select],
+                             rw_args->head, rw_args->cylinder, sector);
         // TODO(giuliof): At the moment we do not support error codes, we assume
         // the image is always loaded and valid
-        CEDA_STRONG_ASSERT_TRUE(ret >= 0);
+        CEDA_STRONG_ASSERT_TRUE(ret > 0);
+
         // Ready to serve data
         isReady = true;
-    }
-    // TODO(giuliof): add proper error code, this is no mounted image
-    else {
-        // Not ready to serve data
-        isReady = false;
     }
 
     rwcount = 0;
@@ -533,15 +547,22 @@ static void buffer_write_size(void) {
 
     uint8_t sector = rw_args->record;
 
+    // Default: no data ready to be served
+    isReady = false;
+    rwcount_max = 0;
+
     // FDC counts sectors from 1
     assert(sector != 0);
 
     // But all other routines counts sectors from 0
     sector--;
 
-    int ret = floppy_write_buffer(
-        NULL, rw_args->unit_select, rw_args->head_address,
-        track[rw_args->unit_select], rw_args->head, rw_args->cylinder, sector);
+    if (write_buffer_cb == NULL)
+        return;
+
+    int ret = write_buffer_cb(NULL, rw_args->unit_select, rw_args->head_address,
+                              track[rw_args->unit_select], rw_args->head,
+                              rw_args->cylinder, sector);
 
     // TODO(giuliof): At the moment we do not support error codes, we assume the
     // image is always loaded and valid
@@ -663,7 +684,15 @@ bool fdc_getIntStatus(void) {
     return isReady;
 }
 
-void fdc_kickDiskImage(void) {
+// TODO(giuliof): describe better this function
+// Fast notes: if an image is loaded at runtime, check if the code is stuck in
+// a read or write loop that was waiting for interrupt.
+// In that case, remove the lock (buffer_update will do it, for the writing it
+// has to be implemented)
+void fdc_kickDiskImage(p_rwBuffer read_callback, p_rwBuffer write_callback) {
+    read_buffer_cb = read_callback;
+    write_buffer_cb = write_callback;
+
     if (fdc_status == EXEC && fdc_currop->cmd == READ_DATA) {
         buffer_update();
     }
