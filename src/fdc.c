@@ -265,6 +265,11 @@ static uint8_t exec_write_data(uint8_t value) {
     if (write_buffer_cb == NULL)
         return 0;
 
+    if (rwcount_max == 0) {
+        LOG_WARN("Write execution happened when no data can be written");
+        return 0;
+    }
+
     exec_buffer[rwcount++] = value;
 
     if (rwcount == rwcount_max) {
@@ -341,6 +346,11 @@ static void pre_exec_read_data(void) {
 
 static uint8_t exec_read_data(uint8_t value) {
     rw_args_t *rw_args = (rw_args_t *)args;
+
+    if (rwcount_max == 0) {
+        LOG_WARN("Read execution happened when no data can be read");
+        return 0;
+    }
 
     // read doesn't care of in value
     (void)value;
