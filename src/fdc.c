@@ -9,8 +9,6 @@
 #define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
 
-uint8_t tc_status = 0;
-
 // The FDC virtually expose two registers, which can be both read or written
 #define ADDR_STATUS_REGISTER (0x00)
 #define ADDR_DATA_REGISTER   (0x01)
@@ -206,6 +204,7 @@ static uint8_t args[8];
 static uint8_t exec_buffer[1024];
 // Result buffer. Each command has maximum 7 bytes as argument.
 static uint8_t result[7];
+static bool tc_status = false;
 static bool isReady = false;
 
 /* FDC internal registers */
@@ -480,7 +479,7 @@ static void fdc_compute_next_status(void) {
     }
 
     if (fdc_status == EXEC && (tc_status || fdc_currop->exec == NULL)) {
-        tc_status = 0;
+        tc_status = false;
         // Set DIO to read for RESULT phase
         status_register.dio = 1;
 
@@ -682,7 +681,7 @@ void fdc_tc_out(ceda_ioaddr_t address, uint8_t value) {
     if (fdc_status == EXEC) {
         // TODO(giuliof) tc may be an argument to the fdc_compute_next_status,
         // since it is just a trigger.
-        tc_status = 1;
+        tc_status = true;
         fdc_compute_next_status();
     }
 }
