@@ -2,6 +2,7 @@
 #define CEDA_MACRO_H
 
 #include <assert.h>
+#include <stdlib.h>
 
 // TODO(giomba): maybe print a stack trace?
 #define CEDA_STRONG_ASSERT_NEQ(a, b)                                           \
