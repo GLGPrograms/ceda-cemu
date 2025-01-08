@@ -29,6 +29,7 @@ add_executable(ceda
     src/ram/dynamic.c
     src/bios.c
     src/3rd/disassembler.c
+    src/tests/test_fdc.c
 )
 
 target_compile_options(ceda PRIVATE -W -Wformat -Wall -Wundef -Wpointer-arith -Wcast-qual -Wwrite-strings -Wsign-compare -Wmissing-noreturn -Wextra -Wconversion)
