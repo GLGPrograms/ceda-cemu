@@ -21,7 +21,12 @@ static const char *CONF_PATH_HOME =
 #include "log.h"
 
 // Emulator dynamic configuration
-static struct { bool cge_installed; } conf;
+static struct {
+    bool cge_installed;
+    ceda_string_t *bios_rom_path;
+    ceda_string_t *char_rom_path;
+    ceda_string_t *cge_rom_path;
+} conf;
 
 typedef enum conf_type_t {
     CONF_NONE,
@@ -41,6 +46,9 @@ typedef struct conf_tuple_t {
 
 static conf_tuple_t conf_tuples[] = {
     {"mod", "cge_installed", CONF_BOOL, &conf.cge_installed},
+    {"path", "bios_rom", CONF_STR, &conf.bios_rom_path},
+    {"path", "char_rom", CONF_STR, &conf.char_rom_path},
+    {"path", "cge_rom", CONF_STR, &conf.cge_rom_path},
     {NULL, NULL, CONF_NONE, NULL},
 };
 
@@ -190,6 +198,15 @@ uint32_t *conf_getU32(const char *section, const char *key) {
 
 bool *conf_getBool(const char *section, const char *key) {
     return conf_getType(conf_tuples, section, key, CONF_BOOL);
+}
+
+const char *conf_getString(const char *section, const char *key) {
+    ceda_string_t **string = conf_getType(conf_tuples, section, key, CONF_STR);
+
+    if (string == NULL || *string == NULL)
+        return NULL;
+
+    return ceda_string_data(*string);
 }
 
 #if defined(CEDA_TEST)
