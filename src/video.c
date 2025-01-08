@@ -321,7 +321,16 @@ void video_init(CEDAModule *mod) {
 
     // load character generator rom
     {
-        FILE *fp = fopen(CHAR_ROM_PATH, "rb");
+        const char *rom_path = CHAR_ROM_PATH;
+        const char *rom_path_cfg = conf_getString("path", "char_rom");
+
+        if (rom_path_cfg != NULL)
+            rom_path = rom_path_cfg;
+
+        LOG_INFO("Loading char rom from %s\n", rom_path);
+
+        FILE *fp = fopen(rom_path, "rb");
+
         if (fp == NULL) {
             LOG_ERR("missing char rom file\n");
             abort();
@@ -345,7 +354,16 @@ void video_init(CEDAModule *mod) {
         cge_installed = *conf_cge_installed;
 
     if (cge_installed) {
-        FILE *fp = fopen(CGE_ROM_PATH, "rb");
+        const char *rom_path = CGE_ROM_PATH;
+        const char *rom_path_cfg = conf_getString("path", "cge_rom");
+
+        if (rom_path_cfg != NULL)
+            rom_path = rom_path_cfg;
+
+        LOG_INFO("Loading CGE rom from %s\n", rom_path);
+
+        FILE *fp = fopen(rom_path, "rb");
+
         if (fp == NULL) {
             LOG_WARN("cge: extended char rom not found\n");
             return;

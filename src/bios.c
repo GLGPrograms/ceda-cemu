@@ -1,5 +1,6 @@
 #include "bios.h"
 
+#include "conf.h"
 #include "units.h"
 
 #include <stdio.h>
@@ -13,7 +14,16 @@
 static zuint8 bios[ROM_BIOS_SIZE] = {0};
 
 void rom_bios_init(void) {
-    FILE *fp = fopen(ROM_BIOS_PATH, "rb");
+    const char *rom_path = ROM_BIOS_PATH;
+    const char *rom_path_cfg = conf_getString("path", "bios_rom");
+
+    if (rom_path_cfg != NULL)
+        rom_path = rom_path_cfg;
+
+    LOG_INFO("Loading BIOS rom from %s\n", rom_path);
+
+    FILE *fp = fopen(rom_path, "rb");
+
     if (fp == NULL) {
         LOG_ERR("missing bios rom file\n");
         abort();
