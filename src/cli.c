@@ -417,7 +417,7 @@ static ceda_string_t *cli_save(const char *arg) {
     }
 
     const ceda_size_t data_size = (ceda_size_t)(end_address - start_address);
-    const ceda_size_t alloc_size = data_size + 2;
+    const size_t alloc_size = data_size + 2;
 
     FILE *fp = fopen(filename, "wb");
     if (fp == NULL) {
