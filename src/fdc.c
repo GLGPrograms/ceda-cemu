@@ -235,41 +235,44 @@ static uint8_t exec_write_data(uint8_t value) {
 
     exec_buffer[rwcount++] = value;
 
-    if (rwcount == rwcount_max) {
-        uint8_t sector = rw_args->record;
-        // FDC counts sectors from 1
-        assert(sector != 0);
-        // But all other routines counts sectors from 0
-        sector--;
-        int ret =
-            write_buffer_cb(exec_buffer, rw_args->unit_select,
-                            rw_args->head_address, track[rw_args->unit_select],
-                            rw_args->head, rw_args->cylinder, sector);
-        // the image is always loaded and valid
-        CEDA_STRONG_ASSERT_TRUE(ret > 0);
-        // Buffer is statically allocated, be sure that the data can fit it
-        CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
+    // More data can be written, just go on with the current buffer
+    if (rwcount != rwcount_max)
+        return 0;
 
-        // Multi-sector mode (enabled by default).
-        // If read is not interrupted at the end of the sector, the next logical
-        // sector is loaded
-        rw_args->record++;
+    /* Commit the current buffer and prepare the next one to be written */
+    uint8_t sector = rw_args->record;
+    // FDC counts sectors from 1
+    CEDA_STRONG_ASSERT_TRUE(sector != 0);
+    // But all other routines counts sectors from 0
+    sector--;
+    int ret = write_buffer_cb(
+        exec_buffer, rw_args->unit_select, rw_args->head_address,
+        track[rw_args->unit_select], rw_args->head, rw_args->cylinder, sector);
+    // the image is always loaded and valid
+    CEDA_STRONG_ASSERT_TRUE(ret > 0);
+    // Buffer is statically allocated, be sure that the data can fit it
+    CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
 
-        // Last sector of the track
-        if (rw_args->record > rw_args->eot) {
-            // Multi track mode, if enabled the read operation go on on the next
-            // side of the same track
-            if (command_args & CMD_ARGS_MT_bm) {
-                rw_args->head_address = !rw_args->head_address;
-                rw_args->head = !rw_args->head;
-            };
+    // Multi-sector mode (enabled by default).
+    // If read is not interrupted at the end of the sector, the next logical
+    // sector is loaded
+    rw_args->record++;
 
-            // In any case, reached the end of track we start back from sector 1
-            rw_args->record = 1;
-        }
+    // Last sector of the track
+    if (rw_args->record > rw_args->eot) {
+        // Multi track mode, if enabled the read operation go on on the next
+        // side of the same track
+        if (command_args & CMD_ARGS_MT_bm) {
+            rw_args->head_address = !rw_args->head_address;
+            rw_args->head = !rw_args->head;
+        };
 
-        buffer_write_size();
+        // In any case, reached the end of track we start back from sector 1
+        rw_args->record = 1;
     }
+
+    buffer_write_size();
+
     return 0;
 }
 
@@ -308,6 +311,9 @@ static void pre_exec_read_data(void) {
 }
 
 static uint8_t exec_read_data(uint8_t value) {
+    // read doesn't care of in value
+    (void)value;
+
     rw_args_t *rw_args = (rw_args_t *)args;
 
     if (rwcount_max == 0) {
@@ -315,31 +321,33 @@ static uint8_t exec_read_data(uint8_t value) {
         return 0;
     }
 
-    // read doesn't care of in value
-    (void)value;
     uint8_t ret = exec_buffer[rwcount++];
 
-    if (rwcount == rwcount_max) {
-        // Multi-sector mode (enabled by default).
-        // If read is not interrupted at the end of the sector, the next logical
-        // sector is loaded
-        rw_args->record++;
+    // More data can be read, just go on with the current buffer
+    if (rwcount != rwcount_max)
+        return ret;
 
-        // Last sector of the track
-        if (rw_args->record > rw_args->eot) {
-            // Multi track mode, if enabled the read operation go on on the next
-            // side of the same track
-            if (command_args & CMD_ARGS_MT_bm) {
-                rw_args->head_address = !rw_args->head_address;
-                rw_args->head = !rw_args->head;
-            };
+    /* Prepare the next buffer to be read */
+    // Multi-sector mode (enabled by default).
+    // If read is not interrupted at the end of the sector, the next logical
+    // sector is loaded
+    rw_args->record++;
 
-            // In any case, reached the end of track we start back from sector 1
-            rw_args->record = 1;
-        }
+    // Last sector of the track
+    if (rw_args->record > rw_args->eot) {
+        // Multi track mode, if enabled the read operation go on on the next
+        // side of the same track
+        if (command_args & CMD_ARGS_MT_bm) {
+            rw_args->head_address = !rw_args->head_address;
+            rw_args->head = !rw_args->head;
+        };
 
-        buffer_update();
+        // In any case, reached the end of track we start back from sector 1
+        rw_args->record = 1;
     }
+
+    buffer_update();
+
     return ret;
 }
 
