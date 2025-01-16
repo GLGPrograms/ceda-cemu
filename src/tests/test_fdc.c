@@ -41,66 +41,58 @@ Test(ceda_fdc, mainStatusRegisterWhenIdle) {
     fdc_init();
 
     // Try to read status register and check that it is idle
-    uint8_t sr = fdc_in(ADDR_STATUS_REGISTER);
-    cr_expect_eq(sr, (1 << 7));
+    assert_fdc_sr(1 << 7);
 }
 
 Test(ceda_fdc, specifyCommand) {
     fdc_init();
 
-    uint8_t sr;
-
     // Try to read status register and check that it is idle
     fdc_out(ADDR_DATA_REGISTER, SPECIFY);
 
     // Now read status register to check that FDC is ready to receive arguments
-    sr = fdc_in(ADDR_STATUS_REGISTER);
-    cr_expect_eq(sr, (1 << 7) | (1 << 4));
+    assert_fdc_sr((1 << 7) | (1 << 4));
 
     // Pass dummy arguments
     fdc_out(ADDR_DATA_REGISTER, 0x00);
     fdc_out(ADDR_DATA_REGISTER, 0x00);
 
     // FDC is no more busy
-    sr = fdc_in(ADDR_STATUS_REGISTER);
-    cr_expect_eq(sr, (1 << 7));
+    assert_fdc_sr((1 << 7));
 }
 
 Test(ceda_fdc, senseInterruptStatusCommand) {
     fdc_init();
 
-    uint8_t sr;
+    uint8_t data;
 
     fdc_out(ADDR_DATA_REGISTER, SENSE_INTERRUPT);
 
     // This command has no arguments
     // FDC should be ready to give response
-    sr = fdc_in(ADDR_STATUS_REGISTER);
-    cr_expect_eq(sr, (1 << 7) | (1 << 6) | (1 << 4));
+    assert_fdc_sr((1 << 7) | (1 << 6) | (1 << 4));
 
     // First response byte is SR0 with interrupt code = 0 and Seek End = 1
-    sr = fdc_in(ADDR_DATA_REGISTER);
-    cr_expect_eq(sr, (1 << 5));
+    data = fdc_in(ADDR_DATA_REGISTER);
+    cr_expect_eq(data, (1 << 5));
 
     // FDC has another byte of response
-    sr = fdc_in(ADDR_STATUS_REGISTER);
-    cr_expect_eq(sr, (1 << 7) | (1 << 6) | (1 << 4));
+    assert_fdc_sr((1 << 7) | (1 << 6) | (1 << 4));
 
     // Second response byte is current cylinder, which should be zero at reset
-    sr = fdc_in(ADDR_DATA_REGISTER);
-    cr_expect_eq(sr, 0);
+    data = fdc_in(ADDR_DATA_REGISTER);
+    cr_expect_eq(data, 0);
 }
 
 Test(ceda_fdc, seekCommand) {
     fdc_init();
 
-    uint8_t sr;
+    uint8_t data;
 
     fdc_out(ADDR_DATA_REGISTER, SEEK);
 
     // Now read status register to check that FDC is ready to receive arguments
-    sr = fdc_in(ADDR_STATUS_REGISTER);
-    cr_expect_eq(sr, (1 << 7) | (1 << 4));
+    assert_fdc_sr((1 << 7) | (1 << 4));
 
     // First argument is number of drive
     fdc_out(ADDR_DATA_REGISTER, 0x00);
@@ -108,29 +100,26 @@ Test(ceda_fdc, seekCommand) {
     fdc_out(ADDR_DATA_REGISTER, 5);
 
     // FDC is no more busy
-    sr = fdc_in(ADDR_STATUS_REGISTER);
-    cr_expect_eq(sr, (1 << 7));
+    assert_fdc_sr((1 << 7));
 
     // A sense interrupt command is expected after SEEK
     fdc_out(ADDR_DATA_REGISTER, SENSE_INTERRUPT);
 
     // This command has no arguments
     // FDC should be ready to give response
-    sr = fdc_in(ADDR_STATUS_REGISTER);
-    cr_expect_eq(sr, (1 << 7) | (1 << 6) | (1 << 4));
+    assert_fdc_sr((1 << 7) | (1 << 6) | (1 << 4));
 
     // First response byte is SR0 with interrupt code = 0 and Seek End = 1
-    sr = fdc_in(ADDR_DATA_REGISTER);
-    cr_expect_eq(sr, (1 << 5));
+    data = fdc_in(ADDR_DATA_REGISTER);
+    cr_expect_eq(data, (1 << 5));
 
     // FDC has another byte of response
-    sr = fdc_in(ADDR_STATUS_REGISTER);
-    cr_expect_eq(sr, (1 << 7) | (1 << 6) | (1 << 4));
+    assert_fdc_sr((1 << 7) | (1 << 6) | (1 << 4));
 
     // Second response byte is current cylinder, which should be the one
     // specified by the seek argument
-    sr = fdc_in(ADDR_DATA_REGISTER);
-    cr_expect_eq(sr, 5);
+    data = fdc_in(ADDR_DATA_REGISTER);
+    cr_expect_eq(data, 5);
 }
 
 Test(ceda_fdc, readCommandNoMedium) {
@@ -141,28 +130,28 @@ Test(ceda_fdc, readCommandNoMedium) {
     /* Provide the argument, dummy ones! */
     assert_fdc_sr((1 << 7) | (1 << 4));
     // 1st argument is number of drive
-    fdc_out(ADDR_DATA_REGISTER, 0x00);
+    fdc_out(ADDR_DATA_REGISTER, 0);
     assert_fdc_sr((1 << 7) | (1 << 4));
     // 2nd argument is cylinder number
     fdc_out(ADDR_DATA_REGISTER, 1);
     assert_fdc_sr((1 << 7) | (1 << 4));
     // 3rd argument is head number
-    fdc_out(ADDR_DATA_REGISTER, 1);
+    fdc_out(ADDR_DATA_REGISTER, 0);
     assert_fdc_sr((1 << 7) | (1 << 4));
     // 4th argument is record number
     fdc_out(ADDR_DATA_REGISTER, 1);
     assert_fdc_sr((1 << 7) | (1 << 4));
     // 5th argument is bytes per sector factor
-    fdc_out(ADDR_DATA_REGISTER, 0);
+    fdc_out(ADDR_DATA_REGISTER, 1);
     assert_fdc_sr((1 << 7) | (1 << 4));
     // 6th argument is EOT
-    fdc_out(ADDR_DATA_REGISTER, 2);
+    fdc_out(ADDR_DATA_REGISTER, 5);
     assert_fdc_sr((1 << 7) | (1 << 4));
     // 7th argument is GPL
     fdc_out(ADDR_DATA_REGISTER, 0);
     assert_fdc_sr((1 << 7) | (1 << 4));
     // 8th argument is DTL
-    fdc_out(ADDR_DATA_REGISTER, 4);
+    fdc_out(ADDR_DATA_REGISTER, 0);
 
     // FDC switches IO mode, but...
     assert_fdc_sr((1 << 7) | (1 << 6) | (1 << 5) | (1 << 4));
