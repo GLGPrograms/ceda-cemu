@@ -174,7 +174,7 @@ static uint8_t exec_buffer[1024];
 // Result buffer. Each command has maximum 7 bytes as argument.
 static uint8_t result[7];
 static bool tc_status = false;
-static bool isReady = false;
+static bool is_ready = false;
 
 /* FDC internal registers */
 // Main Status Register
@@ -185,13 +185,8 @@ static main_status_register_t status_register;
 static uint8_t track[4];
 
 /* Callbacks to handle floppy read and write */
-static int (*read_buffer_cb)(uint8_t *buffer, uint8_t unit_number,
-                             bool phy_head, uint8_t phy_track, bool head,
-                             uint8_t track, uint8_t sector) = NULL;
-
-static int (*write_buffer_cb)(uint8_t *buffer, uint8_t unit_number,
-                              bool phy_head, uint8_t phy_track, bool head,
-                              uint8_t track, uint8_t sector) = NULL;
+static fdc_read_write_t read_buffer_cb = NULL;
+static fdc_read_write_t write_buffer_cb = NULL;
 
 /* * * * * * * * * * * * * * *  Command routines  * * * * * * * * * * * * * * */
 
@@ -368,7 +363,7 @@ static void pre_exec_recalibrate(void) {
     track[drive] = 0;
 
     // We don't have to actually move the head. The drive is immediately ready
-    isReady = true;
+    is_ready = true;
 }
 
 // Sense interrupt:
@@ -377,7 +372,7 @@ static void post_exec_sense_interrupt(void) {
     uint8_t drive = 0;
 
     // After reading interrupt status, ready can be deasserted
-    isReady = false;
+    is_ready = false;
 
     LOG_DEBUG("FDC Sense Interrupt\n");
     /* Status Register 0 */
@@ -415,7 +410,7 @@ static void pre_exec_seek(void) {
     LOG_DEBUG("NCN: %d\n", track[drive]);
 
     // We don't have to actually move the head. The drive is immediately ready
-    isReady = true;
+    is_ready = true;
 }
 
 /* * * * * * * * * * * * * * *  Utility routines  * * * * * * * * * * * * * * */
@@ -480,7 +475,7 @@ static void buffer_update(void) {
     uint8_t sector = rw_args->record;
 
     // Default: no data ready to be served
-    isReady = false;
+    is_ready = false;
     rwcount_max = 0;
 
     // FDC counts sectors from 1
@@ -512,7 +507,7 @@ static void buffer_update(void) {
         CEDA_STRONG_ASSERT_TRUE(ret > 0);
 
         // Ready to serve data
-        isReady = true;
+        is_ready = true;
     }
 
     rwcount = 0;
@@ -526,7 +521,7 @@ static void buffer_write_size(void) {
     uint8_t sector = rw_args->record;
 
     // Default: no data ready to be served
-    isReady = false;
+    is_ready = false;
     rwcount_max = 0;
 
     // FDC counts sectors from 1
@@ -659,7 +654,7 @@ void fdc_tc_out(ceda_ioaddr_t address, uint8_t value) {
 // (beginning of result phase). When first byte of result phase data
 // is read, INT=0.
 bool fdc_getIntStatus(void) {
-    return isReady;
+    return is_ready;
 }
 
 // TODO(giuliof): describe better this function
@@ -667,7 +662,8 @@ bool fdc_getIntStatus(void) {
 // a read or write loop that was waiting for interrupt.
 // In that case, remove the lock (buffer_update will do it, for the writing it
 // has to be implemented)
-void fdc_kickDiskImage(p_rwBuffer read_callback, p_rwBuffer write_callback) {
+void fdc_kickDiskImage(fdc_read_write_t read_callback,
+                       fdc_read_write_t write_callback) {
     read_buffer_cb = read_callback;
     write_buffer_cb = write_callback;
 
