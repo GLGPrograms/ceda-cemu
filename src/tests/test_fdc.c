@@ -5,6 +5,38 @@
 #include "../fdc.h"
 #include "../fdc_registers.h"
 
+static void assert_fdc_sr(uint8_t expected_sr);
+static int fake_read(uint8_t *buffer, uint8_t unit_number, bool phy_head,
+                     uint8_t phy_track, bool head, uint8_t track,
+                     uint8_t sector);
+
+/**
+ * @brief Helper function to check the current status of the FDC main status
+ * register
+ *
+ * @param expected_sr the expected value of the FDC main status register
+ */
+static void assert_fdc_sr(uint8_t expected_sr) {
+    uint8_t sr;
+    sr = fdc_in(ADDR_STATUS_REGISTER);
+    // cr_log_info("%x != %x", sr, expected_sr);
+    cr_expect_eq(sr, expected_sr);
+}
+
+static int fake_read(uint8_t *buffer, uint8_t unit_number, bool phy_head,
+                     uint8_t phy_track, bool head, uint8_t track,
+                     uint8_t sector) {
+    (void)buffer;
+    (void)unit_number;
+    (void)phy_head;
+    (void)phy_track;
+    (void)head;
+    (void)track;
+    (void)sector;
+
+    return 4;
+}
+
 Test(ceda_fdc, mainStatusRegisterWhenIdle) {
     fdc_init();
 
@@ -99,4 +131,46 @@ Test(ceda_fdc, seekCommand) {
     // specified by the seek argument
     sr = fdc_in(ADDR_DATA_REGISTER);
     cr_expect_eq(sr, 5);
+}
+
+Test(ceda_fdc, readCommandNoMedium) {
+    fdc_init();
+
+    fdc_out(ADDR_DATA_REGISTER, READ_DATA);
+
+    /* Provide the argument, dummy ones! */
+    assert_fdc_sr((1 << 7) | (1 << 4));
+    // 1st argument is number of drive
+    fdc_out(ADDR_DATA_REGISTER, 0x00);
+    assert_fdc_sr((1 << 7) | (1 << 4));
+    // 2nd argument is cylinder number
+    fdc_out(ADDR_DATA_REGISTER, 1);
+    assert_fdc_sr((1 << 7) | (1 << 4));
+    // 3rd argument is head number
+    fdc_out(ADDR_DATA_REGISTER, 1);
+    assert_fdc_sr((1 << 7) | (1 << 4));
+    // 4th argument is record number
+    fdc_out(ADDR_DATA_REGISTER, 1);
+    assert_fdc_sr((1 << 7) | (1 << 4));
+    // 5th argument is bytes per sector factor
+    fdc_out(ADDR_DATA_REGISTER, 0);
+    assert_fdc_sr((1 << 7) | (1 << 4));
+    // 6th argument is EOT
+    fdc_out(ADDR_DATA_REGISTER, 2);
+    assert_fdc_sr((1 << 7) | (1 << 4));
+    // 7th argument is GPL
+    fdc_out(ADDR_DATA_REGISTER, 0);
+    assert_fdc_sr((1 << 7) | (1 << 4));
+    // 8th argument is DTL
+    fdc_out(ADDR_DATA_REGISTER, 4);
+
+    // FDC switches IO mode, but...
+    assert_fdc_sr((1 << 7) | (1 << 6) | (1 << 5) | (1 << 4));
+    // ... is not ready since no medium is loaded
+    cr_assert_eq(fdc_getIntStatus(), false);
+
+    // Kick medium in...
+    fdc_kickDiskImage(fake_read, NULL);
+    // ... now FDC is ready
+    cr_assert_eq(fdc_getIntStatus(), true);
 }
