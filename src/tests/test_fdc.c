@@ -163,3 +163,63 @@ Test(ceda_fdc, readCommandNoMedium) {
     // ... now FDC is ready
     cr_assert_eq(fdc_getIntStatus(), true);
 }
+
+Test(ceda_fdc, readCommand) {
+    uint8_t result[7];
+
+    fdc_init();
+
+    // Link a fake reading function.
+    // TODO(giuliof): mocking may be better here
+    fdc_kickDiskImage(fake_read, NULL);
+
+    fdc_out(FDC_ADDR_DATA_REGISTER, FDC_READ_DATA);
+
+    // 1st argument is number of drive
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0);
+    // 2nd argument is cylinder number
+    fdc_out(FDC_ADDR_DATA_REGISTER, 1);
+    // 3rd argument is head number
+    fdc_out(FDC_ADDR_DATA_REGISTER, 1);
+    // 4th argument is record number
+    fdc_out(FDC_ADDR_DATA_REGISTER, 1);
+    // 5th argument is bytes per sector factor
+    fdc_out(FDC_ADDR_DATA_REGISTER, 1);
+    // 6th argument is EOT
+    fdc_out(FDC_ADDR_DATA_REGISTER, 2);
+    // 7th argument is GPL
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0);
+    // 8th argument is DTL
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0);
+
+    // FDC is in execution mode
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_EXM | FDC_ST_CB);
+
+    // Read four times
+    fdc_in(FDC_ADDR_DATA_REGISTER);
+    fdc_in(FDC_ADDR_DATA_REGISTER);
+    fdc_in(FDC_ADDR_DATA_REGISTER);
+    fdc_in(FDC_ADDR_DATA_REGISTER);
+
+    // FDC is still in execution mode
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_EXM | FDC_ST_CB);
+
+    // Stop the reading
+    fdc_tc_out(0, 0);
+
+    // Execution is finished, but still busy waiting for read of results
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_CB);
+
+    result[0] = fdc_in(FDC_ADDR_DATA_REGISTER);
+    result[1] = fdc_in(FDC_ADDR_DATA_REGISTER);
+    result[2] = fdc_in(FDC_ADDR_DATA_REGISTER);
+    result[3] = fdc_in(FDC_ADDR_DATA_REGISTER);
+    result[4] = fdc_in(FDC_ADDR_DATA_REGISTER);
+    result[5] = fdc_in(FDC_ADDR_DATA_REGISTER);
+    result[6] = fdc_in(FDC_ADDR_DATA_REGISTER);
+
+    // Execution is finished
+    assert_fdc_sr(FDC_ST_RQM);
+
+    // TODO: check te content of result (currently not implemented)
+}
