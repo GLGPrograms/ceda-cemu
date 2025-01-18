@@ -25,7 +25,7 @@ typedef enum fdc_status_t { CMD, ARGS, EXEC, RESULT } fdc_status_t;
 // One may provide callbacks for exec preparation, actual execution and
 // post execution.
 typedef struct fdc_operation_t {
-    cmd_t cmd;
+    fdc_cmd_t cmd;
     // An FDC operation is splitted into 4 steps.
     // If a step len is 0, that step must be skipped.
     size_t args_len;
@@ -99,7 +99,7 @@ static void buffer_write_size(void);
 // The command descriptors
 static const fdc_operation_t fdc_operations[] = {
     {
-        .cmd = SPECIFY,
+        .cmd = FDC_SPECIFY,
         .args_len = 2,
         .result_len = 0,
         .pre_exec = pre_exec_specify,
@@ -107,7 +107,7 @@ static const fdc_operation_t fdc_operations[] = {
         .post_exec = NULL,
     },
     {
-        .cmd = WRITE_DATA,
+        .cmd = FDC_WRITE_DATA,
         .args_len = 8,
         .result_len = 7,
         .pre_exec = pre_exec_write_data,
@@ -115,7 +115,7 @@ static const fdc_operation_t fdc_operations[] = {
         .post_exec = post_exec_write_data,
     },
     {
-        .cmd = READ_DATA,
+        .cmd = FDC_READ_DATA,
         .args_len = 8,
         .result_len = 7,
         .pre_exec = pre_exec_read_data,
@@ -123,7 +123,7 @@ static const fdc_operation_t fdc_operations[] = {
         .post_exec = post_exec_read_data,
     },
     {
-        .cmd = RECALIBRATE,
+        .cmd = FDC_RECALIBRATE,
         .args_len = 1,
         .result_len = 0,
         .pre_exec = pre_exec_recalibrate,
@@ -131,7 +131,7 @@ static const fdc_operation_t fdc_operations[] = {
         .post_exec = NULL,
     },
     {
-        .cmd = SENSE_INTERRUPT,
+        .cmd = FDC_SENSE_INTERRUPT,
         .args_len = 0,
         .result_len = 2,
         .pre_exec = NULL,
@@ -139,7 +139,7 @@ static const fdc_operation_t fdc_operations[] = {
         .post_exec = post_exec_sense_interrupt,
     },
     {
-        .cmd = FORMAT_TRACK,
+        .cmd = FDC_FORMAT_TRACK,
         .args_len = 5,
         .result_len = 7,
         .pre_exec = pre_exec_format_track,
@@ -147,7 +147,7 @@ static const fdc_operation_t fdc_operations[] = {
         .post_exec = post_exec_format_track,
     },
     {
-        .cmd = SEEK,
+        .cmd = FDC_SEEK,
         .args_len = 2,
         .result_len = 0,
         .pre_exec = pre_exec_seek,
@@ -262,10 +262,10 @@ static uint8_t exec_write_data(uint8_t value) {
     if (rw_args->record > rw_args->eot) {
         // Multi track mode, if enabled the read operation go on on the next
         // side of the same track
-        if (command_args & CMD_ARGS_MT_bm) {
+        if (command_args & FDC_CMD_ARGS_MT_bm) {
             rw_args->head_address = !rw_args->head_address;
             rw_args->head = !rw_args->head;
-        };
+        }
 
         // In any case, reached the end of track we start back from sector 1
         rw_args->record = 1;
@@ -337,10 +337,10 @@ static uint8_t exec_read_data(uint8_t value) {
     if (rw_args->record > rw_args->eot) {
         // Multi track mode, if enabled the read operation go on on the next
         // side of the same track
-        if (command_args & CMD_ARGS_MT_bm) {
+        if (command_args & FDC_CMD_ARGS_MT_bm) {
             rw_args->head_address = !rw_args->head_address;
             rw_args->head = !rw_args->head;
-        };
+        }
 
         // In any case, reached the end of track we start back from sector 1
         rw_args->record = 1;
@@ -389,7 +389,7 @@ static void post_exec_sense_interrupt(void) {
     // head address (last addressed) - TODO(giulio)
     // result[0] |= ...;
     // Seek End - TODO(giulio)
-    result[0] |= 1U << 5;
+    result[0] |= FDC_ST0_SE;
     /* PCN  - (current track position) */
     result[1] = track[drive];
 }
@@ -584,9 +584,9 @@ void fdc_init(void) {
 
 uint8_t fdc_in(ceda_ioaddr_t address) {
     switch (address & 0x01) {
-    case ADDR_STATUS_REGISTER:
+    case FDC_ADDR_STATUS_REGISTER:
         return status_register.value;
-    case ADDR_DATA_REGISTER: {
+    case FDC_ADDR_DATA_REGISTER: {
         uint8_t value = 0;
 
         if (fdc_status == CMD) {
@@ -619,14 +619,14 @@ uint8_t fdc_in(ceda_ioaddr_t address) {
 
 void fdc_out(ceda_ioaddr_t address, uint8_t value) {
     switch (address & 0x01) {
-    case ADDR_STATUS_REGISTER:
+    case FDC_ADDR_STATUS_REGISTER:
         LOG_WARN("nobody should write in FDC main status register\n");
         return;
-    case ADDR_DATA_REGISTER: {
+    case FDC_ADDR_DATA_REGISTER: {
         if (fdc_status == CMD) {
             // Split the command itself from option bits
-            uint8_t cmd = value & CMD_COMMAND_bm;
-            command_args = value & CMD_ARGS_bm;
+            uint8_t cmd = value & FDC_CMD_COMMAND_bm;
+            command_args = value & FDC_CMD_ARGS_bm;
 
             // Unroll the command list and place it in the current execution
             fdc_currop = NULL;
@@ -691,11 +691,11 @@ void fdc_kickDiskImage(fdc_read_write_t read_callback,
     read_buffer_cb = read_callback;
     write_buffer_cb = write_callback;
 
-    if (fdc_status == EXEC && fdc_currop->cmd == READ_DATA) {
+    if (fdc_status == EXEC && fdc_currop->cmd == FDC_READ_DATA) {
         buffer_update();
     }
 
-    if (fdc_status == EXEC && fdc_currop->cmd == WRITE_DATA) {
+    if (fdc_status == EXEC && fdc_currop->cmd == FDC_WRITE_DATA) {
         buffer_write_size();
     }
 }
