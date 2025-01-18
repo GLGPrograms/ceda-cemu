@@ -559,11 +559,27 @@ static void buffer_write_size(void) {
 /* * * * * * * * * * * * * * *  Public routines   * * * * * * * * * * * * * * */
 
 void fdc_init(void) {
+    // Reset current command status
     fdc_status = CMD;
+    fdc_currop = NULL;
+
+    // Reset any internal status
     rwcount_max = 0;
+    memset(result, 0, sizeof(result));
+    tc_status = false;
+    is_ready = false;
+
+    // Reset main status register, but keep RQM active since FDC is always ready
+    // to receive requests
     status_register.value = 0x00;
-    // FDC is always ready
     status_register.rqm = 1;
+
+    // Reset track positions
+    memset(track, 0, sizeof(track));
+
+    // Detach any read/write callback
+    read_buffer_cb = NULL;
+    write_buffer_cb = NULL;
 }
 
 uint8_t fdc_in(ceda_ioaddr_t address) {
