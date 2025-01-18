@@ -352,12 +352,28 @@ static uint8_t exec_read_data(uint8_t value) {
 }
 
 static void post_exec_read_data(void) {
+    rw_args_t *rw_args = (rw_args_t *)args;
+
     LOG_DEBUG("Read has ended\n");
     // TODO(giulio): populate result (which is pretty the same for read,
     // write, ...)
     memset(result, 0x00, sizeof(result));
 
     // TODO(giuliof): populate result as in datasheet (see table 2)
+    /* ST0 */
+    // Current head position
+    result[0] |= rw_args->unit_select;
+    result[0] |= rw_args->head_address ? FDC_ST0_HD : 0;
+    /* ST1 */
+    result[1] |= 0; // TODO(giuliof): populate this
+    /* ST2 */
+    result[2] |= 0; // TODO(giuliof): populate this
+    /* CHR */
+    result[3] = rw_args->cylinder;
+    result[4] = rw_args->head;
+    result[5] = rw_args->record;
+    /* Sector size factor */
+    result[6] = rw_args->n;
 }
 
 // Recalibrate:

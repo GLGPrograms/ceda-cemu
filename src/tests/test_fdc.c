@@ -176,17 +176,17 @@ Test(ceda_fdc, readCommand) {
     fdc_out(FDC_ADDR_DATA_REGISTER, FDC_READ_DATA);
 
     // 1st argument is number of drive
-    fdc_out(FDC_ADDR_DATA_REGISTER, 0);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 2 | 1 << 2);
     // 2nd argument is cylinder number
-    fdc_out(FDC_ADDR_DATA_REGISTER, 1);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 7);
     // 3rd argument is head number
     fdc_out(FDC_ADDR_DATA_REGISTER, 1);
     // 4th argument is record number
-    fdc_out(FDC_ADDR_DATA_REGISTER, 1);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 5);
     // 5th argument is bytes per sector factor
     fdc_out(FDC_ADDR_DATA_REGISTER, 1);
     // 6th argument is EOT
-    fdc_out(FDC_ADDR_DATA_REGISTER, 2);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 10);
     // 7th argument is GPL
     fdc_out(FDC_ADDR_DATA_REGISTER, 0);
     // 8th argument is DTL
@@ -221,5 +221,12 @@ Test(ceda_fdc, readCommand) {
     // Execution is finished
     assert_fdc_sr(FDC_ST_RQM);
 
-    // TODO: check te content of result (currently not implemented)
+    // check the content of result
+    cr_expect_eq(result[0], FDC_ST0_HD | 2);
+    cr_expect_eq(result[1], 0);
+    cr_expect_eq(result[2], 0);
+    cr_expect_eq(result[3], 7);
+    cr_expect_eq(result[4], 1);
+    cr_expect_eq(result[5], 6);
+    cr_expect_eq(result[6], 1);
 }
