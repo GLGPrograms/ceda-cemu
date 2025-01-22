@@ -1,5 +1,6 @@
 
 #include <criterion/criterion.h>
+#include <criterion/parameterized.h>
 
 // TODO source path is src!
 #include "../fdc.h"
@@ -122,36 +123,46 @@ Test(ceda_fdc, seekCommand) {
     cr_expect_eq(data, 5);
 }
 
+/**
+ * @brief Auxiliary function, send a data buffer to the FDC checking that it is
+ * in input mode for each byte
+ */
+static void sendBuffer(const uint8_t *buffer, size_t size) {
+    while (size-- > 0) {
+        assert_fdc_sr(FDC_ST_RQM | FDC_ST_CB);
+        fdc_out(FDC_ADDR_DATA_REGISTER, *(buffer++));
+    }
+}
+
+/**
+ * @brief Auxiliary function, receive a data buffer from the FDC checking that
+ * it is in output mode for each byte
+ */
+static void receiveBuffer(uint8_t *buffer, size_t size) {
+    while (size-- > 0) {
+        assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_CB);
+        *(buffer++) = fdc_in(FDC_ADDR_DATA_REGISTER);
+    }
+}
+
 Test(ceda_fdc, readCommandNoMedium) {
+    uint8_t arguments[8] = {
+        0, // drive number
+        1, // cylinder
+        0, // head
+        1, // record
+        1, // N - bytes per sector size factor
+        5, // EOT (end of track)
+        0, // GPL (ignored)
+        0, // DTL (ignored)
+    };
+
     fdc_init();
 
     fdc_out(FDC_ADDR_DATA_REGISTER, FDC_READ_DATA);
 
-    /* Provide the argument, dummy ones! */
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_CB);
-    // 1st argument is number of drive
-    fdc_out(FDC_ADDR_DATA_REGISTER, 0);
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_CB);
-    // 2nd argument is cylinder number
-    fdc_out(FDC_ADDR_DATA_REGISTER, 1);
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_CB);
-    // 3rd argument is head number
-    fdc_out(FDC_ADDR_DATA_REGISTER, 0);
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_CB);
-    // 4th argument is record number
-    fdc_out(FDC_ADDR_DATA_REGISTER, 1);
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_CB);
-    // 5th argument is bytes per sector factor
-    fdc_out(FDC_ADDR_DATA_REGISTER, 1);
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_CB);
-    // 6th argument is EOT
-    fdc_out(FDC_ADDR_DATA_REGISTER, 5);
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_CB);
-    // 7th argument is GPL
-    fdc_out(FDC_ADDR_DATA_REGISTER, 0);
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_CB);
-    // 8th argument is DTL
-    fdc_out(FDC_ADDR_DATA_REGISTER, 0);
+    // Send arguments checking for no error
+    sendBuffer(arguments, sizeof(arguments));
 
     // FDC switches IO mode, but...
     assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_EXM | FDC_ST_CB);
@@ -164,38 +175,237 @@ Test(ceda_fdc, readCommandNoMedium) {
     cr_assert_eq(fdc_getIntStatus(), true);
 }
 
-Test(ceda_fdc, readCommand) {
+/**
+ * @brief This section covers the cases described in table 2-2 of xxxxxxx
+ * datasheet.
+ * Please note that the FDC should accept logical head value different than
+ * physical one.
+ */
+
+struct rw_test_params_t {
+    uint8_t cmd_alteration;
+    uint8_t arguments[8];
     uint8_t result[7];
+};
+
+ParameterizedTestParameters(ceda_fdc, readCommand0) {
+    static struct rw_test_params_t params[] = {
+        {
+            // No MT, end record < EOT, physical head 0
+            0, // No alteration
+            {
+                0,  // drive number
+                7,  // cylinder
+                0,  // head
+                5,  // record
+                1,  // N - bytes per sector size factor
+                10, // EOT (end of track)
+                0,  // GPL (ignored)
+                0,  // DTL (ignored)
+            },
+            {
+                0, // Drive number, no error
+                0, // no error
+                0, // no error
+                7, // cylinder
+                0, // head
+                7, // record
+                1, // N
+            },
+        },
+        {
+            // No MT, end record = EOT, physical head 0
+            0,
+            {
+                1,  // drive number
+                7,  // cylinder
+                1,  // head - different from physical head just for fun
+                9,  // record
+                1,  // N - bytes per sector size factor
+                10, // EOT (end of track)
+                0,  // GPL
+                0,  // DTL
+            },
+            {
+                1, // drive number, no error
+                0, // no error
+                0, // no error
+                8, // cylinder
+                1, // head
+                1, // record
+                1, // N
+            },
+        },
+        {
+            // No MT, end record < EOT, physical head 1
+            0,
+            {
+                FDC_ST0_HD | 2, // Drive number, physical head 1
+                7,              // cylinder
+                0,  // head - different from physical head just for fun
+                5,  // record
+                1,  // N - bytes per sector size factor
+                10, // EOT (end of track)
+                0,  // GPL
+                0,  // DTL
+            },
+            {
+                FDC_ST0_HD | 2, // drive number, physical head 1, no error
+                0,              // no error
+                0,              // no error
+                7,              // cylinder
+                0,              // head
+                7,              // record
+                1,              // N
+            },
+        },
+        {
+            // No MT, end record = EOT, physical head 1
+            0,
+            {
+                FDC_ST0_HD | 3, // Drive number, physical head 1
+                7,              // cylinder
+                1,              // head
+                9,              // record
+                1,              // N - bytes per sector size factor
+                10,             // EOT (end of track)
+                0,              // GPL
+                0,              // DTL
+            },
+            {
+                FDC_ST0_HD | 3, // drive number, physical head 1, no error
+                0,              // no error
+                0,              // no error
+                8,              // cylinder
+                1,              // head
+                1,              // record
+                1,              // N
+            },
+        },
+        /* * * * * * */
+        {
+            // MT (multi-track), end record < EOT, physical head 0
+            FDC_CMD_ARGS_MT_bm,
+            {
+                3,  // Drive number
+                7,  // cylinder
+                0,  // head
+                5,  // record
+                1,  // N - bytes per sector size factor
+                10, // EOT (end of track)
+                0,  // GPL
+                0,  // DTL
+            },
+            {
+                3, // drive number, physical head 0, no error
+                0, // no error
+                0, // no error
+                7, // cylinder
+                0, // head
+                7, // record
+                1, // N
+            },
+        },
+        {
+            // MT (multi-track), end record = EOT, physical head 0
+            FDC_CMD_ARGS_MT_bm,
+            {
+                2,  // Drive number
+                7,  // cylinder
+                1,  // head - different from physical head just for fun
+                9,  // record
+                1,  // N - bytes per sector size factor
+                10, // EOT (end of track)
+                0,  // GPL
+                0,  // DTL
+            },
+            {
+                FDC_ST0_HD | 2, // drive number, physical head 1, no error
+                0,              // no error
+                0,              // no error
+                7,              // cylinder
+                0,              // head
+                1,              // record
+                1,              // N
+            },
+        },
+        {
+            // MT (multi-track), end record < EOT, physical head 1
+            FDC_CMD_ARGS_MT_bm,
+            {
+                FDC_ST0_HD | 1, // Drive number, physical head 1
+                7,              // cylinder
+                0,              // head
+                5,              // record
+                1,              // N - bytes per sector size factor
+                10,             // EOT (end of track)
+                0,              // GPL
+                0,              // DTL
+            },
+            {
+                FDC_ST0_HD | 1, // drive number, physical head 1, no error
+                0,              // no error
+                0,              // no error
+                7,              // cylinder
+                0,              // head
+                7,              // record
+                1,              // N
+            },
+        },
+        {
+            // MT (multi-track), end record = EOT, physical head 1
+            FDC_CMD_ARGS_MT_bm,
+            {
+                FDC_ST0_HD | 0, // Drive number, physical head 1
+                7,              // cylinder
+                0,  // head - different from physical head just for fun
+                9,  // record
+                1,  // N - bytes per sector size factor
+                10, // EOT (end of track)
+                0,  // GPL
+                0,  // DTL
+            },
+            {
+                0, // drive number, physical head 0, no error
+                0, // no error
+                0, // no error
+                8, // cylinder
+                1, // head
+                1, // record
+                1, // N
+            },
+        },
+    };
+
+    size_t nb_params = sizeof(params) / sizeof(struct rw_test_params_t);
+    return cr_make_param_array(struct rw_test_params_t, params, nb_params);
+}
+
+ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, readCommand0) {
+    uint8_t result[sizeof(param->result)];
 
     fdc_init();
 
-    // Link a fake reading function.
-    // TODO(giuliof): mocking may be better here
+    // Link a fake reading function
     fdc_kickDiskImage(fake_read, NULL);
 
-    fdc_out(FDC_ADDR_DATA_REGISTER, FDC_READ_DATA);
+    fdc_out(FDC_ADDR_DATA_REGISTER, FDC_READ_DATA | param->cmd_alteration);
 
-    // 1st argument is number of drive
-    fdc_out(FDC_ADDR_DATA_REGISTER, 2 | 1 << 2);
-    // 2nd argument is cylinder number
-    fdc_out(FDC_ADDR_DATA_REGISTER, 7);
-    // 3rd argument is head number
-    fdc_out(FDC_ADDR_DATA_REGISTER, 1);
-    // 4th argument is record number
-    fdc_out(FDC_ADDR_DATA_REGISTER, 5);
-    // 5th argument is bytes per sector factor
-    fdc_out(FDC_ADDR_DATA_REGISTER, 1);
-    // 6th argument is EOT
-    fdc_out(FDC_ADDR_DATA_REGISTER, 10);
-    // 7th argument is GPL
-    fdc_out(FDC_ADDR_DATA_REGISTER, 0);
-    // 8th argument is DTL
-    fdc_out(FDC_ADDR_DATA_REGISTER, 0);
+    // Send arguments checking for no error
+    sendBuffer(param->arguments, sizeof(param->arguments));
 
     // FDC is in execution mode
     assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_EXM | FDC_ST_CB);
 
-    // Read four times
+    // FDC is ready to serve data
+    cr_assert_eq(fdc_getIntStatus(), true);
+
+    // Read two full sectors
+    fdc_in(FDC_ADDR_DATA_REGISTER);
+    fdc_in(FDC_ADDR_DATA_REGISTER);
+    fdc_in(FDC_ADDR_DATA_REGISTER);
+    fdc_in(FDC_ADDR_DATA_REGISTER);
+
     fdc_in(FDC_ADDR_DATA_REGISTER);
     fdc_in(FDC_ADDR_DATA_REGISTER);
     fdc_in(FDC_ADDR_DATA_REGISTER);
@@ -207,26 +417,10 @@ Test(ceda_fdc, readCommand) {
     // Stop the reading
     fdc_tc_out(0, 0);
 
-    // Execution is finished, but still busy waiting for read of results
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_CB);
+    receiveBuffer(result, sizeof(result));
 
-    result[0] = fdc_in(FDC_ADDR_DATA_REGISTER);
-    result[1] = fdc_in(FDC_ADDR_DATA_REGISTER);
-    result[2] = fdc_in(FDC_ADDR_DATA_REGISTER);
-    result[3] = fdc_in(FDC_ADDR_DATA_REGISTER);
-    result[4] = fdc_in(FDC_ADDR_DATA_REGISTER);
-    result[5] = fdc_in(FDC_ADDR_DATA_REGISTER);
-    result[6] = fdc_in(FDC_ADDR_DATA_REGISTER);
+    cr_assert_arr_eq(result, param->result, sizeof(result));
 
     // Execution is finished
     assert_fdc_sr(FDC_ST_RQM);
-
-    // check the content of result
-    cr_expect_eq(result[0], FDC_ST0_HD | 2);
-    cr_expect_eq(result[1], 0);
-    cr_expect_eq(result[2], 0);
-    cr_expect_eq(result[3], 7);
-    cr_expect_eq(result[4], 1);
-    cr_expect_eq(result[5], 6);
-    cr_expect_eq(result[6], 1);
 }
