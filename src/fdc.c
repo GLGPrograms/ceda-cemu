@@ -139,6 +139,22 @@ static const fdc_operation_t fdc_operations[] = {
         .post_exec = post_exec_sense_interrupt,
     },
     {
+        .cmd = FDC_WRITE_DELETED_DATA,
+        .args_len = 8,
+        .result_len = 7,
+        .pre_exec = pre_exec_write_data,
+        .exec = exec_write_data,
+        .post_exec = post_exec_write_data,
+    },
+    {
+        .cmd = FDC_READ_DELETED_DATA,
+        .args_len = 8,
+        .result_len = 7,
+        .pre_exec = pre_exec_read_data,
+        .exec = exec_read_data,
+        .post_exec = post_exec_read_data,
+    },
+    {
         .cmd = FDC_FORMAT_TRACK,
         .args_len = 5,
         .result_len = 7,
