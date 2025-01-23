@@ -261,10 +261,15 @@ static uint8_t exec_write_data(uint8_t value) {
     // Last sector of the track
     if (rw_args->record > rw_args->eot) {
         // Multi track mode, if enabled the read operation go on on the next
-        // side of the same track
+        // side
         if (command_args & FDC_CMD_ARGS_MT_bm) {
             rw_args->head_address = !rw_args->head_address;
             rw_args->head = !rw_args->head;
+
+            if (!rw_args->head_address)
+                rw_args->cylinder++;
+        } else {
+            rw_args->cylinder++;
         }
 
         // In any case, reached the end of track we start back from sector 1
@@ -336,10 +341,15 @@ static uint8_t exec_read_data(uint8_t value) {
     // Last sector of the track
     if (rw_args->record > rw_args->eot) {
         // Multi track mode, if enabled the read operation go on on the next
-        // side of the same track
+        // side
         if (command_args & FDC_CMD_ARGS_MT_bm) {
             rw_args->head_address = !rw_args->head_address;
             rw_args->head = !rw_args->head;
+
+            if (!rw_args->head_address)
+                rw_args->cylinder++;
+        } else {
+            rw_args->cylinder++;
         }
 
         // In any case, reached the end of track we start back from sector 1
