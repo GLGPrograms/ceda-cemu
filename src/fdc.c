@@ -76,6 +76,7 @@ typedef struct rw_args_t {
 } rw_args_t;
 
 /* Command callbacks prototypes */
+static void pre_exec_read_track(void);
 static void pre_exec_specify(void);
 static void pre_exec_write_data(void);
 static uint8_t exec_write_data(uint8_t value);
@@ -98,6 +99,14 @@ static void buffer_write_size(void);
 /* Local variables */
 // The command descriptors
 static const fdc_operation_t fdc_operations[] = {
+    {
+        .cmd = FDC_READ_TRACK,
+        .args_len = 8,
+        .result_len = 7,
+        .pre_exec = pre_exec_read_track,
+        .exec = exec_read_data,           // same as read data
+        .post_exec = post_exec_read_data, // same as read data
+    },
     {
         .cmd = FDC_SPECIFY,
         .args_len = 2,
@@ -205,6 +214,18 @@ static fdc_read_write_t read_buffer_cb = NULL;
 static fdc_read_write_t write_buffer_cb = NULL;
 
 /* * * * * * * * * * * * * * *  Command routines  * * * * * * * * * * * * * * */
+
+static void pre_exec_read_track(void) {
+    // TODO(giuliof): if I have understood correctly, this is just a read
+    // command that ignores the record. I can just force it to 1 (first) and go
+    // on as in read data.
+    args[3] = 1;
+    pre_exec_read_data();
+
+    // TODO(giuliof): another small differences, to be checked, are that this
+    // command doesn't stop if an error occurs, but stops once reached record =
+    // EOT.
+}
 
 // Specify:
 // Just print the register values, since the emulator does not care
