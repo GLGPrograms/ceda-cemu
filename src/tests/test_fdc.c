@@ -10,6 +10,9 @@ static void assert_fdc_sr(uint8_t expected_sr);
 static int fake_read(uint8_t *buffer, uint8_t unit_number, bool phy_head,
                      uint8_t phy_track, bool head, uint8_t track,
                      uint8_t sector);
+static int fake_write(uint8_t *buffer, uint8_t unit_number, bool phy_head,
+                      uint8_t phy_track, bool head, uint8_t track,
+                      uint8_t sector);
 
 /**
  * @brief Helper function to check the current status of the FDC main status
@@ -188,197 +191,197 @@ struct rw_test_params_t {
     uint8_t result[7];
 };
 
-ParameterizedTestParameters(ceda_fdc, readCommand0) {
-    static struct rw_test_params_t params[] = {
+static struct rw_test_params_t rwparams[] = {
+    {
+        // No MT, end record < EOT, physical head 0
+        0, // No alteration
         {
-            // No MT, end record < EOT, physical head 0
-            0, // No alteration
-            {
-                0,  // drive number
-                7,  // cylinder
-                0,  // head
-                5,  // record
-                1,  // N - bytes per sector size factor
-                10, // EOT (end of track)
-                0,  // GPL (ignored)
-                0,  // DTL (ignored)
-            },
-            {
-                0, // Drive number, no error
-                0, // no error
-                0, // no error
-                7, // cylinder
-                0, // head
-                7, // record
-                1, // N
-            },
+            0,  // drive number
+            7,  // cylinder
+            0,  // head
+            5,  // record
+            1,  // N - bytes per sector size factor
+            10, // EOT (end of track)
+            0,  // GPL (ignored)
+            0,  // DTL (ignored)
         },
         {
-            // No MT, end record = EOT, physical head 0
-            0,
-            {
-                1,  // drive number
-                7,  // cylinder
-                1,  // head - different from physical head just for fun
-                9,  // record
-                1,  // N - bytes per sector size factor
-                10, // EOT (end of track)
-                0,  // GPL
-                0,  // DTL
-            },
-            {
-                1, // drive number, no error
-                0, // no error
-                0, // no error
-                8, // cylinder
-                1, // head
-                1, // record
-                1, // N
-            },
+            0, // Drive number, no error
+            0, // no error
+            0, // no error
+            7, // cylinder
+            0, // head
+            7, // record
+            1, // N
+        },
+    },
+    {
+        // No MT, end record = EOT, physical head 0
+        0,
+        {
+            1,  // drive number
+            7,  // cylinder
+            1,  // head - different from physical head just for fun
+            9,  // record
+            1,  // N - bytes per sector size factor
+            10, // EOT (end of track)
+            0,  // GPL
+            0,  // DTL
         },
         {
-            // No MT, end record < EOT, physical head 1
-            0,
-            {
-                FDC_ST0_HD | 2, // Drive number, physical head 1
-                7,              // cylinder
-                0,  // head - different from physical head just for fun
-                5,  // record
-                1,  // N - bytes per sector size factor
-                10, // EOT (end of track)
-                0,  // GPL
-                0,  // DTL
-            },
-            {
-                FDC_ST0_HD | 2, // drive number, physical head 1, no error
-                0,              // no error
-                0,              // no error
-                7,              // cylinder
-                0,              // head
-                7,              // record
-                1,              // N
-            },
+            1, // drive number, no error
+            0, // no error
+            0, // no error
+            8, // cylinder
+            1, // head
+            1, // record
+            1, // N
+        },
+    },
+    {
+        // No MT, end record < EOT, physical head 1
+        0,
+        {
+            FDC_ST0_HD | 2, // Drive number, physical head 1
+            7,              // cylinder
+            0,              // head - different from physical head just for fun
+            5,              // record
+            1,              // N - bytes per sector size factor
+            10,             // EOT (end of track)
+            0,              // GPL
+            0,              // DTL
         },
         {
-            // No MT, end record = EOT, physical head 1
-            0,
-            {
-                FDC_ST0_HD | 3, // Drive number, physical head 1
-                7,              // cylinder
-                1,              // head
-                9,              // record
-                1,              // N - bytes per sector size factor
-                10,             // EOT (end of track)
-                0,              // GPL
-                0,              // DTL
-            },
-            {
-                FDC_ST0_HD | 3, // drive number, physical head 1, no error
-                0,              // no error
-                0,              // no error
-                8,              // cylinder
-                1,              // head
-                1,              // record
-                1,              // N
-            },
+            FDC_ST0_HD | 2, // drive number, physical head 1, no error
+            0,              // no error
+            0,              // no error
+            7,              // cylinder
+            0,              // head
+            7,              // record
+            1,              // N
         },
-        /* * * * * * */
+    },
+    {
+        // No MT, end record = EOT, physical head 1
+        0,
         {
-            // MT (multi-track), end record < EOT, physical head 0
-            FDC_CMD_ARGS_MT_bm,
-            {
-                3,  // Drive number
-                7,  // cylinder
-                0,  // head
-                5,  // record
-                1,  // N - bytes per sector size factor
-                10, // EOT (end of track)
-                0,  // GPL
-                0,  // DTL
-            },
-            {
-                3, // drive number, physical head 0, no error
-                0, // no error
-                0, // no error
-                7, // cylinder
-                0, // head
-                7, // record
-                1, // N
-            },
+            FDC_ST0_HD | 3, // Drive number, physical head 1
+            7,              // cylinder
+            1,              // head
+            9,              // record
+            1,              // N - bytes per sector size factor
+            10,             // EOT (end of track)
+            0,              // GPL
+            0,              // DTL
         },
         {
-            // MT (multi-track), end record = EOT, physical head 0
-            FDC_CMD_ARGS_MT_bm,
-            {
-                2,  // Drive number
-                7,  // cylinder
-                1,  // head - different from physical head just for fun
-                9,  // record
-                1,  // N - bytes per sector size factor
-                10, // EOT (end of track)
-                0,  // GPL
-                0,  // DTL
-            },
-            {
-                FDC_ST0_HD | 2, // drive number, physical head 1, no error
-                0,              // no error
-                0,              // no error
-                7,              // cylinder
-                0,              // head
-                1,              // record
-                1,              // N
-            },
+            FDC_ST0_HD | 3, // drive number, physical head 1, no error
+            0,              // no error
+            0,              // no error
+            8,              // cylinder
+            1,              // head
+            1,              // record
+            1,              // N
+        },
+    },
+    /* * * * * * */
+    {
+        // MT (multi-track), end record < EOT, physical head 0
+        FDC_CMD_ARGS_MT_bm,
+        {
+            3,  // Drive number
+            7,  // cylinder
+            0,  // head
+            5,  // record
+            1,  // N - bytes per sector size factor
+            10, // EOT (end of track)
+            0,  // GPL
+            0,  // DTL
         },
         {
-            // MT (multi-track), end record < EOT, physical head 1
-            FDC_CMD_ARGS_MT_bm,
-            {
-                FDC_ST0_HD | 1, // Drive number, physical head 1
-                7,              // cylinder
-                0,              // head
-                5,              // record
-                1,              // N - bytes per sector size factor
-                10,             // EOT (end of track)
-                0,              // GPL
-                0,              // DTL
-            },
-            {
-                FDC_ST0_HD | 1, // drive number, physical head 1, no error
-                0,              // no error
-                0,              // no error
-                7,              // cylinder
-                0,              // head
-                7,              // record
-                1,              // N
-            },
+            3, // drive number, physical head 0, no error
+            0, // no error
+            0, // no error
+            7, // cylinder
+            0, // head
+            7, // record
+            1, // N
+        },
+    },
+    {
+        // MT (multi-track), end record = EOT, physical head 0
+        FDC_CMD_ARGS_MT_bm,
+        {
+            2,  // Drive number
+            7,  // cylinder
+            1,  // head - different from physical head just for fun
+            9,  // record
+            1,  // N - bytes per sector size factor
+            10, // EOT (end of track)
+            0,  // GPL
+            0,  // DTL
         },
         {
-            // MT (multi-track), end record = EOT, physical head 1
-            FDC_CMD_ARGS_MT_bm,
-            {
-                FDC_ST0_HD | 0, // Drive number, physical head 1
-                7,              // cylinder
-                0,  // head - different from physical head just for fun
-                9,  // record
-                1,  // N - bytes per sector size factor
-                10, // EOT (end of track)
-                0,  // GPL
-                0,  // DTL
-            },
-            {
-                0, // drive number, physical head 0, no error
-                0, // no error
-                0, // no error
-                8, // cylinder
-                1, // head
-                1, // record
-                1, // N
-            },
+            FDC_ST0_HD | 2, // drive number, physical head 1, no error
+            0,              // no error
+            0,              // no error
+            7,              // cylinder
+            0,              // head
+            1,              // record
+            1,              // N
         },
-    };
+    },
+    {
+        // MT (multi-track), end record < EOT, physical head 1
+        FDC_CMD_ARGS_MT_bm,
+        {
+            FDC_ST0_HD | 1, // Drive number, physical head 1
+            7,              // cylinder
+            0,              // head
+            5,              // record
+            1,              // N - bytes per sector size factor
+            10,             // EOT (end of track)
+            0,              // GPL
+            0,              // DTL
+        },
+        {
+            FDC_ST0_HD | 1, // drive number, physical head 1, no error
+            0,              // no error
+            0,              // no error
+            7,              // cylinder
+            0,              // head
+            7,              // record
+            1,              // N
+        },
+    },
+    {
+        // MT (multi-track), end record = EOT, physical head 1
+        FDC_CMD_ARGS_MT_bm,
+        {
+            FDC_ST0_HD | 0, // Drive number, physical head 1
+            7,              // cylinder
+            0,              // head - different from physical head just for fun
+            9,              // record
+            1,              // N - bytes per sector size factor
+            10,             // EOT (end of track)
+            0,              // GPL
+            0,              // DTL
+        },
+        {
+            0, // drive number, physical head 0, no error
+            0, // no error
+            0, // no error
+            8, // cylinder
+            1, // head
+            1, // record
+            1, // N
+        },
+    },
+};
 
-    size_t nb_params = sizeof(params) / sizeof(struct rw_test_params_t);
-    return cr_make_param_array(struct rw_test_params_t, params, nb_params);
+ParameterizedTestParameters(ceda_fdc, readCommand0) {
+    size_t nb_params = sizeof(rwparams) / sizeof(struct rw_test_params_t);
+    return cr_make_param_array(struct rw_test_params_t, rwparams, nb_params);
 }
 
 ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, readCommand0) {
@@ -415,6 +418,70 @@ ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, readCommand0) {
     assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_EXM | FDC_ST_CB);
 
     // Stop the reading
+    fdc_tc_out(0, 0);
+
+    receiveBuffer(result, sizeof(result));
+
+    cr_assert_arr_eq(result, param->result, sizeof(result));
+
+    // Execution is finished
+    assert_fdc_sr(FDC_ST_RQM);
+}
+
+static int fake_write(uint8_t *buffer, uint8_t unit_number, bool phy_head,
+                      uint8_t phy_track, bool head, uint8_t track,
+                      uint8_t sector) {
+    (void)buffer;
+    (void)unit_number;
+    (void)phy_head;
+    (void)phy_track;
+    (void)head;
+    (void)track;
+    (void)sector;
+
+    // In this case we force sector size to 4
+    return 4;
+}
+
+ParameterizedTestParameters(ceda_fdc, writeCommand0) {
+    size_t nb_params = sizeof(rwparams) / sizeof(struct rw_test_params_t);
+    return cr_make_param_array(struct rw_test_params_t, rwparams, nb_params);
+}
+
+ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, writeCommand0) {
+    uint8_t result[sizeof(param->result)];
+
+    fdc_init();
+
+    // Link a fake reading function
+    fdc_kickDiskImage(NULL, fake_write);
+
+    fdc_out(FDC_ADDR_DATA_REGISTER, FDC_WRITE_DATA | param->cmd_alteration);
+
+    // Send arguments checking for no error
+    sendBuffer(param->arguments, sizeof(param->arguments));
+
+    // FDC is in execution mode
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_EXM | FDC_ST_CB);
+
+    // FDC is ready to receive data
+    cr_assert_eq(fdc_getIntStatus(), true);
+
+    // Read two full sectors
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
+
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
+
+    // FDC is still in execution mode
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_EXM | FDC_ST_CB);
+
+    // Stop the writing
     fdc_tc_out(0, 0);
 
     receiveBuffer(result, sizeof(result));
