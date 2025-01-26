@@ -39,33 +39,9 @@ typedef struct fdc_operation_t {
     void (*post_exec)(void);
 } fdc_operation_t;
 
-// Main status register bitfield
-typedef union main_status_register_t {
-    uint8_t value;
-    struct {
-        // Drive x is in Seek mode
-        uint8_t fdd0_busy : 1;
-        uint8_t fdd1_busy : 1;
-        uint8_t fdd2_busy : 1;
-        uint8_t fdd3_busy : 1;
-        // Controller has already accepted a command
-        uint8_t fdc_busy : 1;
-        // Execution mode
-        uint8_t exm : 1;
-        // Data I/O, set if FDC is read from CPU, clear otherwise
-        uint8_t dio : 1;
-        // Request From Master, set if FDC is ready to receive or send data
-        uint8_t rqm : 1;
-        uint8_t : 0;
-    };
-} main_status_register_t;
-
 // Parsing structure for read and write arguments
-// TODO(giuliof): this is not portable
 typedef struct rw_args_t {
-    uint8_t unit_select : 2;
-    uint8_t head_address : 1;
-    uint8_t : 0;
+    uint8_t unit_head;
     uint8_t cylinder;
     uint8_t head;
     uint8_t record;
@@ -203,7 +179,7 @@ static bool is_ready = false;
 
 /* FDC internal registers */
 // Main Status Register
-static main_status_register_t status_register;
+static uint8_t status_register;
 
 /* Floppy disk status */
 // Current track position
@@ -254,13 +230,14 @@ static void pre_exec_write_data(void) {
     LOG_DEBUG("DTL: %d\n", args[7]);
 
     // Set DIO to read for Execution phase
-    status_register.dio = 0;
+    status_register &= (uint8_t)~FDC_ST_DIO;
 
     buffer_write_size();
 }
 
 static uint8_t exec_write_data(uint8_t value) {
     rw_args_t *rw_args = (rw_args_t *)args;
+    uint8_t drive = rw_args->unit_head & FDC_ST0_US;
 
     if (write_buffer_cb == NULL)
         return 0;
@@ -282,9 +259,9 @@ static uint8_t exec_write_data(uint8_t value) {
     CEDA_STRONG_ASSERT_TRUE(sector != 0);
     // But all other routines counts sectors from 0
     sector--;
-    int ret = write_buffer_cb(
-        exec_buffer, rw_args->unit_select, rw_args->head_address,
-        track[rw_args->unit_select], rw_args->head, rw_args->cylinder, sector);
+    int ret =
+        write_buffer_cb(exec_buffer, drive, rw_args->unit_head & FDC_ST0_HD,
+                        track[drive], rw_args->head, rw_args->cylinder, sector);
     // the image is always loaded and valid
     CEDA_STRONG_ASSERT_TRUE(ret > 0);
     // Buffer is statically allocated, be sure that the data can fit it
@@ -303,10 +280,10 @@ static uint8_t exec_write_data(uint8_t value) {
         // Multi track mode, if enabled the read operation go on on the next
         // side
         if (command_args & FDC_CMD_ARGS_MT_bm) {
-            rw_args->head_address = !rw_args->head_address;
+            rw_args->unit_head ^= FDC_ST0_HD;
             rw_args->head = !rw_args->head;
 
-            if (!rw_args->head_address) {
+            if (!(rw_args->unit_head & FDC_ST0_HD)) {
                 // Terminate execution if end of track is reached
                 tc_status = true;
                 rw_args->cylinder++;
@@ -327,6 +304,7 @@ static uint8_t exec_write_data(uint8_t value) {
 
 static void post_exec_write_data(void) {
     rw_args_t *rw_args = (rw_args_t *)args;
+    uint8_t drive = rw_args->unit_head & FDC_ST0_US;
 
     LOG_DEBUG("Write has ended\n");
 
@@ -335,8 +313,8 @@ static void post_exec_write_data(void) {
     // TODO(giuliof): populate result as in datasheet (see table 2)
     /* ST0 */
     // Current head position
-    result[0] |= rw_args->unit_select;
-    result[0] |= rw_args->head_address ? FDC_ST0_HD : 0;
+    result[0] |= drive;
+    result[0] |= rw_args->unit_head & FDC_ST0_HD ? FDC_ST0_HD : 0;
     /* ST1 */
     result[1] |= 0; // TODO(giuliof): populate this
     /* ST2 */
@@ -367,7 +345,7 @@ static void pre_exec_read_data(void) {
     LOG_DEBUG("DTL: %d\n", args[7]);
 
     // Set DIO to read for Execution phase
-    status_register.dio = 1;
+    status_register |= FDC_ST_DIO;
 
     // TODO(giuliof) create handles to manage more than one floppy image at a
     // time
@@ -407,10 +385,10 @@ static uint8_t exec_read_data(uint8_t value) {
         // Multi track mode, if enabled the read operation go on on the next
         // side
         if (command_args & FDC_CMD_ARGS_MT_bm) {
-            rw_args->head_address = !rw_args->head_address;
+            rw_args->unit_head ^= FDC_ST0_HD;
             rw_args->head = !rw_args->head;
 
-            if (!rw_args->head_address) {
+            if (!(rw_args->unit_head & FDC_ST0_HD)) {
                 // Terminate execution if end of track is reached
                 tc_status = true;
                 rw_args->cylinder++;
@@ -431,6 +409,7 @@ static uint8_t exec_read_data(uint8_t value) {
 
 static void post_exec_read_data(void) {
     rw_args_t *rw_args = (rw_args_t *)args;
+    uint8_t drive = rw_args->unit_head & FDC_ST0_US;
 
     LOG_DEBUG("Read has ended\n");
 
@@ -439,8 +418,8 @@ static void post_exec_read_data(void) {
     // TODO(giuliof): populate result as in datasheet (see table 2)
     /* ST0 */
     // Current head position
-    result[0] |= rw_args->unit_select;
-    result[0] |= rw_args->head_address ? FDC_ST0_HD : 0;
+    result[0] |= drive;
+    result[0] |= rw_args->unit_head & FDC_ST0_HD ? FDC_ST0_HD : 0;
     /* ST1 */
     result[1] |= 0; // TODO(giuliof): populate this
     /* ST2 */
@@ -526,7 +505,7 @@ static void fdc_compute_next_status(void) {
 
     if (fdc_status == CMD) {
         // Set DIO to write for ARGS phase
-        status_register.dio = 0;
+        status_register &= (uint8_t)~FDC_ST_DIO;
 
         fdc_status = ARGS;
         rwcount_max = fdc_currop->args_len;
@@ -546,7 +525,7 @@ static void fdc_compute_next_status(void) {
     if (fdc_status == EXEC && (tc_status || fdc_currop->exec == NULL)) {
         tc_status = false;
         // Set DIO to read for RESULT phase
-        status_register.dio = 1;
+        status_register |= FDC_ST_DIO;
 
         if (fdc_currop->post_exec)
             fdc_currop->post_exec();
@@ -558,7 +537,7 @@ static void fdc_compute_next_status(void) {
 
     if (fdc_status == RESULT && rwcount == rwcount_max) {
         // Set DIO to write for CMD and ARGS phases
-        status_register.dio = 0;
+        status_register &= (uint8_t)~FDC_ST_DIO;
 
         fdc_status = CMD;
         rwcount_max = 0;
@@ -566,12 +545,20 @@ static void fdc_compute_next_status(void) {
     }
 
     // Update step dependant bits in main status register
-    status_register.exm = fdc_status == EXEC;
-    status_register.fdc_busy = fdc_status != CMD;
+    if (fdc_status == EXEC)
+        status_register |= FDC_ST_EXM;
+    else
+        status_register &= (uint8_t)~FDC_ST_EXM;
+
+    if (fdc_status != CMD)
+        status_register |= FDC_ST_CB;
+    else
+        status_register &= (uint8_t)~FDC_ST_CB;
 }
 
 static void buffer_update(void) {
     rw_args_t *rw_args = (rw_args_t *)args;
+    uint8_t drive = rw_args->unit_head & FDC_ST0_US;
 
     uint8_t sector = rw_args->record;
 
@@ -589,9 +576,9 @@ static void buffer_update(void) {
         return;
 
     // TODO(giuliof): add proper error code, zero is no mounted image
-    int ret = read_buffer_cb(NULL, rw_args->unit_select, rw_args->head_address,
-                             track[rw_args->unit_select], rw_args->head,
-                             rw_args->cylinder, sector);
+    int ret =
+        read_buffer_cb(NULL, drive, rw_args->unit_head & FDC_ST0_HD,
+                       track[drive], rw_args->head, rw_args->cylinder, sector);
 
     if (ret != 0) {
         // TODO(giuliof): At the moment we do not support error codes, we assume
@@ -600,8 +587,8 @@ static void buffer_update(void) {
         // Buffer is statically allocated, be sure that the data can fit it
         CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
 
-        ret = read_buffer_cb(exec_buffer, rw_args->unit_select,
-                             rw_args->head_address, track[rw_args->unit_select],
+        ret = read_buffer_cb(exec_buffer, drive,
+                             rw_args->unit_head & FDC_ST0_HD, track[drive],
                              rw_args->head, rw_args->cylinder, sector);
         // TODO(giuliof): At the moment we do not support error codes, we assume
         // the image is always loaded and valid
@@ -618,6 +605,7 @@ static void buffer_update(void) {
 
 static void buffer_write_size(void) {
     rw_args_t *rw_args = (rw_args_t *)args;
+    uint8_t drive = rw_args->unit_head & FDC_ST0_US;
 
     uint8_t sector = rw_args->record;
 
@@ -634,9 +622,9 @@ static void buffer_write_size(void) {
     if (write_buffer_cb == NULL)
         return;
 
-    int ret = write_buffer_cb(NULL, rw_args->unit_select, rw_args->head_address,
-                              track[rw_args->unit_select], rw_args->head,
-                              rw_args->cylinder, sector);
+    int ret =
+        write_buffer_cb(NULL, drive, rw_args->unit_head & FDC_ST0_HD,
+                        track[drive], rw_args->head, rw_args->cylinder, sector);
 
     // TODO(giuliof): At the moment we do not support error codes, we assume the
     // image is always loaded and valid
@@ -665,8 +653,7 @@ void fdc_init(void) {
 
     // Reset main status register, but keep RQM active since FDC is always ready
     // to receive requests
-    status_register.value = 0x00;
-    status_register.rqm = 1;
+    status_register = FDC_ST_RQM;
 
     // Reset track positions
     memset(track, 0, sizeof(track));
@@ -679,7 +666,7 @@ void fdc_init(void) {
 uint8_t fdc_in(ceda_ioaddr_t address) {
     switch (address & 0x01) {
     case FDC_ADDR_STATUS_REGISTER:
-        return status_register.value;
+        return status_register;
     case FDC_ADDR_DATA_REGISTER: {
         uint8_t value = 0;
 
