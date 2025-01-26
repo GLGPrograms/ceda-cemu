@@ -297,20 +297,27 @@ static uint8_t exec_write_data(uint8_t value) {
 
     // Last sector of the track
     if (rw_args->record > rw_args->eot) {
+        // In any case, reached the end of track we start back from sector 1
+        rw_args->record = 1;
+
         // Multi track mode, if enabled the read operation go on on the next
         // side
         if (command_args & FDC_CMD_ARGS_MT_bm) {
             rw_args->head_address = !rw_args->head_address;
             rw_args->head = !rw_args->head;
 
-            if (!rw_args->head_address)
+            if (!rw_args->head_address) {
+                // Terminate execution if end of track is reached
+                tc_status = true;
                 rw_args->cylinder++;
+                return 0;
+            }
         } else {
+            // Terminate execution if end of track is reached
+            tc_status = true;
             rw_args->cylinder++;
+            return 0;
         }
-
-        // In any case, reached the end of track we start back from sector 1
-        rw_args->record = 1;
     }
 
     buffer_write_size();
@@ -394,20 +401,27 @@ static uint8_t exec_read_data(uint8_t value) {
 
     // Last sector of the track
     if (rw_args->record > rw_args->eot) {
+        // In any case, reached the end of track we start back from sector 1
+        rw_args->record = 1;
+
         // Multi track mode, if enabled the read operation go on on the next
         // side
         if (command_args & FDC_CMD_ARGS_MT_bm) {
             rw_args->head_address = !rw_args->head_address;
             rw_args->head = !rw_args->head;
 
-            if (!rw_args->head_address)
+            if (!rw_args->head_address) {
+                // Terminate execution if end of track is reached
+                tc_status = true;
                 rw_args->cylinder++;
+                return 0;
+            }
         } else {
+            // Terminate execution if end of track is reached
+            tc_status = true;
             rw_args->cylinder++;
+            return 0;
         }
-
-        // In any case, reached the end of track we start back from sector 1
-        rw_args->record = 1;
     }
 
     buffer_update();
