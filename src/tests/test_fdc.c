@@ -187,6 +187,7 @@ Test(ceda_fdc, readCommandNoMedium) {
 
 struct rw_test_params_t {
     uint8_t cmd_alteration;
+    bool tc_required;
     uint8_t arguments[8];
     uint8_t result[7];
 };
@@ -194,7 +195,8 @@ struct rw_test_params_t {
 static struct rw_test_params_t rwparams[] = {
     {
         // No MT, end record < EOT, physical head 0
-        0, // No alteration
+        0,    // No alteration
+        true, // Terminal count required
         {
             0,  // drive number
             7,  // cylinder
@@ -218,6 +220,7 @@ static struct rw_test_params_t rwparams[] = {
     {
         // No MT, end record = EOT, physical head 0
         0,
+        false, // Terminal count not required
         {
             1,  // drive number
             7,  // cylinder
@@ -241,6 +244,7 @@ static struct rw_test_params_t rwparams[] = {
     {
         // No MT, end record < EOT, physical head 1
         0,
+        true, // Terminal count required
         {
             FDC_ST0_HD | 2, // Drive number, physical head 1
             7,              // cylinder
@@ -264,6 +268,7 @@ static struct rw_test_params_t rwparams[] = {
     {
         // No MT, end record = EOT, physical head 1
         0,
+        false, // Terminal count not required
         {
             FDC_ST0_HD | 3, // Drive number, physical head 1
             7,              // cylinder
@@ -288,6 +293,7 @@ static struct rw_test_params_t rwparams[] = {
     {
         // MT (multi-track), end record < EOT, physical head 0
         FDC_CMD_ARGS_MT_bm,
+        true, // Terminal count required
         {
             3,  // Drive number
             7,  // cylinder
@@ -311,6 +317,7 @@ static struct rw_test_params_t rwparams[] = {
     {
         // MT (multi-track), end record = EOT, physical head 0
         FDC_CMD_ARGS_MT_bm,
+        true, // Terminal count required
         {
             2,  // Drive number
             7,  // cylinder
@@ -334,6 +341,7 @@ static struct rw_test_params_t rwparams[] = {
     {
         // MT (multi-track), end record < EOT, physical head 1
         FDC_CMD_ARGS_MT_bm,
+        true, // Terminal count required
         {
             FDC_ST0_HD | 1, // Drive number, physical head 1
             7,              // cylinder
@@ -357,6 +365,7 @@ static struct rw_test_params_t rwparams[] = {
     {
         // MT (multi-track), end record = EOT, physical head 1
         FDC_CMD_ARGS_MT_bm,
+        false, // Terminal count not required
         {
             FDC_ST0_HD | 0, // Drive number, physical head 1
             7,              // cylinder
@@ -414,12 +423,13 @@ ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, readCommand0) {
     fdc_in(FDC_ADDR_DATA_REGISTER);
     fdc_in(FDC_ADDR_DATA_REGISTER);
 
-    // FDC is still in execution mode
-    // TODO(giuliof): This is not always true
-    // assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_EXM | FDC_ST_CB);
-
-    // Stop the reading
-    fdc_tc_out(0, 0);
+    // Stop the reading, if needed
+    if (param->tc_required) {
+        // FDC is still in execution mode
+        assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_EXM | FDC_ST_CB);
+        // Request execution termination
+        fdc_tc_out(0, 0);
+    }
 
     receiveBuffer(result, sizeof(result));
 
@@ -479,12 +489,13 @@ ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, writeCommand0) {
     fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
     fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
 
-    // FDC is still in execution mode
-    // TODO(giuliof): This is not always true
-    // assert_fdc_sr(FDC_ST_RQM | FDC_ST_EXM | FDC_ST_CB);
-
-    // Stop the writing
-    fdc_tc_out(0, 0);
+    // Stop the reading, if needed
+    if (param->tc_required) {
+        // FDC is still in execution mode
+        assert_fdc_sr(FDC_ST_RQM | FDC_ST_EXM | FDC_ST_CB);
+        // Request execution termination
+        fdc_tc_out(0, 0);
+    }
 
     receiveBuffer(result, sizeof(result));
 
