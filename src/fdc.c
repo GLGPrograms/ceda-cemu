@@ -788,12 +788,18 @@ void fdc_out(ceda_ioaddr_t address, uint8_t value) {
             command_args = value & FDC_CMD_ARGS_bm;
 
             // Unroll the command list and place it in the current execution
+            // But ignore command if in interrupt status (after seek or
+            // recalibrate) and next command is not sense interrupt.
+            // In this case, the command is treated as invalid.
             fdc_currop = NULL;
-            for (size_t i = 0;
-                 i < sizeof(fdc_operations) / sizeof(*fdc_operations); i++) {
-                if (cmd == fdc_operations[i].cmd) {
-                    fdc_currop = &fdc_operations[i];
-                    break;
+            if (!(is_ready && cmd != FDC_SENSE_INTERRUPT)) {
+                for (size_t i = 0;
+                     i < sizeof(fdc_operations) / sizeof(*fdc_operations);
+                     i++) {
+                    if (cmd == fdc_operations[i].cmd) {
+                        fdc_currop = &fdc_operations[i];
+                        break;
+                    }
                 }
             }
             if (fdc_currop == NULL) {
