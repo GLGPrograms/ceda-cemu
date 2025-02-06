@@ -51,6 +51,15 @@ typedef struct rw_args_t {
     uint8_t stp;
 } rw_args_t;
 
+// Parsing structure for format arguments
+typedef struct format_args_t {
+    uint8_t unit_head;
+    uint8_t n;             // bytes per sector factor
+    uint8_t sec_per_track; // number of sectors per track
+    uint8_t gpl;           // gap length
+    uint8_t d;             // filler byte
+} format_args_t;
+
 /* Command callbacks prototypes */
 static void pre_exec_read_track(void);
 static void pre_exec_specify(void);
@@ -468,15 +477,82 @@ static void post_exec_sense_interrupt(void) {
 
 // Format track
 static void pre_exec_format_track(void) {
+    format_args_t *format_args = (format_args_t *)args;
+
+    // Extract plain data from the bitfield
+    uint8_t phy_head = !!(format_args->unit_head & FDC_ST0_HD);
+    uint8_t drive = format_args->unit_head & FDC_ST0_US;
+
+    // TODO(giuliof): eventually: use the appropriate structure
     LOG_DEBUG("FDC Format track\n");
+    LOG_DEBUG("MF: %d\n", (command_args >> 6) & 0x01);
+    LOG_DEBUG("Drive: %d\n", args[0] & 0x3);
+    LOG_DEBUG("HD: %d\n", (args[0] >> 2) & 0x1);
+    LOG_DEBUG("N: %d\n", args[1]);
+    LOG_DEBUG("SPT: %d\n", args[2]);
+    LOG_DEBUG("GPL: %d\n", args[3]);
+    LOG_DEBUG("D: %d\n", args[4]);
+
+    // Initialize execution phase counter.
+    // The FORMAT command requires the filling of a buffer of "ID fields", one
+    // for each sector within the same track. Each "ID field" is 4 bytes long.
+    // The number of sectors per track is specified by the command itself (SPT
+    // argument).
+    rwcount = 0;
+    rwcount_max = (size_t)(format_args->sec_per_track * 4);
+    assert(rwcount_max <= sizeof(exec_buffer));
+
+    // check if the medium is present, else no irq is generated
+    if (write_buffer_cb == NULL)
+        return;
+
+    // Check if medium is valid by poking sector 0 of the desired track
+    // TODO(giuliof): add proper error code, zero is no mounted image
+    int ret = write_buffer_cb(NULL, drive, phy_head, track[drive], phy_head,
+                              track[drive], 0);
+
+    if (ret <= 0)
+        return;
+
+    is_ready = true;
 }
 
 static uint8_t exec_format_track(uint8_t value) {
-    return value;
+    exec_buffer[rwcount++] = value;
+
+    return 0;
 }
 
 static void post_exec_format_track(void) {
+    format_args_t *format_args = (format_args_t *)args;
+
+    // Extract plain data from the bitfield
+    uint8_t phy_head = !!(format_args->unit_head & FDC_ST0_HD);
+    uint8_t drive = format_args->unit_head & FDC_ST0_US;
+
+    // At the moment the track format is just a writing over all "pre-formatted"
+    // sectors. An arbitrary format is currently not supported.
+    for (size_t s = 0; s < format_args->sec_per_track; s++) {
+        uint8_t *id_field = exec_buffer + (4 * s);
+        uint8_t cylinder = id_field[0];
+        uint8_t head = id_field[1];
+        uint8_t record = id_field[2] - 1;
+
+        int ret = write_buffer_cb(NULL, drive, phy_head, track[drive], head,
+                                  cylinder, record);
+        CEDA_STRONG_ASSERT_TRUE(ret > 0);
+
+        uint8_t format_buffer[ret];
+        memset(format_buffer, format_args->d, (size_t)ret);
+
+        ret = write_buffer_cb(format_buffer, drive, phy_head, track[drive],
+                              head, cylinder, record);
+        CEDA_STRONG_ASSERT_TRUE(ret > 0);
+    }
+
     LOG_DEBUG("FDC end Format track\n");
+
+    memset(result, 0, sizeof(result));
 }
 
 // Seek

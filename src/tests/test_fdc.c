@@ -504,3 +504,53 @@ ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, writeCommand0) {
     // Execution is finished
     assert_fdc_sr(FDC_ST_RQM);
 }
+
+Test(ceda_fdc, formatCommand) {
+    uint8_t result[7];
+    uint8_t arguments[] = {
+        0x01 | FDC_ST0_HD,
+        0x01,
+        0x02, // two sectors per track
+        0x00, // gap (we don't care)
+        0x35, // fill byte
+    };
+
+    fdc_init();
+
+    // Link a fake reading function
+    fdc_kickDiskImage(NULL, fake_write);
+
+    fdc_out(FDC_ADDR_DATA_REGISTER, FDC_FORMAT_TRACK);
+
+    // Send arguments checking for no error
+    sendBuffer(arguments, sizeof(arguments));
+
+    // FDC is in execution mode
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_EXM | FDC_ST_CB);
+
+    // FDC is ready to receive data
+    cr_assert_eq(fdc_getIntStatus(), true);
+
+    // First sector ID
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x01);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x01);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x01);
+
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x01);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x02);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x01);
+
+    // FDC is still in execution mode
+    // TODO(giuliof): This is not always true
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_EXM | FDC_ST_CB);
+
+    // Stop the writing
+    fdc_tc_out(0, 0);
+
+    receiveBuffer(result, sizeof(result));
+
+    // Execution is finished
+    assert_fdc_sr(FDC_ST_RQM);
+}
