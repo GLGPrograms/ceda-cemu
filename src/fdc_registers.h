@@ -9,6 +9,7 @@
 // Don't ask me why they didn't use a single nibble to represent all the
 // commands. Please refer to the datasheet for more information.
 typedef enum fdc_cmd_t {
+    INVALID = 0x00,
     FDC_READ_TRACK = 0x02,
     FDC_SPECIFY = 0x03,
     FDC_SENSE_DRIVE = 0x04,
