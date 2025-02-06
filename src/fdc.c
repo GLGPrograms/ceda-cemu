@@ -184,7 +184,7 @@ static uint8_t exec_buffer[1024];
 // Result buffer. Each command has maximum 7 bytes as argument.
 static uint8_t result[7];
 static bool tc_status = false;
-static bool is_ready = false;
+static bool int_status = false;
 
 /* FDC internal registers */
 // Main Status Register
@@ -452,7 +452,7 @@ static void pre_exec_recalibrate(void) {
     track[drive] = 0;
 
     // We don't have to actually move the head. The drive is immediately ready
-    is_ready = true;
+    int_status = true;
 }
 
 // Sense interrupt:
@@ -461,7 +461,7 @@ static void post_exec_sense_interrupt(void) {
     uint8_t drive = 0;
 
     // After reading interrupt status, ready can be deasserted
-    is_ready = false;
+    int_status = false;
 
     LOG_DEBUG("FDC Sense Interrupt\n");
     /* Status Register 0 */
@@ -514,7 +514,7 @@ static void pre_exec_format_track(void) {
     if (ret <= 0)
         return;
 
-    is_ready = true;
+    int_status = true;
 }
 
 static uint8_t exec_format_track(uint8_t value) {
@@ -566,7 +566,7 @@ static void pre_exec_seek(void) {
     LOG_DEBUG("NCN: %d\n", track[drive]);
 
     // We don't have to actually move the head. The drive is immediately ready
-    is_ready = true;
+    int_status = true;
 }
 
 /* * * * * * * * * * * * * * *  Utility routines  * * * * * * * * * * * * * * */
@@ -639,7 +639,7 @@ static void buffer_update(void) {
     uint8_t sector = rw_args->record;
 
     // Default: no data ready to be served
-    is_ready = false;
+    int_status = false;
     rwcount_max = 0;
 
     // FDC counts sectors from 1
@@ -671,7 +671,7 @@ static void buffer_update(void) {
         CEDA_STRONG_ASSERT_TRUE(ret > 0);
 
         // Ready to serve data
-        is_ready = true;
+        int_status = true;
     }
 
     rwcount = 0;
@@ -686,7 +686,7 @@ static void buffer_write_size(void) {
     uint8_t sector = rw_args->record;
 
     // Default: no data ready to be served
-    is_ready = false;
+    int_status = false;
     rwcount_max = 0;
 
     // FDC counts sectors from 1
@@ -711,7 +711,7 @@ static void buffer_write_size(void) {
     rwcount = 0;
     // TODO(giuliof) rwcount_max = min(DTL, ret)
     rwcount_max = (size_t)ret;
-    is_ready = true;
+    int_status = true;
 }
 
 /* * * * * * * * * * * * * * *  Public routines   * * * * * * * * * * * * * * */
@@ -725,7 +725,7 @@ void fdc_init(void) {
     rwcount_max = 0;
     memset(result, 0, sizeof(result));
     tc_status = false;
-    is_ready = false;
+    int_status = false;
 
     // Reset main status register, but keep RQM active since FDC is always ready
     // to receive requests
@@ -792,7 +792,7 @@ void fdc_out(ceda_ioaddr_t address, uint8_t value) {
             // recalibrate) and next command is not sense interrupt.
             // In this case, the command is treated as invalid.
             fdc_currop = NULL;
-            if (!(is_ready && cmd != FDC_SENSE_INTERRUPT)) {
+            if (!(int_status && cmd != FDC_SENSE_INTERRUPT)) {
                 for (size_t i = 0;
                      i < sizeof(fdc_operations) / sizeof(*fdc_operations);
                      i++) {
@@ -848,7 +848,7 @@ void fdc_tc_out(ceda_ioaddr_t address, uint8_t value) {
 // (beginning of result phase). When first byte of result phase data
 // is read, INT=0.
 bool fdc_getIntStatus(void) {
-    return is_ready;
+    return int_status;
 }
 
 // TODO(giuliof): describe better this function
