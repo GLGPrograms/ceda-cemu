@@ -747,8 +747,10 @@ uint8_t fdc_in(ceda_ioaddr_t address) {
         uint8_t value = 0;
 
         if (fdc_status == CMD) {
-            // you should never read during command phase
-            LOG_WARN("FDC read access during CMD phase!\n");
+            // You should never read when in CMD status.
+            // Just reply with "invalid command" and restore data direction
+            value = 0x80;
+            status_register &= (uint8_t)~FDC_ST_DIO;
         } else if (fdc_status == ARGS) {
             // you should never read during command phase
             LOG_WARN("FDC read access during ARGS phase!\n");
@@ -794,8 +796,13 @@ void fdc_out(ceda_ioaddr_t address, uint8_t value) {
                     break;
                 }
             }
-            if (fdc_currop == NULL)
+            if (fdc_currop == NULL) {
                 LOG_WARN("Command %x is not implemented\n", cmd);
+
+                // Invalid command: set the main status register to read to
+                // serve ST0 and error code
+                status_register |= FDC_ST_DIO;
+            }
         } else if (fdc_status == ARGS) {
             assert(rwcount < sizeof(args) / sizeof(*args));
             args[rwcount] = value;

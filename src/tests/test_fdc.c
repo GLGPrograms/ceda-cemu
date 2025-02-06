@@ -554,3 +554,21 @@ Test(ceda_fdc, formatCommand) {
     // Execution is finished
     assert_fdc_sr(FDC_ST_RQM);
 }
+
+Test(ceda_fdc, invalidCommand) {
+    uint8_t st0;
+
+    fdc_init();
+
+    // Force an invalid command
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
+
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO);
+
+    st0 = fdc_in(FDC_ADDR_DATA_REGISTER);
+    cr_expect_eq(st0, 0x80);
+
+    // TODO(giuliof): this is actually unclear, the direction has to be set
+    // back? probably yes
+    assert_fdc_sr(FDC_ST_RQM);
+}
