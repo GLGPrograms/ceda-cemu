@@ -126,6 +126,33 @@ Test(ceda_fdc, seekCommand) {
     cr_expect_eq(data, 5);
 }
 
+Test(ceda_fdc, invalidSeekSequence) {
+    fdc_init();
+
+    uint8_t data;
+
+    fdc_out(FDC_ADDR_DATA_REGISTER, FDC_SEEK);
+
+    // Now read status register to check that FDC is ready to receive arguments
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_CB);
+
+    // First argument is number of drive
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
+    // Second argument is cylinder position
+    fdc_out(FDC_ADDR_DATA_REGISTER, 7);
+
+    // FDC is no more busy
+    assert_fdc_sr(FDC_ST_RQM);
+
+    // Send another command that is not FDC_SENSE_INTERRUPT
+    fdc_out(FDC_ADDR_DATA_REGISTER, FDC_SPECIFY);
+
+    // FDC does not process this command and asserts invalid command
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO);
+    data = fdc_in(FDC_ADDR_DATA_REGISTER);
+    cr_expect_eq(data, 0x80);
+}
+
 /**
  * @brief Auxiliary function, send a data buffer to the FDC checking that it is
  * in input mode for each byte
