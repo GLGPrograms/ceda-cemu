@@ -272,7 +272,7 @@ static uint8_t exec_write_data(uint8_t value) {
         write_buffer_cb(exec_buffer, drive, rw_args->unit_head & FDC_ST0_HD,
                         track[drive], rw_args->head, rw_args->cylinder, sector);
     // the image is always loaded and valid
-    CEDA_STRONG_ASSERT_TRUE(ret > 0);
+    CEDA_STRONG_ASSERT_TRUE(ret > DISK_IMAGE_NOMEDIUM);
     // Buffer is statically allocated, be sure that the data can fit it
     CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
 
@@ -511,7 +511,7 @@ static void pre_exec_format_track(void) {
     int ret = write_buffer_cb(NULL, drive, phy_head, track[drive], phy_head,
                               track[drive], 0);
 
-    if (ret <= 0)
+    if (ret <= DISK_IMAGE_NOMEDIUM)
         return;
 
     int_status = true;
@@ -540,14 +540,14 @@ static void post_exec_format_track(void) {
 
         int ret = write_buffer_cb(NULL, drive, phy_head, track[drive], head,
                                   cylinder, record);
-        CEDA_STRONG_ASSERT_TRUE(ret > 0);
+        CEDA_STRONG_ASSERT_TRUE(ret > DISK_IMAGE_NOMEDIUM);
 
         uint8_t format_buffer[ret];
         memset(format_buffer, format_args->d, (size_t)ret);
 
         ret = write_buffer_cb(format_buffer, drive, phy_head, track[drive],
                               head, cylinder, record);
-        CEDA_STRONG_ASSERT_TRUE(ret > 0);
+        CEDA_STRONG_ASSERT_TRUE(ret > DISK_IMAGE_NOMEDIUM);
     }
 
     LOG_DEBUG("FDC end Format track\n");
@@ -656,10 +656,10 @@ static void buffer_update(void) {
         read_buffer_cb(NULL, drive, rw_args->unit_head & FDC_ST0_HD,
                        track[drive], rw_args->head, rw_args->cylinder, sector);
 
-    if (ret != 0) {
+    if (ret != DISK_IMAGE_NOMEDIUM) {
         // TODO(giuliof): At the moment we do not support error codes, we assume
         // the image is always loaded and valid
-        CEDA_STRONG_ASSERT_TRUE(ret > 0);
+        CEDA_STRONG_ASSERT_TRUE(ret > DISK_IMAGE_NOMEDIUM);
         // Buffer is statically allocated, be sure that the data can fit it
         CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
 
@@ -668,7 +668,7 @@ static void buffer_update(void) {
                              rw_args->head, rw_args->cylinder, sector);
         // TODO(giuliof): At the moment we do not support error codes, we assume
         // the image is always loaded and valid
-        CEDA_STRONG_ASSERT_TRUE(ret > 0);
+        CEDA_STRONG_ASSERT_TRUE(ret > DISK_IMAGE_NOMEDIUM);
 
         // Ready to serve data
         int_status = true;
@@ -704,7 +704,7 @@ static void buffer_write_size(void) {
 
     // TODO(giuliof): At the moment we do not support error codes, we assume the
     // image is always loaded and valid
-    CEDA_STRONG_ASSERT_TRUE(ret > 0);
+    CEDA_STRONG_ASSERT_TRUE(ret > DISK_IMAGE_NOMEDIUM);
     // Buffer is statically allocated, be sure that the data can fit it
     CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
 
