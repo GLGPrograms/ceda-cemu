@@ -675,8 +675,10 @@ static void buffer_update(void) {
     }
 
     rwcount = 0;
-    // TODO(giuliof) rwcount_max = min(DTL, ret)
-    rwcount_max = (size_t)ret;
+    if (rw_args->n == 0)
+        rwcount_max = MIN((size_t)rw_args->stp, (size_t)ret);
+    else
+        rwcount_max = (size_t)ret;
 }
 
 static void buffer_write_size(void) {
@@ -709,8 +711,10 @@ static void buffer_write_size(void) {
     CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
 
     rwcount = 0;
-    // TODO(giuliof) rwcount_max = min(DTL, ret)
-    rwcount_max = (size_t)ret;
+    if (rw_args->n == 0)
+        rwcount_max = MIN((size_t)rw_args->stp, (size_t)ret);
+    else
+        rwcount_max = (size_t)ret;
     int_status = true;
 }
 

@@ -181,10 +181,10 @@ Test(ceda_fdc, readCommandNoMedium) {
         1, // cylinder
         0, // head
         1, // record
-        1, // N - bytes per sector size factor
+        0, // N - bytes per sector size factor
         5, // EOT (end of track)
         0, // GPL (ignored)
-        0, // DTL (ignored)
+        4, // DTL
     };
 
     fdc_init();
@@ -229,10 +229,10 @@ static struct rw_test_params_t rwparams[] = {
             7,  // cylinder
             0,  // head
             5,  // record
-            1,  // N - bytes per sector size factor
+            0,  // N - bytes per sector size factor
             10, // EOT (end of track)
             0,  // GPL (ignored)
-            0,  // DTL (ignored)
+            4,  // DTL
         },
         {
             0, // Drive number, no error
@@ -241,7 +241,7 @@ static struct rw_test_params_t rwparams[] = {
             7, // cylinder
             0, // head
             7, // record
-            1, // N
+            0, // N
         },
     },
     {
@@ -253,10 +253,10 @@ static struct rw_test_params_t rwparams[] = {
             7,  // cylinder
             1,  // head - different from physical head just for fun
             9,  // record
-            1,  // N - bytes per sector size factor
+            0,  // N - bytes per sector size factor
             10, // EOT (end of track)
             0,  // GPL
-            0,  // DTL
+            4,  // DTL
         },
         {
             1, // drive number, no error
@@ -265,7 +265,7 @@ static struct rw_test_params_t rwparams[] = {
             8, // cylinder
             1, // head
             1, // record
-            1, // N
+            0, // N
         },
     },
     {
@@ -277,10 +277,10 @@ static struct rw_test_params_t rwparams[] = {
             7,              // cylinder
             0,              // head - different from physical head just for fun
             5,              // record
-            1,              // N - bytes per sector size factor
+            0,              // N - bytes per sector size factor
             10,             // EOT (end of track)
             0,              // GPL
-            0,              // DTL
+            4,              // DTL
         },
         {
             FDC_ST0_HD | 2, // drive number, physical head 1, no error
@@ -289,7 +289,7 @@ static struct rw_test_params_t rwparams[] = {
             7,              // cylinder
             0,              // head
             7,              // record
-            1,              // N
+            0,              // N
         },
     },
     {
@@ -301,10 +301,10 @@ static struct rw_test_params_t rwparams[] = {
             7,              // cylinder
             1,              // head
             9,              // record
-            1,              // N - bytes per sector size factor
+            0,              // N - bytes per sector size factor
             10,             // EOT (end of track)
             0,              // GPL
-            0,              // DTL
+            4,              // DTL
         },
         {
             FDC_ST0_HD | 3, // drive number, physical head 1, no error
@@ -313,7 +313,7 @@ static struct rw_test_params_t rwparams[] = {
             8,              // cylinder
             1,              // head
             1,              // record
-            1,              // N
+            0,              // N
         },
     },
     /* * * * * * */
@@ -326,10 +326,10 @@ static struct rw_test_params_t rwparams[] = {
             7,  // cylinder
             0,  // head
             5,  // record
-            1,  // N - bytes per sector size factor
+            0,  // N - bytes per sector size factor
             10, // EOT (end of track)
             0,  // GPL
-            0,  // DTL
+            4,  // DTL
         },
         {
             3, // drive number, physical head 0, no error
@@ -338,7 +338,7 @@ static struct rw_test_params_t rwparams[] = {
             7, // cylinder
             0, // head
             7, // record
-            1, // N
+            0, // N
         },
     },
     {
@@ -350,10 +350,10 @@ static struct rw_test_params_t rwparams[] = {
             7,  // cylinder
             1,  // head - different from physical head just for fun
             9,  // record
-            1,  // N - bytes per sector size factor
+            0,  // N - bytes per sector size factor
             10, // EOT (end of track)
             0,  // GPL
-            0,  // DTL
+            4,  // DTL
         },
         {
             FDC_ST0_HD | 2, // drive number, physical head 1, no error
@@ -362,7 +362,7 @@ static struct rw_test_params_t rwparams[] = {
             7,              // cylinder
             0,              // head
             1,              // record
-            1,              // N
+            0,              // N
         },
     },
     {
@@ -374,10 +374,10 @@ static struct rw_test_params_t rwparams[] = {
             7,              // cylinder
             0,              // head
             5,              // record
-            1,              // N - bytes per sector size factor
+            0,              // N - bytes per sector size factor
             10,             // EOT (end of track)
             0,              // GPL
-            0,              // DTL
+            4,              // DTL
         },
         {
             FDC_ST0_HD | 1, // drive number, physical head 1, no error
@@ -386,7 +386,7 @@ static struct rw_test_params_t rwparams[] = {
             7,              // cylinder
             0,              // head
             7,              // record
-            1,              // N
+            0,              // N
         },
     },
     {
@@ -398,10 +398,10 @@ static struct rw_test_params_t rwparams[] = {
             7,              // cylinder
             0,              // head - different from physical head just for fun
             9,              // record
-            1,              // N - bytes per sector size factor
+            0,              // N - bytes per sector size factor
             10,             // EOT (end of track)
             0,              // GPL
-            0,              // DTL
+            4,              // DTL
         },
         {
             0, // drive number, physical head 0, no error
@@ -410,7 +410,7 @@ static struct rw_test_params_t rwparams[] = {
             8, // cylinder
             1, // head
             1, // record
-            1, // N
+            0, // N
         },
     },
 };
