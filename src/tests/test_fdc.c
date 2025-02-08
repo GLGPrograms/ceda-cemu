@@ -595,7 +595,6 @@ ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, writeCommand0) {
 }
 
 Test(ceda_fdc, formatCommand) {
-    uint8_t result[7];
     uint8_t arguments[] = {
         0x01 | FDC_ST0_HD,
         0x01,
@@ -603,6 +602,16 @@ Test(ceda_fdc, formatCommand) {
         0x00, // gap (we don't care)
         0x35, // fill byte
     };
+
+    const uint8_t expected_result[] = {
+        0x01 | FDC_ST0_HD, // Drive number
+        // 0x0,               // ST0
+        // 0x0,               // ST1
+        // 0x0,               // ST2
+        // CHR and N have no meaning here
+    };
+
+    uint8_t result[7];
 
     fdc_init();
 
@@ -639,6 +648,9 @@ Test(ceda_fdc, formatCommand) {
     fdc_tc_out(0, 0);
 
     receiveBuffer(result, sizeof(result));
+
+    // CHR and N are ignored!
+    cr_assert_arr_eq(result, expected_result, sizeof(expected_result));
 
     // Execution is finished
     assert_fdc_sr(FDC_ST_RQM);

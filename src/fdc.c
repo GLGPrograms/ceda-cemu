@@ -496,6 +496,12 @@ static void pre_exec_format_track(void) {
     LOG_DEBUG("GPL: %d\n", args[3]);
     LOG_DEBUG("D: %d\n", args[4]);
 
+    // Set deafult values of status registers
+    status_register[ST0] = format_args->unit_head;
+    status_register[ST1] = 0;
+    status_register[ST2] = 0;
+    status_register[ST3] = 0;
+
     // Initialize execution phase counter.
     // The FORMAT command requires the filling of a buffer of "ID fields", one
     // for each sector within the same track. Each "ID field" is 4 bytes long.
@@ -556,6 +562,12 @@ static void post_exec_format_track(void) {
     LOG_DEBUG("FDC end Format track\n");
 
     memset(result, 0, sizeof(result));
+
+    /* Status registers 0-2 */
+    result[0] |= status_register[ST0];
+    result[1] |= status_register[ST1];
+    result[2] |= status_register[ST2];
+    /* CHR and N have no meaning */
 }
 
 // Seek
