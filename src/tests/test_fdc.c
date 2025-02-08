@@ -41,6 +41,20 @@ static int fake_read(uint8_t *buffer, uint8_t unit_number, bool phy_head,
     return 4;
 }
 
+static int fake_wrong_rw(uint8_t *buffer, uint8_t unit_number, bool phy_head,
+                         uint8_t phy_track, bool head, uint8_t track,
+                         uint8_t sector) {
+    (void)buffer;
+    (void)unit_number;
+    (void)phy_head;
+    (void)phy_track;
+    (void)head;
+    (void)track;
+    (void)sector;
+
+    return DISK_IMAGE_ERR;
+}
+
 Test(ceda_fdc, mainStatusRegisterWhenIdle) {
     fdc_init();
 
@@ -203,6 +217,54 @@ Test(ceda_fdc, readCommandNoMedium) {
     fdc_kickDiskImage(fake_read, NULL);
     // ... now FDC is ready
     cr_assert_eq(fdc_getIntStatus(), true);
+}
+
+Test(ceda_fdc, readCommandInvalidParams) {
+    const uint8_t arguments[8] = {
+        0, // drive number
+        1, // cylinder
+        0, // head
+        1, // record
+        0, // N - bytes per sector size factor
+        5, // EOT (end of track)
+        0, // GPL (ignored)
+        4, // DTL
+    };
+
+    const uint8_t expected_result[7] = {
+        0x40, // Drive number, error code
+        0x20, // ST1
+        0x20, // ST2
+        1,    // cylinder
+        0,    // head
+        1,    // record
+        0,    // N
+    };
+
+    uint8_t result[sizeof(expected_result)];
+
+    fdc_init();
+
+    // Link a fake reading function
+    fdc_kickDiskImage(fake_wrong_rw, NULL);
+
+    fdc_out(FDC_ADDR_DATA_REGISTER, FDC_READ_DATA);
+
+    // Send arguments checking for no error
+    sendBuffer(arguments, sizeof(arguments));
+
+    // FDC generates an interrupt
+    cr_assert_eq(fdc_getIntStatus(), true);
+
+    // FDC is NOT in execution mode
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_CB);
+
+    receiveBuffer(result, sizeof(result));
+
+    cr_assert_arr_eq(result, expected_result, sizeof(result));
+
+    // Execution is finished
+    assert_fdc_sr(FDC_ST_RQM);
 }
 
 /**
