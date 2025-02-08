@@ -187,8 +187,9 @@ static bool tc_status = false;
 static bool int_status = false;
 
 /* FDC internal registers */
+enum { MSR, ST0, ST1, ST2, ST3, NUM_OF_SREG };
 // Main Status Register
-static uint8_t status_register;
+static uint8_t status_register[NUM_OF_SREG];
 
 /* Floppy disk status */
 // Current track position
@@ -239,7 +240,7 @@ static void pre_exec_write_data(void) {
     LOG_DEBUG("DTL: %d\n", args[7]);
 
     // Set DIO to read for Execution phase
-    status_register &= (uint8_t)~FDC_ST_DIO;
+    status_register[MSR] &= (uint8_t)~FDC_ST_DIO;
 
     buffer_write_size();
 }
@@ -354,7 +355,13 @@ static void pre_exec_read_data(void) {
     LOG_DEBUG("DTL: %d\n", args[7]);
 
     // Set DIO to read for Execution phase
-    status_register |= FDC_ST_DIO;
+    status_register[MSR] |= FDC_ST_DIO;
+    // Clear errors on other status registers
+    // TODO put this in a function
+    status_register[ST0] = 0;
+    status_register[ST1] = 0;
+    status_register[ST2] = 0;
+    status_register[ST3] = 0;
 
     // TODO(giuliof) create handles to manage more than one floppy image at a
     // time
@@ -401,12 +408,14 @@ static uint8_t exec_read_data(uint8_t value) {
                 // Terminate execution if end of track is reached
                 tc_status = true;
                 rw_args->cylinder++;
+                status_register[ST0] = rw_args->unit_head;
                 return 0;
             }
         } else {
             // Terminate execution if end of track is reached
             tc_status = true;
             rw_args->cylinder++;
+            status_register[ST0] = rw_args->unit_head;
             return 0;
         }
     }
@@ -418,21 +427,15 @@ static uint8_t exec_read_data(uint8_t value) {
 
 static void post_exec_read_data(void) {
     rw_args_t *rw_args = (rw_args_t *)args;
-    uint8_t drive = rw_args->unit_head & FDC_ST0_US;
 
     LOG_DEBUG("Read has ended\n");
 
     memset(result, 0x00, sizeof(result));
 
-    // TODO(giuliof): populate result as in datasheet (see table 2)
-    /* ST0 */
-    // Current head position
-    result[0] |= drive;
-    result[0] |= rw_args->unit_head & FDC_ST0_HD ? FDC_ST0_HD : 0;
-    /* ST1 */
-    result[1] |= 0; // TODO(giuliof): populate this
-    /* ST2 */
-    result[2] |= 0; // TODO(giuliof): populate this
+    /* Status registers 0-2 */
+    result[0] |= status_register[ST0];
+    result[1] |= status_register[ST1];
+    result[2] |= status_register[ST2];
     /* CHR */
     result[3] = rw_args->cylinder;
     result[4] = rw_args->head;
@@ -581,7 +584,7 @@ static void fdc_compute_next_status(void) {
 
     if (fdc_status == CMD) {
         // Set DIO to write for ARGS phase
-        status_register &= (uint8_t)~FDC_ST_DIO;
+        status_register[MSR] &= (uint8_t)~FDC_ST_DIO;
 
         fdc_status = ARGS;
         rwcount_max = fdc_currop->args_len;
@@ -601,7 +604,7 @@ static void fdc_compute_next_status(void) {
     if (fdc_status == EXEC && (tc_status || fdc_currop->exec == NULL)) {
         tc_status = false;
         // Set DIO to read for RESULT phase
-        status_register |= FDC_ST_DIO;
+        status_register[MSR] |= FDC_ST_DIO;
 
         if (fdc_currop->post_exec)
             fdc_currop->post_exec();
@@ -613,7 +616,7 @@ static void fdc_compute_next_status(void) {
 
     if (fdc_status == RESULT && rwcount == rwcount_max) {
         // Set DIO to write for CMD and ARGS phases
-        status_register &= (uint8_t)~FDC_ST_DIO;
+        status_register[MSR] &= (uint8_t)~FDC_ST_DIO;
 
         fdc_status = CMD;
         rwcount_max = 0;
@@ -622,14 +625,14 @@ static void fdc_compute_next_status(void) {
 
     // Update step dependant bits in main status register
     if (fdc_status == EXEC)
-        status_register |= FDC_ST_EXM;
+        status_register[MSR] |= FDC_ST_EXM;
     else
-        status_register &= (uint8_t)~FDC_ST_EXM;
+        status_register[MSR] &= (uint8_t)~FDC_ST_EXM;
 
     if (fdc_status != CMD)
-        status_register |= FDC_ST_CB;
+        status_register[MSR] |= FDC_ST_CB;
     else
-        status_register &= (uint8_t)~FDC_ST_CB;
+        status_register[MSR] &= (uint8_t)~FDC_ST_CB;
 }
 
 static void buffer_update(void) {
@@ -638,9 +641,11 @@ static void buffer_update(void) {
 
     uint8_t sector = rw_args->record;
 
-    // Default: no data ready to be served
+    // Default: no data ready to be served, no error
     int_status = false;
+    rwcount = 0;
     rwcount_max = 0;
+    status_register[ST0] = rw_args->unit_head;
 
     // FDC counts sectors from 1
     assert(sector != 0);
@@ -651,34 +656,46 @@ static void buffer_update(void) {
     if (read_buffer_cb == NULL)
         return;
 
-    // TODO(giuliof): add proper error code, zero is no mounted image
     int ret =
         read_buffer_cb(NULL, drive, rw_args->unit_head & FDC_ST0_HD,
                        track[drive], rw_args->head, rw_args->cylinder, sector);
 
-    if (ret != DISK_IMAGE_NOMEDIUM) {
-        // TODO(giuliof): At the moment we do not support error codes, we assume
-        // the image is always loaded and valid
-        CEDA_STRONG_ASSERT_TRUE(ret > DISK_IMAGE_NOMEDIUM);
+    if (ret > DISK_IMAGE_NOMEDIUM) {
         // Buffer is statically allocated, be sure that the data can fit it
         CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
 
         ret = read_buffer_cb(exec_buffer, drive,
                              rw_args->unit_head & FDC_ST0_HD, track[drive],
                              rw_args->head, rw_args->cylinder, sector);
-        // TODO(giuliof): At the moment we do not support error codes, we assume
-        // the image is always loaded and valid
-        CEDA_STRONG_ASSERT_TRUE(ret > DISK_IMAGE_NOMEDIUM);
-
-        // Ready to serve data
-        int_status = true;
     }
 
-    rwcount = 0;
-    if (rw_args->n == 0)
-        rwcount_max = MIN((size_t)rw_args->stp, (size_t)ret);
-    else
-        rwcount_max = (size_t)ret;
+    // No medium, FDC is in EXEC state until a disk is inserted, or manual
+    // termination
+    if (ret == DISK_IMAGE_NOMEDIUM)
+        return;
+
+    // generate interrupt since an event has occurred
+    int_status = true;
+
+    // Ready to serve data
+    if (ret > DISK_IMAGE_NOMEDIUM) {
+        if (rw_args->n == 0)
+            rwcount_max = MIN((size_t)rw_args->stp, (size_t)ret);
+        else
+            rwcount_max = (size_t)ret;
+    }
+    // Error condition
+    // TODO(giuliof): errors may be differentiated, but for the moment cath all
+    // as a generic error
+    else {
+        LOG_WARN("Reading error occurred, code %d\n", ret);
+        // Update status register setting error condition and error type flags
+        status_register[ST0] |= 0x40;
+        status_register[ST1] |= 0x20;
+        status_register[ST2] |= 0x20;
+        // Execution is terminated after an error
+        tc_status = true;
+    }
 }
 
 static void buffer_write_size(void) {
@@ -733,7 +750,7 @@ void fdc_init(void) {
 
     // Reset main status register, but keep RQM active since FDC is always ready
     // to receive requests
-    status_register = FDC_ST_RQM;
+    status_register[MSR] = FDC_ST_RQM;
 
     // Reset track positions
     memset(track, 0, sizeof(track));
@@ -746,15 +763,16 @@ void fdc_init(void) {
 uint8_t fdc_in(ceda_ioaddr_t address) {
     switch (address & 0x01) {
     case FDC_ADDR_STATUS_REGISTER:
-        return status_register;
+        return status_register[MSR];
     case FDC_ADDR_DATA_REGISTER: {
         uint8_t value = 0;
 
         if (fdc_status == CMD) {
             // You should never read when in CMD status.
-            // Just reply with "invalid command" and restore data direction
-            value = 0x80;
-            status_register &= (uint8_t)~FDC_ST_DIO;
+            // Just reply with ST0.
+            value = status_register[ST0];
+
+            status_register[MSR] &= (uint8_t)~FDC_ST_DIO;
         } else if (fdc_status == ARGS) {
             // you should never read during command phase
             LOG_WARN("FDC read access during ARGS phase!\n");
@@ -811,7 +829,10 @@ void fdc_out(ceda_ioaddr_t address, uint8_t value) {
 
                 // Invalid command: set the main status register to read to
                 // serve ST0 and error code
-                status_register |= FDC_ST_DIO;
+                status_register[ST0] &= (uint8_t)~FDC_ST0_IC;
+                status_register[ST0] |= 0x80;
+
+                status_register[MSR] |= FDC_ST_DIO;
             }
         } else if (fdc_status == ARGS) {
             assert(rwcount < sizeof(args) / sizeof(*args));
