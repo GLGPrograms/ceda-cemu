@@ -241,6 +241,12 @@ static void pre_exec_write_data(void) {
 
     // Set DIO to read for Execution phase
     status_register[MSR] &= (uint8_t)~FDC_ST_DIO;
+    // Clear errors on other status registers
+    // TODO put this in a function
+    status_register[ST0] = 0;
+    status_register[ST1] = 0;
+    status_register[ST2] = 0;
+    status_register[ST3] = 0;
 
     buffer_write_size();
 }
@@ -272,10 +278,23 @@ static uint8_t exec_write_data(uint8_t value) {
     int ret =
         write_buffer_cb(exec_buffer, drive, rw_args->unit_head & FDC_ST0_HD,
                         track[drive], rw_args->head, rw_args->cylinder, sector);
-    // the image is always loaded and valid
-    CEDA_STRONG_ASSERT_TRUE(ret > DISK_IMAGE_NOMEDIUM);
-    // Buffer is statically allocated, be sure that the data can fit it
-    CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
+
+    // Error condition
+    // TODO(giuliof): errors may be differentiated, but for the moment cath all
+    // as a generic error -- even if no medium because it's too late to handle
+    // by pausing execution!
+    if (ret <= DISK_IMAGE_NOMEDIUM) {
+        LOG_WARN("Reading error occurred, code %d\n", ret);
+        // Update status register setting error condition and error type flags
+        status_register[ST0] |= 0x40;
+        status_register[ST1] |= 0x20;
+        status_register[ST2] |= 0x20;
+        // Execution is terminated after an error
+        tc_status = true;
+        // Force an interrupt
+        int_status = true;
+        return 0;
+    }
 
     // Multi-sector mode (enabled by default).
     // If read is not interrupted at the end of the sector, the next logical
@@ -297,12 +316,14 @@ static uint8_t exec_write_data(uint8_t value) {
                 // Terminate execution if end of track is reached
                 tc_status = true;
                 rw_args->cylinder++;
+                status_register[ST0] = rw_args->unit_head;
                 return 0;
             }
         } else {
             // Terminate execution if end of track is reached
             tc_status = true;
             rw_args->cylinder++;
+            status_register[ST0] = rw_args->unit_head;
             return 0;
         }
     }
@@ -314,21 +335,15 @@ static uint8_t exec_write_data(uint8_t value) {
 
 static void post_exec_write_data(void) {
     rw_args_t *rw_args = (rw_args_t *)args;
-    uint8_t drive = rw_args->unit_head & FDC_ST0_US;
 
     LOG_DEBUG("Write has ended\n");
 
     memset(result, 0x00, sizeof(result));
 
-    // TODO(giuliof): populate result as in datasheet (see table 2)
-    /* ST0 */
-    // Current head position
-    result[0] |= drive;
-    result[0] |= rw_args->unit_head & FDC_ST0_HD ? FDC_ST0_HD : 0;
-    /* ST1 */
-    result[1] |= 0; // TODO(giuliof): populate this
-    /* ST2 */
-    result[2] |= 0; // TODO(giuliof): populate this
+    /* Status registers 0-2 */
+    result[0] |= status_register[ST0];
+    result[1] |= status_register[ST1];
+    result[2] |= status_register[ST2];
     /* CHR */
     result[3] = rw_args->cylinder;
     result[4] = rw_args->head;
@@ -516,12 +531,19 @@ static void pre_exec_format_track(void) {
         return;
 
     // Check if medium is valid by poking sector 0 of the desired track
-    // TODO(giuliof): add proper error code, zero is no mounted image
     int ret = write_buffer_cb(NULL, drive, phy_head, track[drive], phy_head,
                               track[drive], 0);
 
-    if (ret <= DISK_IMAGE_NOMEDIUM)
-        return;
+    if (ret <= DISK_IMAGE_NOMEDIUM) {
+        LOG_WARN("Format error occurred, code %d\n", ret);
+        // Update status register setting error condition and error type
+        // flags
+        status_register[ST0] |= 0x40;
+        status_register[ST1] |= 0x20;
+        status_register[ST2] |= 0x20;
+        // Execution is terminated after an error
+        tc_status = true;
+    }
 
     int_status = true;
 }
@@ -549,14 +571,27 @@ static void post_exec_format_track(void) {
 
         int ret = write_buffer_cb(NULL, drive, phy_head, track[drive], head,
                                   cylinder, record);
-        CEDA_STRONG_ASSERT_TRUE(ret > DISK_IMAGE_NOMEDIUM);
 
-        uint8_t format_buffer[ret];
-        memset(format_buffer, format_args->d, (size_t)ret);
+        if (ret > DISK_IMAGE_NOMEDIUM) {
+            uint8_t format_buffer[ret];
+            memset(format_buffer, format_args->d, (size_t)ret);
 
-        ret = write_buffer_cb(format_buffer, drive, phy_head, track[drive],
-                              head, cylinder, record);
-        CEDA_STRONG_ASSERT_TRUE(ret > DISK_IMAGE_NOMEDIUM);
+            ret = write_buffer_cb(format_buffer, drive, phy_head, track[drive],
+                                  head, cylinder, record);
+        }
+
+        if (ret <= DISK_IMAGE_NOMEDIUM) {
+            LOG_WARN("Format error occurred, code %d\n", ret);
+            // Update status register setting error condition and error type
+            // flags
+            status_register[ST0] |= 0x40;
+            status_register[ST1] |= 0x20;
+            status_register[ST2] |= 0x20;
+            // Execution is terminated after an error
+            tc_status = true;
+            // Force an interrupt
+            int_status = true;
+        }
     }
 
     LOG_DEBUG("FDC end Format track\n");
@@ -718,7 +753,9 @@ static void buffer_write_size(void) {
 
     // Default: no data ready to be served
     int_status = false;
+    rwcount = 0;
     rwcount_max = 0;
+    status_register[ST0] = rw_args->unit_head;
 
     // FDC counts sectors from 1
     assert(sector != 0);
@@ -733,18 +770,33 @@ static void buffer_write_size(void) {
         write_buffer_cb(NULL, drive, rw_args->unit_head & FDC_ST0_HD,
                         track[drive], rw_args->head, rw_args->cylinder, sector);
 
-    // TODO(giuliof): At the moment we do not support error codes, we assume the
-    // image is always loaded and valid
-    CEDA_STRONG_ASSERT_TRUE(ret > DISK_IMAGE_NOMEDIUM);
-    // Buffer is statically allocated, be sure that the data can fit it
-    CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
+    // No medium, FDC is in EXEC state until a disk is inserted, or manual
+    // termination
+    if (ret == DISK_IMAGE_NOMEDIUM)
+        return;
 
-    rwcount = 0;
-    if (rw_args->n == 0)
-        rwcount_max = MIN((size_t)rw_args->stp, (size_t)ret);
-    else
-        rwcount_max = (size_t)ret;
+    // generate interrupt since an event has occurred
     int_status = true;
+
+    // Ready to serve data
+    if (ret > DISK_IMAGE_NOMEDIUM) {
+        if (rw_args->n == 0)
+            rwcount_max = MIN((size_t)rw_args->stp, (size_t)ret);
+        else
+            rwcount_max = (size_t)ret;
+    }
+    // Error condition
+    // TODO(giuliof): errors may be differentiated, but for the moment cath all
+    // as a generic error
+    else {
+        LOG_WARN("Reading error occurred, code %d\n", ret);
+        // Update status register setting error condition and error type flags
+        status_register[ST0] |= 0x40;
+        status_register[ST1] |= 0x20;
+        status_register[ST2] |= 0x20;
+        // Execution is terminated after an error
+        tc_status = true;
+    }
 }
 
 /* * * * * * * * * * * * * * *  Public routines   * * * * * * * * * * * * * * */
