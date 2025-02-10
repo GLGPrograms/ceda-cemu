@@ -594,6 +594,54 @@ ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, writeCommand0) {
     assert_fdc_sr(FDC_ST_RQM);
 }
 
+Test(ceda_fdc, writeCommandInvalidParams) {
+    const uint8_t arguments[8] = {
+        1, // drive number
+        1, // cylinder
+        0, // head
+        1, // record
+        0, // N - bytes per sector size factor
+        5, // EOT (end of track)
+        0, // GPL (ignored)
+        4, // DTL
+    };
+
+    const uint8_t expected_result[7] = {
+        0x41, // Drive number, error code
+        0x20, // ST1
+        0x20, // ST2
+        1,    // cylinder
+        0,    // head
+        1,    // record
+        0,    // N
+    };
+
+    uint8_t result[sizeof(expected_result)];
+
+    fdc_init();
+
+    // Link a fake reading function
+    fdc_kickDiskImage(NULL, fake_wrong_rw);
+
+    fdc_out(FDC_ADDR_DATA_REGISTER, FDC_WRITE_DATA);
+
+    // Send arguments checking for no error
+    sendBuffer(arguments, sizeof(arguments));
+
+    // FDC generates an interrupt
+    cr_assert_eq(fdc_getIntStatus(), true);
+
+    // FDC is NOT in execution mode
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_CB);
+
+    receiveBuffer(result, sizeof(result));
+
+    cr_assert_arr_eq(result, expected_result, sizeof(result));
+
+    // Execution is finished
+    assert_fdc_sr(FDC_ST_RQM);
+}
+
 Test(ceda_fdc, formatCommand) {
     uint8_t arguments[] = {
         0x01 | FDC_ST0_HD,
@@ -646,6 +694,48 @@ Test(ceda_fdc, formatCommand) {
 
     // Stop the writing
     fdc_tc_out(0, 0);
+
+    receiveBuffer(result, sizeof(result));
+
+    // CHR and N are ignored!
+    cr_assert_arr_eq(result, expected_result, sizeof(expected_result));
+
+    // Execution is finished
+    assert_fdc_sr(FDC_ST_RQM);
+}
+
+Test(ceda_fdc, formatCommandInvalidParams) {
+    uint8_t arguments[] = {
+        0x03 | FDC_ST0_HD, // drive number
+        0x01,
+        0x02, // two sectors per track
+        0x00, // gap (we don't care)
+        0x35, // fill byte
+    };
+
+    const uint8_t expected_result[] = {
+        0x43 | FDC_ST0_HD, // Drive number, error code
+        0x20,              // ST1
+        0x20,              // ST2
+    };
+
+    uint8_t result[7];
+
+    fdc_init();
+
+    // Link a fake reading function
+    fdc_kickDiskImage(NULL, fake_wrong_rw);
+
+    fdc_out(FDC_ADDR_DATA_REGISTER, FDC_FORMAT_TRACK);
+
+    // Send arguments checking for no error
+    sendBuffer(arguments, sizeof(arguments));
+
+    // FDC has generated an interrupt
+    cr_assert_eq(fdc_getIntStatus(), true);
+
+    // FDC is not in execution mode (error)
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_CB);
 
     receiveBuffer(result, sizeof(result));
 
