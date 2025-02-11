@@ -837,6 +837,9 @@ uint8_t fdc_in(ceda_ioaddr_t address) {
             value = status_register[ST0];
 
             status_register[MSR] &= (uint8_t)~FDC_ST_DIO;
+
+            // remove interrupt condition
+            int_status = false;
         } else if (fdc_status == ARGS) {
             // you should never read during command phase
             LOG_WARN("FDC read access during ARGS phase!\n");
@@ -851,6 +854,8 @@ uint8_t fdc_in(ceda_ioaddr_t address) {
         } else if (fdc_status == RESULT) {
             assert(rwcount < sizeof(result) / sizeof(*result));
             value = result[rwcount];
+            // ...
+            int_status = false;
         }
 
         fdc_compute_next_status();
