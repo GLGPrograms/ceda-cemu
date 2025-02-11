@@ -48,7 +48,7 @@ typedef struct rw_args_t {
     uint8_t n;
     uint8_t eot;
     uint8_t gpl;
-    uint8_t stp;
+    uint8_t dtl;
 } rw_args_t;
 
 // Parsing structure for format arguments
@@ -727,7 +727,7 @@ static void buffer_update(void) {
     // Ready to serve data
     if (ret > DISK_IMAGE_NOMEDIUM) {
         if (rw_args->n == 0)
-            rwcount_max = MIN((size_t)rw_args->stp, (size_t)ret);
+            rwcount_max = MIN((size_t)rw_args->dtl, (size_t)ret);
         else
             rwcount_max = (size_t)ret;
     }
@@ -781,7 +781,7 @@ static void buffer_write_size(void) {
     // Ready to serve data
     if (ret > DISK_IMAGE_NOMEDIUM) {
         if (rw_args->n == 0)
-            rwcount_max = MIN((size_t)rw_args->stp, (size_t)ret);
+            rwcount_max = MIN((size_t)rw_args->dtl, (size_t)ret);
         else
             rwcount_max = (size_t)ret;
     }
