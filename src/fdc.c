@@ -471,24 +471,21 @@ static void pre_exec_recalibrate(void) {
 
     // We don't have to actually move the head. The drive is immediately ready
     int_status = true;
+    // Update the status register with the drive info and the seek end flag
+    status_register[ST0] = drive;
 }
 
 // Sense interrupt:
 static void post_exec_sense_interrupt(void) {
-    // TODO(giuliof): last accessed drive
-    uint8_t drive = 0;
+    // Last accessed drive number is in ST0
+    uint8_t drive = status_register[ST0] & FDC_ST0_US;
 
     // After reading interrupt status, ready can be deasserted
     int_status = false;
 
     LOG_DEBUG("FDC Sense Interrupt\n");
     /* Status Register 0 */
-    // Drive number
-    result[0] = drive;
-    // head address (last addressed) - TODO(giulio)
-    // result[0] |= ...;
-    // Seek End - TODO(giulio)
-    result[0] |= FDC_ST0_SE;
+    result[0] = status_register[ST0] | FDC_ST0_SE;
     /* PCN  - (current track position) */
     result[1] = track[drive];
 }
@@ -617,6 +614,8 @@ static void pre_exec_seek(void) {
 
     // We don't have to actually move the head. The drive is immediately ready
     int_status = true;
+    // Update the status register with the drive info and the seek end flag
+    status_register[ST0] = drive;
 }
 
 /* * * * * * * * * * * * * * *  Utility routines  * * * * * * * * * * * * * * */
