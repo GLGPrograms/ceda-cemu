@@ -117,6 +117,9 @@ Test(ceda_fdc, seekCommand) {
     // Second argument is cylinder position
     fdc_out(FDC_ADDR_DATA_REGISTER, 5);
 
+    // Seek raises an interrupt and expects SENSE_INTERRUPT command
+    cr_assert_eq(fdc_getIntStatus(), true);
+
     // FDC is no more busy
     assert_fdc_sr(FDC_ST_RQM);
 
@@ -138,6 +141,9 @@ Test(ceda_fdc, seekCommand) {
     // specified by the seek argument
     data = fdc_in(FDC_ADDR_DATA_REGISTER);
     cr_expect_eq(data, 5);
+
+    // No interrupt must be present after result phase
+    cr_assert_eq(fdc_getIntStatus(), false);
 }
 
 Test(ceda_fdc, invalidSeekSequence) {
@@ -165,6 +171,9 @@ Test(ceda_fdc, invalidSeekSequence) {
     assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO);
     data = fdc_in(FDC_ADDR_DATA_REGISTER);
     cr_expect_eq(data, 0x80);
+
+    // No interrupt must be present after an invalid command
+    cr_assert_eq(fdc_getIntStatus(), false);
 }
 
 /**
@@ -526,6 +535,9 @@ ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, readCommand0) {
 
     // Execution is finished
     assert_fdc_sr(FDC_ST_RQM);
+
+    // No interrupt must be present after result phase
+    cr_assert_eq(fdc_getIntStatus(), false);
 }
 
 static int fake_write(uint8_t *buffer, uint8_t unit_number, bool phy_head,
@@ -592,6 +604,9 @@ ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, writeCommand0) {
 
     // Execution is finished
     assert_fdc_sr(FDC_ST_RQM);
+
+    // No interrupt must be present after result phase
+    cr_assert_eq(fdc_getIntStatus(), false);
 }
 
 Test(ceda_fdc, writeCommandInvalidParams) {
@@ -744,6 +759,9 @@ Test(ceda_fdc, formatCommandInvalidParams) {
 
     // Execution is finished
     assert_fdc_sr(FDC_ST_RQM);
+
+    // No interrupt must be present after result phase
+    cr_assert_eq(fdc_getIntStatus(), false);
 }
 
 Test(ceda_fdc, invalidCommand) {
@@ -762,4 +780,7 @@ Test(ceda_fdc, invalidCommand) {
     // TODO(giuliof): this is actually unclear, the direction has to be set
     // back? probably yes
     assert_fdc_sr(FDC_ST_RQM);
+
+    // No interrupt must be present after result phase
+    cr_assert_eq(fdc_getIntStatus(), false);
 }
