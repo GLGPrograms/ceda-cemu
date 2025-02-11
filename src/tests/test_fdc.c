@@ -113,7 +113,7 @@ Test(ceda_fdc, seekCommand) {
     assert_fdc_sr(FDC_ST_RQM | FDC_ST_CB);
 
     // First argument is number of drive
-    fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
+    fdc_out(FDC_ADDR_DATA_REGISTER, 0x02);
     // Second argument is cylinder position
     fdc_out(FDC_ADDR_DATA_REGISTER, 5);
 
@@ -132,7 +132,7 @@ Test(ceda_fdc, seekCommand) {
 
     // First response byte is SR0 with interrupt code = 0 and Seek End = 1
     data = fdc_in(FDC_ADDR_DATA_REGISTER);
-    cr_expect_eq(data, FDC_ST0_SE);
+    cr_expect_eq(data, FDC_ST0_SE | 2);
 
     // FDC has another byte of response
     assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_CB);
