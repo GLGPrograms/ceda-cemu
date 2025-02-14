@@ -15,7 +15,7 @@
 #define CPU_PAUSE_PERIOD 20000 // [us] 20 ms => 50 Hz
 
 static Z80 cpu;
-static bool pause = true;
+static bool pause = false;
 static unsigned long int cycles = 0;
 static us_time_t last_update = 0;
 static us_time_t update_interval = CPU_PAUSE_PERIOD;
