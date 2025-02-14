@@ -154,6 +154,8 @@ int ceda_run(void) {
         goto err;
     }
 
+    cpu_pause(false);
+
     // main loop
     for (;;) {
         // poll all modules
