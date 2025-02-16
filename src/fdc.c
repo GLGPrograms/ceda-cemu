@@ -480,9 +480,6 @@ static void post_exec_sense_interrupt(void) {
     // Last accessed drive number is in ST0
     uint8_t drive = status_register[ST0] & FDC_ST0_US;
 
-    // After reading interrupt status, ready can be deasserted
-    int_status = false;
-
     LOG_DEBUG("FDC Sense Interrupt\n");
     /* Status Register 0 */
     result[0] = status_register[ST0] | FDC_ST0_SE;
@@ -687,8 +684,6 @@ static void buffer_update(void) {
 
     uint8_t sector = rw_args->record;
 
-    // Default: no data ready to be served, no error
-    int_status = false;
     rwcount = 0;
     rwcount_max = 0;
     status_register[ST0] = rw_args->unit_head;
@@ -750,8 +745,6 @@ static void buffer_write_size(void) {
 
     uint8_t sector = rw_args->record;
 
-    // Default: no data ready to be served
-    int_status = false;
     rwcount = 0;
     rwcount_max = 0;
     status_register[ST0] = rw_args->unit_head;
@@ -824,6 +817,9 @@ void fdc_init(void) {
 }
 
 uint8_t fdc_in(ceda_ioaddr_t address) {
+    // The interrupt is cleared by reading/writing data to the FDC
+    int_status = false;
+
     switch (address & 0x01) {
     case FDC_ADDR_STATUS_REGISTER:
         return status_register[MSR];
@@ -836,9 +832,6 @@ uint8_t fdc_in(ceda_ioaddr_t address) {
             value = status_register[ST0];
 
             status_register[MSR] &= (uint8_t)~FDC_ST_DIO;
-
-            // remove interrupt condition
-            int_status = false;
         } else if (fdc_status == ARGS) {
             // you should never read during command phase
             LOG_WARN("FDC read access during ARGS phase!\n");
@@ -853,8 +846,6 @@ uint8_t fdc_in(ceda_ioaddr_t address) {
         } else if (fdc_status == RESULT) {
             assert(rwcount < sizeof(result) / sizeof(*result));
             value = result[rwcount];
-            // ...
-            int_status = false;
         }
 
         fdc_compute_next_status();
@@ -867,6 +858,9 @@ uint8_t fdc_in(ceda_ioaddr_t address) {
 }
 
 void fdc_out(ceda_ioaddr_t address, uint8_t value) {
+    // The interrupt is cleared by reading/writing data to the FDC
+    int_status = false;
+
     switch (address & 0x01) {
     case FDC_ADDR_STATUS_REGISTER:
         LOG_WARN("nobody should write in FDC main status register\n");
