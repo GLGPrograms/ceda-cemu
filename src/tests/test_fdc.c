@@ -504,11 +504,11 @@ ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, readCommand0) {
     // Send arguments checking for no error
     sendBuffer(param->arguments, sizeof(param->arguments));
 
-    // FDC is in execution mode
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_EXM | FDC_ST_CB);
-
     // FDC is ready to serve data
     cr_assert_eq(fdc_getIntStatus(), true);
+
+    // FDC is in execution mode
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_EXM | FDC_ST_CB);
 
     // Read two full sectors
     fdc_in(FDC_ADDR_DATA_REGISTER);
@@ -573,11 +573,11 @@ ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, writeCommand0) {
     // Send arguments checking for no error
     sendBuffer(param->arguments, sizeof(param->arguments));
 
-    // FDC is in execution mode
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_EXM | FDC_ST_CB);
-
     // FDC is ready to receive data
     cr_assert_eq(fdc_getIntStatus(), true);
+
+    // FDC is in execution mode
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_EXM | FDC_ST_CB);
 
     // Read two full sectors
     fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
@@ -686,11 +686,11 @@ Test(ceda_fdc, formatCommand) {
     // Send arguments checking for no error
     sendBuffer(arguments, sizeof(arguments));
 
-    // FDC is in execution mode
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_EXM | FDC_ST_CB);
-
     // FDC is ready to receive data
     cr_assert_eq(fdc_getIntStatus(), true);
+
+    // FDC is in execution mode
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_EXM | FDC_ST_CB);
 
     // First sector ID
     fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
