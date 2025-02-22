@@ -76,6 +76,7 @@ static uint8_t exec_format_track(uint8_t value);
 static void post_exec_format_track(void);
 static void pre_exec_seek(void);
 /* Utility routines prototypes */
+static bool is_cmd_out_of_sequence(uint8_t cmd);
 static void fdc_compute_next_status(void);
 // Update read buffer with the data from current ths
 static void buffer_update(void);
@@ -634,6 +635,27 @@ static void pre_exec_seek(void) {
 
 /* * * * * * * * * * * * * * *  Utility routines  * * * * * * * * * * * * * * */
 
+static bool is_cmd_out_of_sequence(uint8_t cmd) {
+    bool fdc_busy = status_register[MSR] &
+                    ((FDC_ST_D3B | FDC_ST_D2B | FDC_ST_D1B | FDC_ST_D0B));
+
+    if (cmd == FDC_SEEK || cmd == FDC_RECALIBRATE)
+        return false;
+    // TODO: to be correct, I should check int, but it was already
+    // cleared in command read/write routine
+    else if (cmd == FDC_SENSE_INTERRUPT) {
+        if (fdc_busy)
+            return false;
+    }
+    //
+    else {
+        if (!fdc_busy)
+            return false;
+    }
+
+    return true;
+}
+
 static void fdc_compute_next_status(void) {
     if (!fdc_currop)
         return;
@@ -893,7 +915,7 @@ void fdc_out(ceda_ioaddr_t address, uint8_t value) {
             // recalibrate) and next command is not sense interrupt.
             // In this case, the command is treated as invalid.
             fdc_currop = NULL;
-            if (!(int_status && cmd != FDC_SENSE_INTERRUPT)) {
+            if (!is_cmd_out_of_sequence(cmd)) {
                 for (size_t i = 0;
                      i < sizeof(fdc_operations) / sizeof(*fdc_operations);
                      i++) {
@@ -903,6 +925,7 @@ void fdc_out(ceda_ioaddr_t address, uint8_t value) {
                     }
                 }
             }
+
             if (fdc_currop == NULL) {
                 LOG_WARN("Command %x is not implemented\n", cmd);
 
