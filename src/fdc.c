@@ -473,14 +473,29 @@ static void pre_exec_recalibrate(void) {
     int_status = true;
     // Update the status register with the drive info and the seek end flag
     status_register[ST0] = drive;
+    // Update the FDD n busy flag, will be cleared by sense interrupt
+    status_register[MSR] |= (1 << drive);
 }
 
 // Sense interrupt:
 static void post_exec_sense_interrupt(void) {
-    // Last accessed drive number is in ST0
-    uint8_t drive = status_register[ST0] & FDC_ST0_US;
-
     LOG_DEBUG("FDC Sense Interrupt\n");
+
+    // Get the last "seeked" drive number from the MSR
+    uint8_t fdc_busy = status_register[MSR] &
+                       (FDC_ST_D3B | FDC_ST_D2B | FDC_ST_D1B | FDC_ST_D0B);
+    // This routine should be called only if fdc is busy
+    assert(fdc_busy != 0);
+    uint8_t drive = 0;
+    for (; (fdc_busy & (1 << drive)) == 0; drive++)
+        ;
+
+    // Deassert busy state and eventually retrigger INT (TODO: verify)
+    status_register[MSR] &= (uint8_t) ~(1 << drive);
+    if (status_register[MSR] &
+        (FDC_ST_D3B | FDC_ST_D2B | FDC_ST_D1B | FDC_ST_D0B))
+        int_status = true;
+
     /* Status Register 0 */
     result[0] = status_register[ST0] | FDC_ST0_SE;
     /* PCN  - (current track position) */
@@ -613,6 +628,8 @@ static void pre_exec_seek(void) {
     int_status = true;
     // Update the status register with the drive info and the seek end flag
     status_register[ST0] = drive;
+    // Update the FDD n busy flag, will be cleared by sense interrupt
+    status_register[MSR] |= (1 << drive);
 }
 
 /* * * * * * * * * * * * * * *  Utility routines  * * * * * * * * * * * * * * */
