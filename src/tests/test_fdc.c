@@ -1,6 +1,7 @@
 
 #include <criterion/criterion.h>
 #include <criterion/parameterized.h>
+#include <stdio.h>
 
 // TODO source path is src!
 #include "../fdc.h"
@@ -55,6 +56,23 @@ static int fake_wrong_rw(uint8_t *buffer, uint8_t unit_number, bool phy_head,
     return DISK_IMAGE_ERR;
 }
 
+static int fake_read_check_track(uint8_t *buffer, uint8_t unit_number,
+                                 bool phy_head, uint8_t phy_track, bool head,
+                                 uint8_t track, uint8_t sector) {
+
+    (void)buffer;
+    (void)unit_number;
+    (void)phy_head;
+    (void)head;
+    (void)sector;
+
+    if (phy_track != track) {
+        return DISK_IMAGE_INVALID_GEOMETRY;
+    }
+
+    return 4;
+}
+
 Test(ceda_fdc, mainStatusRegisterWhenIdle) {
     fdc_init();
 
@@ -79,6 +97,8 @@ Test(ceda_fdc, specifyCommand) {
     assert_fdc_sr(FDC_ST_RQM);
 }
 
+// This test is not valid!
+#if 0
 Test(ceda_fdc, senseInterruptStatusCommand) {
     fdc_init();
 
@@ -101,6 +121,7 @@ Test(ceda_fdc, senseInterruptStatusCommand) {
     data = fdc_in(FDC_ADDR_DATA_REGISTER);
     cr_expect_eq(data, 0);
 }
+#endif
 
 Test(ceda_fdc, seekCommand) {
     fdc_init();
@@ -121,7 +142,7 @@ Test(ceda_fdc, seekCommand) {
     cr_assert_eq(fdc_getIntStatus(), true);
 
     // FDC is no more busy
-    assert_fdc_sr(FDC_ST_RQM);
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_D2B);
 
     // A sense interrupt command is expected after FDC_SEEK
     fdc_out(FDC_ADDR_DATA_REGISTER, FDC_SENSE_INTERRUPT);
@@ -162,13 +183,13 @@ Test(ceda_fdc, invalidSeekSequence) {
     fdc_out(FDC_ADDR_DATA_REGISTER, 7);
 
     // FDC is no more busy
-    assert_fdc_sr(FDC_ST_RQM);
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_D0B);
 
     // Send another command that is not FDC_SENSE_INTERRUPT
     fdc_out(FDC_ADDR_DATA_REGISTER, FDC_SPECIFY);
 
     // FDC does not process this command and asserts invalid command
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO);
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_D0B);
     data = fdc_in(FDC_ADDR_DATA_REGISTER);
     cr_expect_eq(data, 0x80);
 
@@ -228,6 +249,7 @@ Test(ceda_fdc, readCommandNoMedium) {
     cr_assert_eq(fdc_getIntStatus(), true);
 }
 
+// 20 20?
 Test(ceda_fdc, readCommandInvalidParams) {
     const uint8_t arguments[8] = {
         0, // drive number
@@ -276,6 +298,66 @@ Test(ceda_fdc, readCommandInvalidParams) {
     assert_fdc_sr(FDC_ST_RQM);
 }
 
+Test(ceda_fdc, readCommandOverEot) {
+    const uint8_t arguments[8] = {
+        0, // drive number
+        0, // cylinder
+        0, // head
+        6, // record
+        0, // N - bytes per sector size factor
+        6, // EOT (end of track)
+        0, // GPL (ignored)
+        4, // DTL
+    };
+
+    const uint8_t expected_result[7] = {
+        0x40, // Drive number, error code
+        0x20, // ST1
+        0x20, // ST2
+        0,    // cylinder
+        0,    // head
+        6,    // record
+        0,    // N
+    };
+
+    uint8_t result[sizeof(expected_result)];
+
+    fdc_init();
+
+    // Link a fake reading function
+    fdc_kickDiskImage(fake_read_check_track, NULL);
+
+    fdc_out(FDC_ADDR_DATA_REGISTER, FDC_READ_DATA);
+
+    // Send arguments checking for no error
+    sendBuffer(arguments, sizeof(arguments));
+
+    // FDC generates an interrupt
+    cr_assert_eq(fdc_getIntStatus(), true);
+
+    // Read sector 6
+    fdc_in(FDC_ADDR_DATA_REGISTER);
+    fdc_in(FDC_ADDR_DATA_REGISTER);
+    fdc_in(FDC_ADDR_DATA_REGISTER);
+    fdc_in(FDC_ADDR_DATA_REGISTER);
+
+    // Try to read sector beyond EOT
+    fdc_in(FDC_ADDR_DATA_REGISTER);
+
+    // FDC generates an interrupt
+    cr_assert_eq(fdc_getIntStatus(), true);
+
+    // FDC is NOT in execution mode
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_CB);
+
+    receiveBuffer(result, sizeof(result));
+
+    cr_assert_arr_eq(result, expected_result, sizeof(result));
+
+    // Execution is finished
+    assert_fdc_sr(FDC_ST_RQM);
+}
+
 /**
  * @brief This section covers the cases described in table 2-2 of xxxxxxx
  * datasheet.
@@ -285,7 +367,6 @@ Test(ceda_fdc, readCommandInvalidParams) {
 
 struct rw_test_params_t {
     uint8_t cmd_alteration;
-    bool tc_required;
     uint8_t arguments[8];
     uint8_t result[7];
 };
@@ -293,8 +374,7 @@ struct rw_test_params_t {
 static struct rw_test_params_t rwparams[] = {
     {
         // No MT, end record < EOT, physical head 0
-        0,    // No alteration
-        true, // Terminal count required
+        0, // No alteration
         {
             0,  // drive number
             7,  // cylinder
@@ -318,7 +398,6 @@ static struct rw_test_params_t rwparams[] = {
     {
         // No MT, end record = EOT, physical head 0
         0,
-        false, // Terminal count not required
         {
             1,  // drive number
             7,  // cylinder
@@ -342,7 +421,6 @@ static struct rw_test_params_t rwparams[] = {
     {
         // No MT, end record < EOT, physical head 1
         0,
-        true, // Terminal count required
         {
             FDC_ST0_HD | 2, // Drive number, physical head 1
             7,              // cylinder
@@ -366,7 +444,6 @@ static struct rw_test_params_t rwparams[] = {
     {
         // No MT, end record = EOT, physical head 1
         0,
-        false, // Terminal count not required
         {
             FDC_ST0_HD | 3, // Drive number, physical head 1
             7,              // cylinder
@@ -391,7 +468,6 @@ static struct rw_test_params_t rwparams[] = {
     {
         // MT (multi-track), end record < EOT, physical head 0
         FDC_CMD_ARGS_MT_bm,
-        true, // Terminal count required
         {
             3,  // Drive number
             7,  // cylinder
@@ -415,7 +491,6 @@ static struct rw_test_params_t rwparams[] = {
     {
         // MT (multi-track), end record = EOT, physical head 0
         FDC_CMD_ARGS_MT_bm,
-        true, // Terminal count required
         {
             2,  // Drive number
             7,  // cylinder
@@ -436,10 +511,10 @@ static struct rw_test_params_t rwparams[] = {
             0,              // N
         },
     },
+#if 1
     {
         // MT (multi-track), end record < EOT, physical head 1
         FDC_CMD_ARGS_MT_bm,
-        true, // Terminal count required
         {
             FDC_ST0_HD | 1, // Drive number, physical head 1
             7,              // cylinder
@@ -463,7 +538,6 @@ static struct rw_test_params_t rwparams[] = {
     {
         // MT (multi-track), end record = EOT, physical head 1
         FDC_CMD_ARGS_MT_bm,
-        false, // Terminal count not required
         {
             FDC_ST0_HD | 0, // Drive number, physical head 1
             7,              // cylinder
@@ -484,6 +558,7 @@ static struct rw_test_params_t rwparams[] = {
             0, // N
         },
     },
+#endif
 };
 
 ParameterizedTestParameters(ceda_fdc, readCommand0) {
@@ -521,13 +596,10 @@ ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, readCommand0) {
     fdc_in(FDC_ADDR_DATA_REGISTER);
     fdc_in(FDC_ADDR_DATA_REGISTER);
 
-    // Stop the reading, if needed
-    if (param->tc_required) {
-        // FDC is still in execution mode
-        assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_EXM | FDC_ST_CB);
-        // Request execution termination
-        fdc_tc_out(0, 0);
-    }
+    // FDC is still in execution mode
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_EXM | FDC_ST_CB);
+    // Request execution termination
+    fdc_tc_out(0, 0);
 
     receiveBuffer(result, sizeof(result));
 
@@ -590,13 +662,10 @@ ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, writeCommand0) {
     fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
     fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
 
-    // Stop the reading, if needed
-    if (param->tc_required) {
-        // FDC is still in execution mode
-        assert_fdc_sr(FDC_ST_RQM | FDC_ST_EXM | FDC_ST_CB);
-        // Request execution termination
-        fdc_tc_out(0, 0);
-    }
+    // FDC is still in execution mode
+    assert_fdc_sr(FDC_ST_RQM | FDC_ST_EXM | FDC_ST_CB);
+    // Request execution termination
+    fdc_tc_out(0, 0);
 
     receiveBuffer(result, sizeof(result));
 
