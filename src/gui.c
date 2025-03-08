@@ -33,7 +33,9 @@ static void gui_start(void) {
 static void gui_poll(void) {
     last_update = time_now_us();
 
-    SDL_PollEvent(&event);
+    if (!SDL_PollEvent(&event))
+        return;
+
     quit = (event.type == SDL_QUIT);
 
     // handle keyboard events
