@@ -60,6 +60,14 @@ typedef struct format_args_t {
     uint8_t d;             // filler byte
 } format_args_t;
 
+// ID Register, tracks the current ID during rw operations
+typedef struct idr_t {
+    uint8_t phy_head;
+    uint8_t cylinder;
+    uint8_t head;
+    uint8_t record;
+} idr_t;
+
 /* Command callbacks prototypes */
 static void pre_exec_read_track(void);
 static void pre_exec_specify(void);
@@ -79,8 +87,8 @@ static void pre_exec_seek(void);
 static bool is_cmd_out_of_sequence(uint8_t cmd);
 static void fdc_compute_next_status(void);
 // Update read buffer with the data from current ths
-static void buffer_update(void);
-static void buffer_write_size(void);
+static bool buffer_update(void);
+static bool buffer_write_size(void);
 
 /* Local variables */
 // The command descriptors
@@ -200,6 +208,9 @@ static uint8_t track[4];
 static fdc_read_write_t read_buffer_cb = NULL;
 static fdc_read_write_t write_buffer_cb = NULL;
 
+/* ID Register, store CHR for the current and the next record under execution */
+idr_t idr, next_idr;
+
 /* * * * * * * * * * * * * * *  Command routines  * * * * * * * * * * * * * * */
 
 static void pre_exec_read_track(void) {
@@ -226,28 +237,29 @@ static void pre_exec_specify(void) {
 
 // Write data:
 static void pre_exec_write_data(void) {
-    // TODO(giuliof): eventually: use the appropriate structure
+    rw_args_t *rw_args = (rw_args_t *)args;
+
     LOG_DEBUG("FDC Write Data\n");
-    LOG_DEBUG("MF: %d\n", (command_args >> 6) & 0x01);
-    LOG_DEBUG("MT: %d\n", (command_args >> 7) & 0x01);
-    LOG_DEBUG("Drive: %d\n", args[0] & 0x3);
-    LOG_DEBUG("HD: %d\n", (args[0] >> 2) & 0x1);
-    LOG_DEBUG("Cyl: %d\n", args[1]);
-    LOG_DEBUG("Head: %d\n", args[2]);
-    LOG_DEBUG("Record: %d\n", args[3]);
-    LOG_DEBUG("N: %d\n", args[4]);
-    LOG_DEBUG("EOT: %d\n", args[5]);
-    LOG_DEBUG("GPL: %d\n", args[6]);
-    LOG_DEBUG("DTL: %d\n", args[7]);
+    LOG_DEBUG("MF: %d\n", (bool)(command_args & FDC_CMD_ARGS_MF_bm));
+    LOG_DEBUG("MT: %d\n", (bool)(command_args & FDC_CMD_ARGS_MT_bm));
+    LOG_DEBUG("Drive: %d\n", rw_args->unit_head & FDC_ST0_US);
+    LOG_DEBUG("HD: %d\n", (bool)(rw_args->unit_head & FDC_ST0_HD));
+    LOG_DEBUG("Cyl: %d\n", rw_args->cylinder);
+    LOG_DEBUG("Head: %d\n", rw_args->head);
+    LOG_DEBUG("Record: %d\n", rw_args->record);
+    LOG_DEBUG("N: %d\n", rw_args->n);
+    LOG_DEBUG("EOT: %d\n", rw_args->eot);
+    LOG_DEBUG("GPL: %d\n", rw_args->gpl);
+    LOG_DEBUG("DTL: %d\n", rw_args->dtl);
 
     // Set DIO to read for Execution phase
     status_register[MSR] &= (uint8_t)~FDC_ST_DIO;
-    // Clear errors on other status registers
-    // TODO put this in a function
-    status_register[ST0] = 0;
-    status_register[ST1] = 0;
-    status_register[ST2] = 0;
-    status_register[ST3] = 0;
+
+    idr.phy_head = rw_args->unit_head;
+    idr.cylinder = rw_args->cylinder;
+    idr.head = rw_args->head;
+    idr.record = rw_args->record;
+    memcpy(&next_idr, &idr, sizeof(idr));
 
     buffer_write_size();
 }
@@ -259,26 +271,28 @@ static uint8_t exec_write_data(uint8_t value) {
     if (write_buffer_cb == NULL)
         return 0;
 
-    if (rwcount_max == 0) {
-        LOG_WARN("Write execution happened when no data can be written");
-        return 0;
+    if (rwcount >= rwcount_max) {
+        if (!buffer_write_size())
+            return 0;
     }
 
     exec_buffer[rwcount++] = value;
+    // From the manual: in NON-DMA mode, interrupt is generated during
+    // execution phase (as soon as new data is available)
+    int_status = true;
 
     // More data can be written, just go on with the current buffer
     if (rwcount != rwcount_max)
         return 0;
 
     /* Commit the current buffer and prepare the next one to be written */
-    uint8_t sector = rw_args->record;
+    uint8_t sector = idr.record;
     // FDC counts sectors from 1
     CEDA_STRONG_ASSERT_TRUE(sector != 0);
     // But all other routines counts sectors from 0
     sector--;
-    int ret =
-        write_buffer_cb(exec_buffer, drive, rw_args->unit_head & FDC_ST0_HD,
-                        track[drive], rw_args->head, rw_args->cylinder, sector);
+    int ret = write_buffer_cb(exec_buffer, drive, idr.phy_head & FDC_ST0_HD,
+                              track[drive], idr.head, idr.cylinder, sector);
 
     // Error condition
     // TODO(giuliof): errors may be differentiated, but for the moment cath all
@@ -297,40 +311,6 @@ static uint8_t exec_write_data(uint8_t value) {
         return 0;
     }
 
-    // Multi-sector mode (enabled by default).
-    // If read is not interrupted at the end of the sector, the next logical
-    // sector is loaded
-    rw_args->record++;
-
-    // Last sector of the track
-    if (rw_args->record > rw_args->eot) {
-        // In any case, reached the end of track we start back from sector 1
-        rw_args->record = 1;
-
-        // Multi track mode, if enabled the read operation go on on the next
-        // side
-        if (command_args & FDC_CMD_ARGS_MT_bm) {
-            rw_args->unit_head ^= FDC_ST0_HD;
-            rw_args->head = !rw_args->head;
-
-            if (!(rw_args->unit_head & FDC_ST0_HD)) {
-                // Terminate execution if end of track is reached
-                tc_status = true;
-                rw_args->cylinder++;
-                status_register[ST0] = rw_args->unit_head;
-                return 0;
-            }
-        } else {
-            // Terminate execution if end of track is reached
-            tc_status = true;
-            rw_args->cylinder++;
-            status_register[ST0] = rw_args->unit_head;
-            return 0;
-        }
-    }
-
-    buffer_write_size();
-
     return 0;
 }
 
@@ -342,42 +322,58 @@ static void post_exec_write_data(void) {
     memset(result, 0x00, sizeof(result));
 
     /* Status registers 0-2 */
-    result[0] |= status_register[ST0];
-    result[1] |= status_register[ST1];
-    result[2] |= status_register[ST2];
+    result[0] = status_register[ST0];
+    result[1] = status_register[ST1];
+    result[2] = status_register[ST2];
     /* CHR */
-    result[3] = rw_args->cylinder;
-    result[4] = rw_args->head;
-    result[5] = rw_args->record;
+    // When the FDC exits from exec mode with no error, next IDR should be used
+    if ((result[0] & FDC_ST0_IC) == 0) {
+        result[0] &= (uint8_t)~FDC_ST0_HD;
+        if (next_idr.phy_head & FDC_ST0_HD)
+            result[0] |= FDC_ST0_HD;
+        result[3] = next_idr.cylinder;
+        result[4] = next_idr.head;
+        result[5] = next_idr.record;
+    }
+    // Else, in case of error, use the last valid read sector (current IDR)
+    else {
+        result[0] &= (uint8_t)~FDC_ST0_HD;
+        if (idr.phy_head & FDC_ST0_HD)
+            result[0] |= FDC_ST0_HD;
+        result[3] = idr.cylinder;
+        result[4] = idr.head;
+        result[5] = idr.record;
+    }
     /* Sector size factor */
     result[6] = rw_args->n;
 }
 
 // Read data:
 static void pre_exec_read_data(void) {
-    // TODO(giuliof): eventually: use the appropriate structure
+    rw_args_t *rw_args = (rw_args_t *)args;
+
     LOG_DEBUG("FDC Read Data\n");
-    LOG_DEBUG("SK: %d\n", (command_args >> 5) & 0x01);
-    LOG_DEBUG("MF: %d\n", (command_args >> 6) & 0x01);
-    LOG_DEBUG("MT: %d\n", (command_args >> 7) & 0x01);
-    LOG_DEBUG("Drive: %d\n", args[0] & 0x3);
-    LOG_DEBUG("HD: %d\n", (args[0] >> 2) & 0x1);
-    LOG_DEBUG("Cyl: %d\n", args[1]);
-    LOG_DEBUG("Head: %d\n", args[2]);
-    LOG_DEBUG("Record: %d\n", args[3]);
-    LOG_DEBUG("N: %d\n", args[4]);
-    LOG_DEBUG("EOT: %d\n", args[5]);
-    LOG_DEBUG("GPL: %d\n", args[6]);
-    LOG_DEBUG("DTL: %d\n", args[7]);
+    LOG_DEBUG("SK: %d\n", (bool)(command_args & FDC_CMD_ARGS_SK_bm));
+    LOG_DEBUG("MF: %d\n", (bool)(command_args & FDC_CMD_ARGS_MF_bm));
+    LOG_DEBUG("MT: %d\n", (bool)(command_args & FDC_CMD_ARGS_MT_bm));
+    LOG_DEBUG("Drive: %d\n", rw_args->unit_head & FDC_ST0_US);
+    LOG_DEBUG("HD: %d\n", (bool)(rw_args->unit_head & FDC_ST0_HD));
+    LOG_DEBUG("Cyl: %d\n", rw_args->cylinder);
+    LOG_DEBUG("Head: %d\n", rw_args->head);
+    LOG_DEBUG("Record: %d\n", rw_args->record);
+    LOG_DEBUG("N: %d\n", rw_args->n);
+    LOG_DEBUG("EOT: %d\n", rw_args->eot);
+    LOG_DEBUG("GPL: %d\n", rw_args->gpl);
+    LOG_DEBUG("DTL: %d\n", rw_args->dtl);
 
     // Set DIO to read for Execution phase
     status_register[MSR] |= FDC_ST_DIO;
-    // Clear errors on other status registers
-    // TODO put this in a function
-    status_register[ST0] = 0;
-    status_register[ST1] = 0;
-    status_register[ST2] = 0;
-    status_register[ST3] = 0;
+
+    idr.phy_head = rw_args->unit_head;
+    idr.cylinder = rw_args->cylinder;
+    idr.head = rw_args->head;
+    idr.record = rw_args->record;
+    memcpy(&next_idr, &idr, sizeof(idr));
 
     // TODO(giuliof) create handles to manage more than one floppy image at a
     // time
@@ -392,52 +388,23 @@ static uint8_t exec_read_data(uint8_t value) {
 
     rw_args_t *rw_args = (rw_args_t *)args;
 
-    if (rwcount_max == 0) {
-        LOG_WARN("Read execution happened when no data can be read");
-        return 0;
+    uint8_t ret = 0;
+
+    // Sector buffer already populated and on-going reading
+    if (rwcount < rwcount_max) {
+        ret = exec_buffer[rwcount++];
+    }
+    // No sector buffer or finished one, try to get another sector from image
+    else if ((rwcount_max == 0 || rwcount >= rwcount_max)) {
+        if (buffer_update())
+            ret = exec_buffer[rwcount++];
     }
 
-    uint8_t ret = exec_buffer[rwcount++];
-
-    // More data can be read, just go on with the current buffer
-    if (rwcount != rwcount_max)
-        return ret;
+    // From the manual: in NON-DMA mode, interrupt is generated during
+    // execution phase (as soon as new data is available)
+    int_status = true;
 
     /* Prepare the next buffer to be read */
-    // Multi-sector mode (enabled by default).
-    // If read is not interrupted at the end of the sector, the next logical
-    // sector is loaded
-    rw_args->record++;
-
-    // Last sector of the track
-    if (rw_args->record > rw_args->eot) {
-        // In any case, reached the end of track we start back from sector 1
-        rw_args->record = 1;
-
-        // Multi track mode, if enabled the read operation go on on the next
-        // side
-        if (command_args & FDC_CMD_ARGS_MT_bm) {
-            rw_args->unit_head ^= FDC_ST0_HD;
-            rw_args->head = !rw_args->head;
-
-            if (!(rw_args->unit_head & FDC_ST0_HD)) {
-                // Terminate execution if end of track is reached
-                tc_status = true;
-                rw_args->cylinder++;
-                status_register[ST0] = rw_args->unit_head;
-                return 0;
-            }
-        } else {
-            // Terminate execution if end of track is reached
-            tc_status = true;
-            rw_args->cylinder++;
-            status_register[ST0] = rw_args->unit_head;
-            return 0;
-        }
-    }
-
-    buffer_update();
-
     return ret;
 }
 
@@ -446,16 +413,29 @@ static void post_exec_read_data(void) {
 
     LOG_DEBUG("Read has ended\n");
 
-    memset(result, 0x00, sizeof(result));
-
     /* Status registers 0-2 */
-    result[0] |= status_register[ST0];
-    result[1] |= status_register[ST1];
-    result[2] |= status_register[ST2];
+    result[0] = status_register[ST0];
+    result[1] = status_register[ST1];
+    result[2] = status_register[ST2];
     /* CHR */
-    result[3] = rw_args->cylinder;
-    result[4] = rw_args->head;
-    result[5] = rw_args->record;
+    // When the FDC exits from exec mode with no error, next IDR should be used
+    if ((result[0] & FDC_ST0_IC) == 0) {
+        result[0] &= (uint8_t)~FDC_ST0_HD;
+        if (next_idr.phy_head & FDC_ST0_HD)
+            result[0] |= FDC_ST0_HD;
+        result[3] = next_idr.cylinder;
+        result[4] = next_idr.head;
+        result[5] = next_idr.record;
+    }
+    // Else, in case of error, use the last valid read sector (current IDR)
+    else {
+        result[0] &= (uint8_t)~FDC_ST0_HD;
+        if (idr.phy_head & FDC_ST0_HD)
+            result[0] |= FDC_ST0_HD;
+        result[3] = idr.cylinder;
+        result[4] = idr.head;
+        result[5] = idr.record;
+    }
     /* Sector size factor */
     result[6] = rw_args->n;
 }
@@ -717,15 +697,17 @@ static void fdc_compute_next_status(void) {
         status_register[MSR] &= (uint8_t)~FDC_ST_CB;
 }
 
-static void buffer_update(void) {
+static bool buffer_update(void) {
     rw_args_t *rw_args = (rw_args_t *)args;
     uint8_t drive = rw_args->unit_head & FDC_ST0_US;
-
-    uint8_t sector = rw_args->record;
+    uint8_t sector = next_idr.record;
 
     rwcount = 0;
     rwcount_max = 0;
-    status_register[ST0] = rw_args->unit_head;
+    status_register[ST0] = drive;
+    status_register[ST1] = 0;
+    status_register[ST2] = 0;
+    status_register[ST3] = 0;
 
     // FDC counts sectors from 1
     assert(sector != 0);
@@ -734,25 +716,25 @@ static void buffer_update(void) {
     sector--;
 
     if (read_buffer_cb == NULL)
-        return;
+        return false;
 
     int ret =
-        read_buffer_cb(NULL, drive, rw_args->unit_head & FDC_ST0_HD,
-                       track[drive], rw_args->head, rw_args->cylinder, sector);
+        read_buffer_cb(NULL, drive, next_idr.phy_head & FDC_ST0_HD,
+                       track[drive], next_idr.head, next_idr.cylinder, sector);
 
     if (ret > DISK_IMAGE_NOMEDIUM) {
         // Buffer is statically allocated, be sure that the data can fit it
         CEDA_STRONG_ASSERT_TRUE((size_t)ret <= sizeof(exec_buffer));
 
-        ret = read_buffer_cb(exec_buffer, drive,
-                             rw_args->unit_head & FDC_ST0_HD, track[drive],
-                             rw_args->head, rw_args->cylinder, sector);
+        ret = read_buffer_cb(exec_buffer, drive, next_idr.phy_head & FDC_ST0_HD,
+                             track[drive], next_idr.head, next_idr.cylinder,
+                             sector);
     }
 
     // No medium, FDC is in EXEC state until a disk is inserted, or manual
     // termination
     if (ret == DISK_IMAGE_NOMEDIUM)
-        return;
+        return false;
 
     // generate interrupt since an event has occurred
     int_status = true;
@@ -763,30 +745,63 @@ static void buffer_update(void) {
             rwcount_max = MIN((size_t)rw_args->dtl, (size_t)ret);
         else
             rwcount_max = (size_t)ret;
+
+        // Update IDR for the next sector to be read
+        // TODO(giuliof): This can be done in a function
+
+        // Confirm the current IDR, since the buffer update was successful
+        memcpy(&idr, &next_idr, sizeof(idr));
+
+        // Multi-sector mode (enabled by default).
+        // If read is not interrupted at the end of the sector, the next logical
+        // sector is loaded
+        next_idr.record++;
+
+        // Last sector of the track
+        if (next_idr.record > rw_args->eot) {
+            // In any case, reached the end of track we start back from sector 1
+            next_idr.record = 1;
+
+            // Multi track mode, if enabled the read operation go on on the next
+            // side
+            if (command_args & FDC_CMD_ARGS_MT_bm) {
+                next_idr.phy_head ^= FDC_ST0_HD;
+                next_idr.head = !next_idr.head;
+
+                if (!(next_idr.phy_head & FDC_ST0_HD))
+                    next_idr.cylinder++;
+
+            } else {
+                next_idr.cylinder++;
+            }
+        }
+
+        return true;
     }
     // Error condition
     // TODO(giuliof): errors may be differentiated, but for the moment cath all
     // as a generic error
-    else {
-        LOG_WARN("Reading error occurred, code %d\n", ret);
-        // Update status register setting error condition and error type flags
-        status_register[ST0] |= 0x40;
-        status_register[ST1] |= 0x20;
-        status_register[ST2] |= 0x20;
-        // Execution is terminated after an error
-        tc_status = true;
-    }
+    LOG_WARN("Reading error occurred, code %d\n", ret);
+    // Update status register setting error condition and error type flags
+    status_register[ST0] |= 0x40;
+    status_register[ST1] |= 0x20;
+    status_register[ST2] |= 0x20;
+    // Execution is terminated after an error
+    tc_status = true;
+    return false;
 }
 
-static void buffer_write_size(void) {
+static bool buffer_write_size(void) {
     rw_args_t *rw_args = (rw_args_t *)args;
     uint8_t drive = rw_args->unit_head & FDC_ST0_US;
-
-    uint8_t sector = rw_args->record;
+    uint8_t sector = next_idr.record;
 
     rwcount = 0;
     rwcount_max = 0;
-    status_register[ST0] = rw_args->unit_head;
+    status_register[ST0] = drive;
+    status_register[ST1] = 0;
+    status_register[ST2] = 0;
+    status_register[ST3] = 0;
 
     // FDC counts sectors from 1
     assert(sector != 0);
@@ -795,16 +810,16 @@ static void buffer_write_size(void) {
     sector--;
 
     if (write_buffer_cb == NULL)
-        return;
+        return false;
 
     int ret =
-        write_buffer_cb(NULL, drive, rw_args->unit_head & FDC_ST0_HD,
-                        track[drive], rw_args->head, rw_args->cylinder, sector);
+        write_buffer_cb(NULL, drive, next_idr.phy_head & FDC_ST0_HD,
+                        track[drive], next_idr.head, next_idr.cylinder, sector);
 
     // No medium, FDC is in EXEC state until a disk is inserted, or manual
     // termination
     if (ret == DISK_IMAGE_NOMEDIUM)
-        return;
+        return false;
 
     // generate interrupt since an event has occurred
     int_status = true;
@@ -815,19 +830,51 @@ static void buffer_write_size(void) {
             rwcount_max = MIN((size_t)rw_args->dtl, (size_t)ret);
         else
             rwcount_max = (size_t)ret;
+
+        // Update IDR for the next sector to be read
+        // TODO(giuliof): This can be done in a function
+
+        // Confirm the current IDR, since the buffer update was successful
+        memcpy(&idr, &next_idr, sizeof(idr));
+
+        // Multi-sector mode (enabled by default).
+        // If read is not interrupted at the end of the sector, the next logical
+        // sector is loaded
+        next_idr.record++;
+
+        // Last sector of the track
+        if (next_idr.record > rw_args->eot) {
+            // In any case, reached the end of track we start back from sector 1
+            next_idr.record = 1;
+
+            // Multi track mode, if enabled the read operation go on on the next
+            // side
+            if (command_args & FDC_CMD_ARGS_MT_bm) {
+                next_idr.phy_head ^= FDC_ST0_HD;
+                next_idr.head = !next_idr.head;
+
+                if (!(next_idr.phy_head & FDC_ST0_HD))
+                    next_idr.cylinder++;
+
+            } else {
+                next_idr.cylinder++;
+            }
+        }
+
+        return true;
     }
     // Error condition
     // TODO(giuliof): errors may be differentiated, but for the moment cath all
     // as a generic error
-    else {
-        LOG_WARN("Reading error occurred, code %d\n", ret);
-        // Update status register setting error condition and error type flags
-        status_register[ST0] |= 0x40;
-        status_register[ST1] |= 0x20;
-        status_register[ST2] |= 0x20;
-        // Execution is terminated after an error
-        tc_status = true;
-    }
+    LOG_WARN("Reading error occurred, code %d\n", ret);
+    // Update status register setting error condition and error type flags
+    status_register[ST0] |= 0x40;
+    status_register[ST1] |= 0x20;
+    status_register[ST2] |= 0x20;
+    // Execution is terminated after an error
+    tc_status = true;
+
+    return false;
 }
 
 /* * * * * * * * * * * * * * *  Public routines   * * * * * * * * * * * * * * */
