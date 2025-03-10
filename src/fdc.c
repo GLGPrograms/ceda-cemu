@@ -375,9 +375,6 @@ static void pre_exec_read_data(void) {
     idr.record = rw_args->record;
     memcpy(&next_idr, &idr, sizeof(idr));
 
-    // TODO(giuliof) create handles to manage more than one floppy image at a
-    // time
-    // read_buffer_cb(exec_buffer, track_size, head, track, sector);
     // TODO(giuliof): may be a good idea to pass a sort of "floppy context"
     buffer_update();
 }
@@ -1010,16 +1007,11 @@ void fdc_tc_out(ceda_ioaddr_t address, uint8_t value) {
     (void)value;
 
     if (fdc_status == EXEC) {
-        // TODO(giuliof) tc may be an argument to the fdc_compute_next_status,
-        // since it is just a trigger.
         tc_status = true;
         fdc_compute_next_status();
     }
 }
 
-// TODO(giuliof): After Execution Phase or EOR sector read, INT=1
-// (beginning of result phase). When first byte of result phase data
-// is read, INT=0.
 bool fdc_getIntStatus(void) {
     return int_status;
 }
