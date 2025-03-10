@@ -240,10 +240,10 @@ static void pre_exec_write_data(void) {
     rw_args_t *rw_args = (rw_args_t *)args;
 
     LOG_DEBUG("FDC Write Data\n");
-    LOG_DEBUG("MF: %d\n", (bool)(command_args & FDC_CMD_ARGS_MF_bm));
-    LOG_DEBUG("MT: %d\n", (bool)(command_args & FDC_CMD_ARGS_MT_bm));
+    LOG_DEBUG("MF: %d\n", !!(command_args & FDC_CMD_ARGS_MF_bm));
+    LOG_DEBUG("MT: %d\n", !!(command_args & FDC_CMD_ARGS_MT_bm));
     LOG_DEBUG("Drive: %d\n", rw_args->unit_head & FDC_ST0_US);
-    LOG_DEBUG("HD: %d\n", (bool)(rw_args->unit_head & FDC_ST0_HD));
+    LOG_DEBUG("HD: %d\n", !!(rw_args->unit_head & FDC_ST0_HD));
     LOG_DEBUG("Cyl: %d\n", rw_args->cylinder);
     LOG_DEBUG("Head: %d\n", rw_args->head);
     LOG_DEBUG("Record: %d\n", rw_args->record);
@@ -353,11 +353,11 @@ static void pre_exec_read_data(void) {
     rw_args_t *rw_args = (rw_args_t *)args;
 
     LOG_DEBUG("FDC Read Data\n");
-    LOG_DEBUG("SK: %d\n", (bool)(command_args & FDC_CMD_ARGS_SK_bm));
-    LOG_DEBUG("MF: %d\n", (bool)(command_args & FDC_CMD_ARGS_MF_bm));
-    LOG_DEBUG("MT: %d\n", (bool)(command_args & FDC_CMD_ARGS_MT_bm));
+    LOG_DEBUG("SK: %d\n", !!(command_args & FDC_CMD_ARGS_SK_bm));
+    LOG_DEBUG("MF: %d\n", !!(command_args & FDC_CMD_ARGS_MF_bm));
+    LOG_DEBUG("MT: %d\n", !!(command_args & FDC_CMD_ARGS_MT_bm));
     LOG_DEBUG("Drive: %d\n", rw_args->unit_head & FDC_ST0_US);
-    LOG_DEBUG("HD: %d\n", (bool)(rw_args->unit_head & FDC_ST0_HD));
+    LOG_DEBUG("HD: %d\n", !!(rw_args->unit_head & FDC_ST0_HD));
     LOG_DEBUG("Cyl: %d\n", rw_args->cylinder);
     LOG_DEBUG("Head: %d\n", rw_args->head);
     LOG_DEBUG("Record: %d\n", rw_args->record);
@@ -491,15 +491,14 @@ static void pre_exec_format_track(void) {
     uint8_t phy_head = !!(format_args->unit_head & FDC_ST0_HD);
     uint8_t drive = format_args->unit_head & FDC_ST0_US;
 
-    // TODO(giuliof): eventually: use the appropriate structure
     LOG_DEBUG("FDC Format track\n");
-    LOG_DEBUG("MF: %d\n", (command_args >> 6) & 0x01);
-    LOG_DEBUG("Drive: %d\n", args[0] & 0x3);
-    LOG_DEBUG("HD: %d\n", (args[0] >> 2) & 0x1);
-    LOG_DEBUG("N: %d\n", args[1]);
-    LOG_DEBUG("SPT: %d\n", args[2]);
-    LOG_DEBUG("GPL: %d\n", args[3]);
-    LOG_DEBUG("D: %d\n", args[4]);
+    LOG_DEBUG("MF: %d\n", !!(command_args & FDC_CMD_ARGS_MF_bm));
+    LOG_DEBUG("Drive: %d\n", format_args->unit_head & FDC_ST0_US);
+    LOG_DEBUG("HD: %d\n", !!(format_args->unit_head & FDC_ST0_HD));
+    LOG_DEBUG("N: %d\n", format_args->n);
+    LOG_DEBUG("SPT: %d\n", format_args->sec_per_track);
+    LOG_DEBUG("GPL: %d\n", format_args->gpl);
+    LOG_DEBUG("D: %d\n", format_args->d);
 
     // Set deafult values of status registers
     status_register[ST0] = format_args->unit_head;
