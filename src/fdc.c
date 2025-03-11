@@ -86,6 +86,7 @@ static void pre_exec_seek(void);
 /* Utility routines prototypes */
 static bool is_cmd_out_of_sequence(uint8_t cmd);
 static void fdc_compute_next_status(void);
+static void set_invalid_cmd(void);
 // Update read buffer with the data from current ths
 static bool buffer_update(void);
 static bool buffer_write_size(void);
@@ -173,6 +174,15 @@ static const fdc_operation_t fdc_operations[] = {
         .exec = NULL,
         .post_exec = NULL,
     },
+};
+// This is a dummy operation used when an invalid command has to be handled
+static const fdc_operation_t invalid_op = {
+    .cmd = 0x00, // This command code does't exists
+    .args_len = 0,
+    .result_len = 1, // Invalid command has to report just ST0
+    .pre_exec = NULL,
+    .exec = NULL,
+    .post_exec = NULL,
 };
 // Current FDC status
 static fdc_status_t fdc_status = CMD;
@@ -693,6 +703,21 @@ static void fdc_compute_next_status(void) {
         status_register[MSR] &= (uint8_t)~FDC_ST_CB;
 }
 
+static void set_invalid_cmd(void) {
+    // Invalid command is not an actual command...
+    fdc_currop = &invalid_op;
+
+    fdc_status = CMD;
+
+    // TODO(giuliof): current drive has to be preserved?
+    status_register[ST0] &= (uint8_t)~FDC_ST0_US;
+    // TODO(giuliof): should present other flags?
+    status_register[ST0] |= 0x80;
+
+    // Immediately prepare result
+    result[0] = status_register[ST0];
+}
+
 static bool buffer_update(void) {
     rw_args_t *rw_args = (rw_args_t *)args;
     uint8_t drive = rw_args->unit_head & FDC_ST0_US;
@@ -972,12 +997,10 @@ void fdc_out(ceda_ioaddr_t address, uint8_t value) {
             if (fdc_currop == NULL) {
                 LOG_WARN("Command %x is not implemented\n", cmd);
 
-                // Invalid command: set the main status register to read to
-                // serve ST0 and error code
-                status_register[ST0] &= (uint8_t)~FDC_ST0_IC;
-                status_register[ST0] |= 0x80;
+                // Invalid command is not an actual command...
+                fdc_currop = &invalid_op;
 
-                status_register[MSR] |= FDC_ST_DIO;
+                set_invalid_cmd();
             }
         } else if (fdc_status == ARGS) {
             assert(rwcount < sizeof(args) / sizeof(*args));
