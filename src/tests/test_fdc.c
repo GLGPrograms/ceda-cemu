@@ -209,7 +209,6 @@ Test(ceda_fdc, invalidSeekSequence) {
     // FDC does not process this command and asserts invalid command
     data = fdc_in(FDC_ADDR_DATA_REGISTER);
     cr_expect_eq(data, 0x80);
-
 }
 
 /**
