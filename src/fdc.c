@@ -393,8 +393,6 @@ static uint8_t exec_read_data(uint8_t value) {
     // read doesn't care of in value
     (void)value;
 
-    rw_args_t *rw_args = (rw_args_t *)args;
-
     uint8_t ret = 0;
 
     // Sector buffer already populated and on-going reading
