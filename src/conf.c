@@ -23,6 +23,7 @@ static const char *CONF_PATH_HOME =
 // Emulator dynamic configuration
 static struct {
     bool cge_installed;
+    bool charmon_installed;
     ceda_string_t *bios_rom_path;
     ceda_string_t *char_rom_path;
     ceda_string_t *cge_rom_path;
@@ -46,6 +47,7 @@ typedef struct conf_tuple_t {
 
 static conf_tuple_t conf_tuples[] = {
     {"mod", "cge_installed", CONF_BOOL, &conf.cge_installed},
+    {"mod", "charmon_installed", CONF_BOOL, &conf.charmon_installed},
     {"path", "bios_rom", CONF_STR, &conf.bios_rom_path},
     {"path", "char_rom", CONF_STR, &conf.char_rom_path},
     {"path", "cge_rom", CONF_STR, &conf.cge_rom_path},
