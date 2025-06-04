@@ -121,7 +121,7 @@ static int floppy_read_buffer(uint8_t *buffer, uint8_t unit_number,
         // Compute byte offset to sector start
         offset = sector * CFF_T0_SECTOR_SIZE;
     } else {
-        if (sector > CFF_MAX_SECTORS)
+        if (sector > CFF_MAX_SECTORS - 1)
             return DISK_IMAGE_INVALID_GEOMETRY;
 
         // Compute byte offset to sector start
@@ -180,7 +180,7 @@ static int floppy_write_buffer(uint8_t *buffer, uint8_t unit_number,
         // Compute byte offset to sector start
         offset = sector * CFF_T0_SECTOR_SIZE;
     } else {
-        if (sector > CFF_MAX_SECTORS)
+        if (sector > CFF_MAX_SECTORS - 1)
             return DISK_IMAGE_INVALID_GEOMETRY;
 
         // Compute byte offset to sector start
