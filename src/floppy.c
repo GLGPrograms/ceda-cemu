@@ -1,14 +1,17 @@
 #include "floppy.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "fdc.h"
 #include "macro.h"
 
-#define CEDA_FORMAT_MAXIMUM_TRACKS     (80)
-#define CEDA_FORMAT_MAXIMUM_SECTORS    (80)
-#define CEDA_FORMAT_FIRST_TRACK_SECTOR (80)
+#define CFF_MAXIMUM_TRACKS (80U)
+#define CFF_SECTOR_SIZE    (1024U)
+#define CFF_MAX_SECTORS    (5U)
+#define CFF_T0_SECTOR_SIZE (256U)
+#define CFF_T0_MAX_SECTORS (16U)
 
 /**
  * @brief Read a sector from a certain drive
@@ -92,8 +95,8 @@ static int floppy_read_buffer(uint8_t *buffer, uint8_t unit_number,
         return DISK_IMAGE_NOMEDIUM;
 
     FILE *fd = floppy_units[unit_number].fd;
-    size_t len = 256;
-    long offset;
+    size_t len = CFF_T0_SECTOR_SIZE;
+    uint32_t offset;
 
     // No disk loaded
     if (fd == NULL)
@@ -107,30 +110,30 @@ static int floppy_read_buffer(uint8_t *buffer, uint8_t unit_number,
         return DISK_IMAGE_INVALID_GEOMETRY;
 
     // CFF has up to 80 tracks
-    if (track > 79)
+    if (track > CFF_MAXIMUM_TRACKS - 1)
         return DISK_IMAGE_INVALID_GEOMETRY;
 
     // Locate sector start
     if (track == 0 && head == 0) {
-        // First track has max 16 sectors
-        if (sector > 15)
+        // First track different format handling
+        if (sector > CFF_T0_MAX_SECTORS - 1)
             return DISK_IMAGE_INVALID_GEOMETRY;
         // Compute byte offset to sector start
-        offset = (long)sector * 256;
+        offset = sector * CFF_T0_SECTOR_SIZE;
     } else {
-        if (sector > 5)
+        if (sector > CFF_MAX_SECTORS)
             return DISK_IMAGE_INVALID_GEOMETRY;
 
         // Compute byte offset to sector start
-        offset = (long)track * 1024 * 5 * 2;
-        offset += (long)head * 1024 * 5;
-        offset += (long)sector * 1024;
+        offset = track * CFF_SECTOR_SIZE * CFF_MAX_SECTORS * 2;
+        offset += head * CFF_SECTOR_SIZE * CFF_MAX_SECTORS;
+        offset += sector * CFF_SECTOR_SIZE;
 
         // First track has a different format
-        offset -= (long)1024 * 5;
-        offset += (long)256 * 16;
+        offset -= CFF_SECTOR_SIZE * CFF_MAX_SECTORS;
+        offset += CFF_T0_SECTOR_SIZE * CFF_T0_MAX_SECTORS;
 
-        len = 1024;
+        len = CFF_SECTOR_SIZE;
     }
 
     // If requested, load sector into buffer
@@ -151,8 +154,8 @@ static int floppy_write_buffer(uint8_t *buffer, uint8_t unit_number,
         return DISK_IMAGE_NOMEDIUM;
 
     FILE *fd = floppy_units[unit_number].fd;
-    size_t len = 256;
-    long offset;
+    size_t len = CFF_T0_SECTOR_SIZE;
+    uint32_t offset;
 
     // No disk loaded, raise error
     if (fd == NULL)
@@ -166,30 +169,30 @@ static int floppy_write_buffer(uint8_t *buffer, uint8_t unit_number,
         return DISK_IMAGE_INVALID_GEOMETRY;
 
     // CFF has up to 80 tracks
-    if (track > 79)
+    if (track > CFF_MAXIMUM_TRACKS - 1)
         return DISK_IMAGE_INVALID_GEOMETRY;
 
     // Locate sector start
     if (track == 0 && head == 0) {
-        // First track has max 16 sectors
-        if (sector > 15)
+        // First track different format handling
+        if (sector > CFF_T0_MAX_SECTORS - 1)
             return DISK_IMAGE_INVALID_GEOMETRY;
         // Compute byte offset to sector start
-        offset = (long)sector * 256;
+        offset = sector * CFF_T0_SECTOR_SIZE;
     } else {
-        if (sector > 5)
+        if (sector > CFF_MAX_SECTORS)
             return DISK_IMAGE_INVALID_GEOMETRY;
 
         // Compute byte offset to sector start
-        offset = (long)track * 1024 * 5 * 2;
-        offset += (long)head * 1024 * 5;
-        offset += (long)sector * 1024;
+        offset = track * CFF_SECTOR_SIZE * CFF_MAX_SECTORS * 2;
+        offset += head * CFF_SECTOR_SIZE * CFF_MAX_SECTORS;
+        offset += sector * CFF_SECTOR_SIZE;
 
         // First track has a different format
-        offset -= (long)1024 * 5;
-        offset += (long)256 * 16;
+        offset -= CFF_SECTOR_SIZE * CFF_MAX_SECTORS;
+        offset += CFF_T0_SECTOR_SIZE * CFF_T0_MAX_SECTORS;
 
-        len = 1024;
+        len = CFF_SECTOR_SIZE;
     }
 
     // If requested, load sector into buffer
