@@ -26,15 +26,8 @@ case ${1-help} in
         make -C build/debug
         ;;
 
-    test)
-        banner "Building TEST"
-        mkdir -p build/test
-        cmake -B build/test -DCMAKE_BUILD_TYPE=Debug -DCEDA_TEST=1
-        make -C build/test
-        ;;
-
     help|*)
-        echo Choose one among: [release, debug, test]
+        echo Choose one among: [release, debug]
         exit 1
         ;;
 esac
