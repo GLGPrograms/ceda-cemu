@@ -21,8 +21,7 @@ jobs:
           git submodule update
           script/build release
           script/build debug
-          script/build test
       - name: Test
         run: |
-          build/test/ceda
+          build/release/ceda-test
 
