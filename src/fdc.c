@@ -87,9 +87,8 @@ static void pre_exec_seek(void);
 static bool is_cmd_out_of_sequence(uint8_t cmd);
 static void fdc_compute_next_status(void);
 static void set_invalid_cmd(void);
-// Update read buffer with the data from current ths
-static bool buffer_update(void);
-static bool buffer_write_size(void);
+static bool fdc_prepare_read(void);
+static bool fdc_commit_write(void);
 
 /* Local variables */
 // The command descriptors
@@ -271,7 +270,7 @@ static void pre_exec_write_data(void) {
     idr.record = rw_args->record;
     memcpy(&next_idr, &idr, sizeof(idr));
 
-    buffer_write_size();
+    fdc_commit_write();
 }
 
 static uint8_t exec_write_data(uint8_t value) {
@@ -282,7 +281,7 @@ static uint8_t exec_write_data(uint8_t value) {
         return 0;
 
     if (rwcount >= rwcount_max) {
-        if (!buffer_write_size())
+        if (!fdc_commit_write())
             return 0;
     }
 
@@ -386,7 +385,7 @@ static void pre_exec_read_data(void) {
     memcpy(&next_idr, &idr, sizeof(idr));
 
     // TODO(giuliof): may be a good idea to pass a sort of "floppy context"
-    buffer_update();
+    fdc_prepare_read();
 }
 
 static uint8_t exec_read_data(uint8_t value) {
@@ -401,7 +400,7 @@ static uint8_t exec_read_data(uint8_t value) {
     }
     // No sector buffer or finished one, try to get another sector from image
     else if ((rwcount_max == 0 || rwcount >= rwcount_max)) {
-        if (buffer_update())
+        if (fdc_prepare_read())
             ret = exec_buffer[rwcount++];
     }
 
@@ -716,7 +715,14 @@ static void set_invalid_cmd(void) {
     result[0] = status_register[ST0];
 }
 
-static bool buffer_update(void) {
+/**
+ * @brief This helper routine fetches the read buffer from the disk image, to
+ * be served during execution phase. It updates the status registers too, moving
+ * head/track/sector pointers.
+ *
+ * @return false on failure
+ */
+static bool fdc_prepare_read(void) {
     rw_args_t *rw_args = (rw_args_t *)args;
     uint8_t drive = rw_args->unit_head & FDC_ST0_US;
     uint8_t sector = next_idr.record;
@@ -810,7 +816,14 @@ static bool buffer_update(void) {
     return false;
 }
 
-static bool buffer_write_size(void) {
+/**
+ * @brief This helper routine writes the buffer, populated during the execution
+ * phase, into the disk image. It updates the status registers too, moving
+ * head/track/sector pointers.
+ *
+ * @return false on failure
+ */
+static bool fdc_commit_write(void) {
     rw_args_t *rw_args = (rw_args_t *)args;
     uint8_t drive = rw_args->unit_head & FDC_ST0_US;
     uint8_t sector = next_idr.record;
@@ -1040,18 +1053,18 @@ bool fdc_getIntStatus(void) {
 // TODO(giuliof): describe better this function
 // Fast notes: if an image is loaded at runtime, check if the code is stuck in
 // a read or write loop that was waiting for interrupt.
-// In that case, remove the lock (buffer_update will do it, for the writing it
-// has to be implemented)
+// In that case, remove the lock (fdc_prepare_read will do it, for the writing
+// it has to be implemented)
 void fdc_kickDiskImage(fdc_read_write_t read_callback,
                        fdc_read_write_t write_callback) {
     read_buffer_cb = read_callback;
     write_buffer_cb = write_callback;
 
     if (fdc_status == EXEC && fdc_currop->cmd == FDC_READ_DATA) {
-        buffer_update();
+        fdc_prepare_read();
     }
 
     if (fdc_status == EXEC && fdc_currop->cmd == FDC_WRITE_DATA) {
-        buffer_write_size();
+        fdc_commit_write();
     }
 }
