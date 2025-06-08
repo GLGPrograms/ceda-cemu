@@ -97,32 +97,6 @@ Test(ceda_fdc, specifyCommand) {
     assert_fdc_sr(FDC_ST_RQM);
 }
 
-// This test is not valid!
-#if 0
-Test(ceda_fdc, senseInterruptStatusCommand) {
-    fdc_init();
-
-    uint8_t data;
-
-    fdc_out(FDC_ADDR_DATA_REGISTER, FDC_SENSE_INTERRUPT);
-
-    // This command has no arguments
-    // FDC should be ready to give response
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_CB);
-
-    // First response byte is SR0 with interrupt code = 0 and Seek End = 1
-    data = fdc_in(FDC_ADDR_DATA_REGISTER);
-    cr_expect_eq(data, FDC_ST0_SE);
-
-    // FDC has another byte of response
-    assert_fdc_sr(FDC_ST_RQM | FDC_ST_DIO | FDC_ST_CB);
-
-    // Second response byte is current cylinder, which should be zero at reset
-    data = fdc_in(FDC_ADDR_DATA_REGISTER);
-    cr_expect_eq(data, 0);
-}
-#endif
-
 Test(ceda_fdc, seekCommand) {
     fdc_init();
 
@@ -525,7 +499,6 @@ static struct rw_test_params_t rwparams[] = {
             0,              // N
         },
     },
-#if 1
     {
         // MT (multi-track), end record < EOT, physical head 1
         FDC_CMD_ARGS_MT_bm,
@@ -572,7 +545,6 @@ static struct rw_test_params_t rwparams[] = {
             0, // N
         },
     },
-#endif
 };
 
 ParameterizedTestParameters(ceda_fdc, readCommand0) {
