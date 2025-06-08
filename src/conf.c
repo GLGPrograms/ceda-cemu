@@ -140,6 +140,7 @@ static int conf_handler(void *user, const char *section, const char *key,
 
 void conf_init(void) {
     const char *loaded_path = NULL;
+    char path[CONF_PATH_SIZE];
 
     // load ini from local working directory
     if (ini_parse(CONF_PATH_CWD, conf_handler, conf_tuples) >= 0)
@@ -149,7 +150,6 @@ void conf_init(void) {
     if (loaded_path == NULL) {
         const char *home = getenv("HOME");
         if (home) {
-            char path[CONF_PATH_SIZE];
             (void)snprintf(path, CONF_PATH_SIZE, "%s/%s", home, CONF_PATH_HOME);
             if (ini_parse(path, conf_handler, conf_tuples) >= 0)
                 loaded_path = path;
