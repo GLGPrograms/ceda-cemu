@@ -237,7 +237,11 @@ Test(ceda_fdc, readCommandNoMedium) {
     cr_assert_eq(fdc_getIntStatus(), true);
 }
 
-// 20 20?
+/*
+ * Note: the ST1/ST2 reported during errors are fixed to 0x20 0x20, for every
+ * error that the callbacks may raise. This would change if errors handling is
+ * improved.
+ */
 Test(ceda_fdc, readCommandInvalidParams) {
     const uint8_t arguments[8] = {
         0, // drive number
