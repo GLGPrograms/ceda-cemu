@@ -556,8 +556,8 @@ static void post_exec_format_track(void) {
 
     // At the moment the track format is just a writing over all "pre-formatted"
     // sectors. An arbitrary format is currently not supported.
-    for (size_t s = 0; s < format_args->sec_per_track; s++) {
-        uint8_t *id_field = exec_buffer + (4 * s);
+    for (size_t sec = 0; sec < format_args->sec_per_track; sec++) {
+        uint8_t *id_field = exec_buffer + (4 * sec);
         uint8_t cylinder = id_field[0];
         uint8_t head = id_field[1];
         uint8_t record = id_field[2] - 1;
@@ -619,24 +619,26 @@ static void pre_exec_seek(void) {
 /* * * * * * * * * * * * * * *  Utility routines  * * * * * * * * * * * * * * */
 
 static bool is_cmd_out_of_sequence(uint8_t cmd) {
+    bool ret = true;
+
     bool fdc_busy = status_register[MSR] &
                     ((FDC_ST_D3B | FDC_ST_D2B | FDC_ST_D1B | FDC_ST_D0B));
 
     if (cmd == FDC_SEEK || cmd == FDC_RECALIBRATE)
-        return false;
-    // TODO: to be correct, I should check int, but it was already
+        ret = false;
+    // TODO(giuliof): to be correct, I should check int, but it was already
     // cleared in command read/write routine
     else if (cmd == FDC_SENSE_INTERRUPT) {
         if (fdc_busy)
-            return false;
+            ret = false;
     }
     //
     else {
         if (!fdc_busy)
-            return false;
+            ret = false;
     }
 
-    return true;
+    return ret;
 }
 
 static void fdc_compute_next_status(void) {

@@ -3,7 +3,7 @@
 #include <criterion/parameterized.h>
 #include <stdio.h>
 
-// TODO source path is src!
+// TODO(giuliof) source path is src!
 #include "../fdc.h"
 #include "../fdc_registers.h"
 
@@ -22,12 +22,13 @@ static int fake_write(uint8_t *buffer, uint8_t unit_number, bool phy_head,
  * @param expected_sr the expected value of the FDC main status register
  */
 static void assert_fdc_sr(uint8_t expected_sr) {
-    uint8_t sr;
-    sr = fdc_in(FDC_ADDR_STATUS_REGISTER);
-    // cr_log_info("%x != %x", sr, expected_sr);
-    cr_expect_eq(sr, expected_sr);
+    uint8_t sreg;
+    sreg = fdc_in(FDC_ADDR_STATUS_REGISTER);
+    // cr_log_info("%x != %x", sreg, expected_sr);
+    cr_expect_eq(sreg, expected_sr);
 }
 
+// NOLINTNEXTLINE
 static int fake_read(uint8_t *buffer, uint8_t unit_number, bool phy_head,
                      uint8_t phy_track, bool head, uint8_t track,
                      uint8_t sector) {
@@ -42,6 +43,7 @@ static int fake_read(uint8_t *buffer, uint8_t unit_number, bool phy_head,
     return 4;
 }
 
+// NOLINTNEXTLINE
 static int fake_wrong_rw(uint8_t *buffer, uint8_t unit_number, bool phy_head,
                          uint8_t phy_track, bool head, uint8_t track,
                          uint8_t sector) {
@@ -56,6 +58,7 @@ static int fake_wrong_rw(uint8_t *buffer, uint8_t unit_number, bool phy_head,
     return DISK_IMAGE_ERR;
 }
 
+// NOLINTNEXTLINE
 static int fake_read_check_track(uint8_t *buffer, uint8_t unit_number,
                                  bool phy_head, uint8_t phy_track, bool head,
                                  uint8_t track, uint8_t sector) {
@@ -173,11 +176,11 @@ Test(ceda_fdc, invalidSeekSequence) {
     cr_assert_eq(fdc_getIntStatus(), false);
 
     {
-        uint8_t sr;
-        sr = fdc_in(FDC_ADDR_STATUS_REGISTER);
+        uint8_t sreg;
+        sreg = fdc_in(FDC_ADDR_STATUS_REGISTER);
         // Remove busy drives, not interested
-        sr &= (uint8_t) ~(FDC_ST_D0B | FDC_ST_D1B | FDC_ST_D2B | FDC_ST_D3B);
-        cr_expect_eq(sr, (FDC_ST_RQM | FDC_ST_DIO | FDC_ST_CB));
+        sreg &= (uint8_t) ~(FDC_ST_D0B | FDC_ST_D1B | FDC_ST_D2B | FDC_ST_D3B);
+        cr_expect_eq(sreg, (FDC_ST_RQM | FDC_ST_DIO | FDC_ST_CB));
     }
 
     // FDC does not process this command and asserts invalid command
@@ -602,6 +605,7 @@ ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, readCommand0) {
     cr_assert_eq(fdc_getIntStatus(), false);
 }
 
+// NOLINTNEXTLINE
 static int fake_write(uint8_t *buffer, uint8_t unit_number, bool phy_head,
                       uint8_t phy_track, bool head, uint8_t track,
                       uint8_t sector) {
