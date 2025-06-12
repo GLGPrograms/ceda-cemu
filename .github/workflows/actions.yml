@@ -6,7 +6,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     container:
-      image: giomba/ceda-cemu-builder:1
+      image: giomba/ceda-cemu-builder:2
       options: --user root
     steps:
       - name: Checkout repository

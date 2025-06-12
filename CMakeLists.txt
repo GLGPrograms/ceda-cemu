@@ -43,6 +43,7 @@ include_directories(vendor/inih)
 
 include_directories(vendor/Z80/API)
 set(Z80_SHARED_LIBS NO CACHE BOOL "")
+set(Z80_WITH_HTML_DOCUMENTATION YES)
 add_subdirectory(vendor/Z80)
 
 # Global properties and settings
@@ -66,7 +67,6 @@ function(add_ceda_target target)
         target_compile_options(${target} PRIVATE -Werror)
     elseif(CMAKE_BUILD_TYPE MATCHES "Debug")
         target_compile_options(${target} PRIVATE -DDEBUG=1)
-        # set(Z80_WITH_HTML_DOCUMENTATION YES)
     endif()
 
     target_link_libraries(${target}
