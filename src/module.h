@@ -3,6 +3,8 @@
 
 #include "time.h"
 
+#include <stdbool.h>
+
 typedef us_interval_t (*remaining_handler_t)(void);
 typedef void (*performance_handler_t)(float *value, const char **unit);
 
@@ -28,8 +30,10 @@ typedef struct CEDAModule {
      *
      * This routine acquires dynamic resources for the module.
      *
+     * Return true if resources have been acquired, false otherwise.
+     *
      */
-    void (*start)(void);
+    bool (*start)(void);
 
     /**
      * @brief Advance the internal status of the module.
@@ -76,6 +80,11 @@ typedef struct CEDAModule {
      *
      * After that the cleanup routine has been called, the module can not be
      * used anymore, and the emulator can be shut down safely.
+     *
+     * Modules which implement this interface, must check internally that
+     * their dynamic resources have been correctly acquired, before
+     * freeing them.
+     *
      */
     void (*cleanup)(void);
 

@@ -935,9 +935,8 @@ static ceda_string_t *cli_help(const char *arg) {
     return msg;
 }
 
-static void cli_start(void) {
-    if (!initialized)
-        return;
+static bool cli_start(void) {
+    return initialized;
 }
 
 static void cli_poll(void) {

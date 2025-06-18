@@ -54,13 +54,16 @@ void ceda_init(void) {
     sio2_init(&mod_sio2);
 }
 
-static void ceda_start(void) {
+static bool ceda_start(void) {
     for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
-        void (*start)(void) = modules[i]->start;
+        bool (*start)(void) = modules[i]->start;
         if (start) {
-            start();
+            bool ok = start();
+            if (!ok)
+                return false;
         }
     }
+    return true;
 }
 
 static void ceda_poll(void) {
@@ -108,9 +111,15 @@ static void ceda_cleanup(void) {
     }
 }
 
-void ceda_run(void) {
-    // start all modules
-    ceda_start();
+int ceda_run(void) {
+    int ret = 0;
+
+    // acquire dynamic resources for all modules
+    if (!ceda_start()) {
+        LOG_ERR("cannot acquire dynamic resource\n");
+        ret = 1;
+        goto err;
+    }
 
     // main loop
     for (;;) {
@@ -129,7 +138,10 @@ void ceda_run(void) {
         ceda_performance();
     }
 
+err:
     // cleanup all modules
     ceda_cleanup();
     conf_cleanup();
+
+    return ret;
 }

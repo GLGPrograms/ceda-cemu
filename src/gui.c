@@ -21,13 +21,14 @@ bool gui_isQuit(void) {
     return quit;
 }
 
-static void gui_start(void) {
+static bool gui_start(void) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
         LOG_ERR("unable to initialize SDL: %s\n", SDL_GetError());
-        abort();
+        return false;
     }
 
     started = true;
+    return true;
 }
 
 static void gui_poll(void) {
@@ -54,6 +55,9 @@ static long gui_remaining(void) {
 }
 
 static void gui_cleanup(void) {
+    if (!started)
+        return;
+
     SDL_Quit();
 }
 

@@ -28,20 +28,21 @@ static Mix_Chunk chunk = {
     .volume = 64,
 };
 
-static void speaker_start(void) {
+static bool speaker_start(void) {
     if (!gui_isStarted()) {
         LOG_WARN("no gui: default to terminal speaker\n");
-        return;
+        return false;
     }
 
     if (Mix_OpenAudio(SPEAKER_SAMPLE_RATE, AUDIO_U8, 1, SPEAKER_SAMPLE_SIZE) <
         0) {
         LOG_WARN("unable to open audio card: default to terminal speaker");
-        return;
+        return false;
     }
 
     LOG_INFO("%s: ready\n", __func__);
     fallback = false;
+    return true;
 }
 
 void speaker_init(CEDAModule *mod) {
