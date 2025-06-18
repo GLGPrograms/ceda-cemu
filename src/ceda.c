@@ -22,6 +22,7 @@
 
 #include "log.h"
 
+static CEDAModule mod_bios;
 static CEDAModule mod_bus;
 static CEDAModule mod_cpu;
 static CEDAModule mod_cli;
@@ -33,8 +34,8 @@ static CEDAModule mod_int;
 static CEDAModule mod_serial;
 
 static CEDAModule *modules[] = {
-    &mod_cli,     &mod_gui, &mod_bus,    &mod_cpu,  &mod_video,
-    &mod_speaker, &mod_int, &mod_serial, &mod_sio2,
+    &mod_bios,  &mod_cli,     &mod_gui, &mod_bus,    &mod_cpu,
+    &mod_video, &mod_speaker, &mod_int, &mod_serial, &mod_sio2,
 };
 
 void ceda_init(void) {
@@ -44,7 +45,7 @@ void ceda_init(void) {
 
     fdc_init();
     upd8255_init();
-    rom_bios_init();
+    rom_bios_init(&mod_bios);
     video_init(&mod_video);
     speaker_init(&mod_speaker);
     bus_init(&mod_bus);

@@ -51,8 +51,79 @@ static unsigned long int fields = 0; // displayed video fields
 
 static bool frame_sync = false; // set to true for each new frame
 
+static bool video_load_roms(void) {
+    // load character generator rom
+    {
+        const char *rom_path = CHAR_ROM_PATH;
+        const char *rom_path_cfg = conf_getString("path", "char_rom");
+
+        if (rom_path_cfg != NULL)
+            rom_path = rom_path_cfg;
+
+        LOG_INFO("Loading char rom from %s\n", rom_path);
+
+        FILE *fp = fopen(rom_path, "rb");
+
+        if (fp == NULL) {
+            LOG_ERR("missing char rom file\n");
+            return false;
+        }
+
+        const size_t read = fread(char_rom, 1, CHAR_ROM_SIZE, fp);
+        if (read != CHAR_ROM_SIZE) {
+            LOG_ERR("bad char rom file size: %lu\n", read);
+            return false;
+        }
+
+        if (fclose(fp) != 0) {
+            LOG_ERR("error closing char rom file\n");
+            return false;
+        }
+    }
+
+    // load extended character generator rom (custom mod)
+    bool *conf_cge_installed = conf_getBool("mod", "cge_installed");
+    if (conf_cge_installed)
+        cge_installed = *conf_cge_installed;
+
+    if (cge_installed) {
+        const char *rom_path = CGE_ROM_PATH;
+        const char *rom_path_cfg = conf_getString("path", "cge_rom");
+
+        if (rom_path_cfg != NULL)
+            rom_path = rom_path_cfg;
+
+        LOG_INFO("Loading CGE rom from %s\n", rom_path);
+
+        FILE *fp = fopen(rom_path, "rb");
+
+        if (fp == NULL) {
+            LOG_WARN("cge: extended char rom not found\n");
+            return true;
+        }
+
+        const size_t read = fread(cge_rom, 1, CGE_ROM_SIZE, fp);
+        if (read != CGE_ROM_SIZE) {
+            LOG_WARN("cge: extended character rom found, but cannot read\n");
+            return true;
+        }
+
+        if (fclose(fp) != 0) {
+            LOG_ERR("cge: error closing extended char rom file\n");
+            return false;
+        }
+
+        LOG_INFO("cge: mod installed ok\n");
+    }
+
+    return true;
+}
+
 static bool video_start(void) {
     if (!gui_isStarted())
+        return false;
+
+    if (!video_load_roms())
         return false;
 
     window = SDL_CreateWindow("ceda cemu", SDL_WINDOWPOS_UNDEFINED,
@@ -320,70 +391,6 @@ void video_init(CEDAModule *mod) {
 
     // default to character memory
     mem = mem_char;
-
-    // load character generator rom
-    {
-        const char *rom_path = CHAR_ROM_PATH;
-        const char *rom_path_cfg = conf_getString("path", "char_rom");
-
-        if (rom_path_cfg != NULL)
-            rom_path = rom_path_cfg;
-
-        LOG_INFO("Loading char rom from %s\n", rom_path);
-
-        FILE *fp = fopen(rom_path, "rb");
-
-        if (fp == NULL) {
-            LOG_ERR("missing char rom file\n");
-            abort();
-        }
-
-        const size_t read = fread(char_rom, 1, CHAR_ROM_SIZE, fp);
-        if (read != CHAR_ROM_SIZE) {
-            LOG_ERR("bad char rom file size: %lu\n", read);
-            abort();
-        }
-
-        if (fclose(fp) != 0) {
-            LOG_ERR("error closing char rom file\n");
-            abort();
-        }
-    }
-
-    // load extended character generator rom (custom mod)
-    bool *conf_cge_installed = conf_getBool("mod", "cge_installed");
-    if (conf_cge_installed)
-        cge_installed = *conf_cge_installed;
-
-    if (cge_installed) {
-        const char *rom_path = CGE_ROM_PATH;
-        const char *rom_path_cfg = conf_getString("path", "cge_rom");
-
-        if (rom_path_cfg != NULL)
-            rom_path = rom_path_cfg;
-
-        LOG_INFO("Loading CGE rom from %s\n", rom_path);
-
-        FILE *fp = fopen(rom_path, "rb");
-
-        if (fp == NULL) {
-            LOG_WARN("cge: extended char rom not found\n");
-            return;
-        }
-
-        const size_t read = fread(cge_rom, 1, CGE_ROM_SIZE, fp);
-        if (read != CGE_ROM_SIZE) {
-            LOG_WARN("cge: extended character rom found, but cannot read\n");
-            return;
-        }
-
-        if (fclose(fp) != 0) {
-            LOG_ERR("cge: error closing extended char rom file\n");
-            abort();
-        }
-
-        LOG_INFO("cge: mod installed ok\n");
-    }
 }
 
 zuint8 video_ram_read(ceda_address_t address) {
