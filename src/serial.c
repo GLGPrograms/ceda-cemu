@@ -48,6 +48,9 @@ static void serial_poll(void) {
     timeout.tv_sec = 0;
     timeout.tv_usec = 0;
 
+    if (sockfd < 0)
+        return;
+
     if (connfd == -1) {
         fd_set accept_set;
         FD_ZERO(&accept_set);
