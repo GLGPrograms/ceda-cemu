@@ -51,8 +51,9 @@ static unsigned long int fields = 0; // displayed video fields
 
 static bool frame_sync = false; // set to true for each new frame
 
-static void video_start(void) {
-    assert(gui_isStarted());
+static bool video_start(void) {
+    if (!gui_isStarted())
+        return false;
 
     window = SDL_CreateWindow("ceda cemu", SDL_WINDOWPOS_UNDEFINED,
                               SDL_WINDOWPOS_UNDEFINED, CRT_PIXEL_WIDTH,
@@ -60,24 +61,24 @@ static void video_start(void) {
                               SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN);
     if (window == NULL) {
         LOG_ERR("unable to create window: %s\n", SDL_GetError());
-        abort();
+        return false;
     }
 
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
     if (renderer == NULL) {
         LOG_ERR("unable to create renderer: %s\n", SDL_GetError());
-        abort();
+        return false;
     }
 
     SDL_SetWindowMinimumSize(window, CRT_PIXEL_WIDTH, CRT_PIXEL_HEIGHT);
     if (SDL_RenderSetLogicalSize(renderer, CRT_PIXEL_WIDTH, CRT_PIXEL_HEIGHT) <
         0) {
         LOG_ERR("sdl error: %s\n", SDL_GetError());
-        abort();
+        return false;
     }
     if (SDL_RenderSetIntegerScale(renderer, SDL_TRUE) < 0) {
         LOG_ERR("sdl error: %s\n", SDL_GetError());
-        abort();
+        return false;
     }
 
     surface = SDL_CreateRGBSurfaceWithFormat(SDL_SWSURFACE, CRT_PIXEL_WIDTH,
@@ -87,6 +88,7 @@ static void video_start(void) {
     SDL_SetPaletteColors(surface->format->palette, colors, 0, 2);
 
     started = true;
+    return true;
 }
 
 bool video_isStarted(void) {

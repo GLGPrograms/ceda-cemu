@@ -330,9 +330,10 @@ void sio2_out(ceda_ioaddr_t address, uint8_t value) {
     (void)value;
 }
 
-static void sio2_start(void) {
+static bool sio2_start(void) {
     // acquire dynamic resources
     // (nothing to do at the moment)
+    return true;
 }
 
 static void sio2_cleanup(void) {

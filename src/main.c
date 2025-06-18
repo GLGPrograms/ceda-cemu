@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
     (void)argc;
     (void)argv;
     ceda_init();
-    ceda_run();
+    ret = ceda_run();
 #endif
 
     return ret;
