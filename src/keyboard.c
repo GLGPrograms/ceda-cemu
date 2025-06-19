@@ -100,6 +100,7 @@ static const ceda_associator_t associators[] = {
     {SDL_SCANCODE_EQUALS, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x0E}},
     {SDL_SCANCODE_DELETE, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x0F}},
     // {} ex CARET (0x10)
+    // mapped to SDL_SCANCODE_NONUSBACKSLASH (additional key for ISO layout)
 
     // row 2
     // {} BREAK (0x11)
@@ -159,6 +160,7 @@ static const ceda_associator_t associators[] = {
     // useful keys on modern IBM keyboards
     {SDL_SCANCODE_RCTRL, CEDA_ASSOCIATOR_FUNC, keyboard_toggle_modifier},
     {SDL_SCANCODE_LALT, CEDA_ASSOCIATOR_FUNC, keyboard_toggle_modifier},
+    {SDL_SCANCODE_NONUSBACKSLASH, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x10}},
 
     // number pad
     {SDL_SCANCODE_UP, CEDA_ASSOCIATOR_KEY, &(uint8_t){0x3A}},
