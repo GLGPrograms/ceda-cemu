@@ -10,6 +10,7 @@
 #include "sio2.h"
 #include "speaker.h"
 #include "timer.h"
+#include "ubus.h"
 #include "upd8255.h"
 #include "video.h"
 
@@ -120,7 +121,7 @@ uint8_t bus_io_in(ceda_ioaddr_t address) {
         }
     }
 
-    return 0;
+    return ubus_io_in(address);
 }
 
 void bus_io_out(ceda_ioaddr_t _address, uint8_t value) {
@@ -136,6 +137,8 @@ void bus_io_out(ceda_ioaddr_t _address, uint8_t value) {
             }
         }
     }
+
+    ubus_io_out(address, value);
 }
 
 void bus_init(CEDAModule *mod) {
