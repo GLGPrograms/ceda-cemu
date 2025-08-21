@@ -1,5 +1,6 @@
 #include "ceda.h"
 
+// computer core
 #include "bios.h"
 #include "bus.h"
 #include "cli.h"
@@ -14,8 +15,12 @@
 #include "serial.h"
 #include "sio2.h"
 #include "speaker.h"
+#include "ubus.h"
 #include "upd8255.h"
 #include "video.h"
+
+// user peripherals
+#include "charmon.h"
 
 #include <assert.h>
 #include <unistd.h>
@@ -32,10 +37,12 @@ static CEDAModule mod_speaker;
 static CEDAModule mod_sio2;
 static CEDAModule mod_int;
 static CEDAModule mod_serial;
+static CEDAModule mod_ubus;
+static CEDAModule mod_charmon;
 
 static CEDAModule *modules[] = {
-    &mod_bios,  &mod_cli,     &mod_gui, &mod_bus,    &mod_cpu,
-    &mod_video, &mod_speaker, &mod_int, &mod_serial, &mod_sio2,
+    &mod_bios,    &mod_cli, &mod_gui,    &mod_bus,  &mod_cpu,  &mod_video,
+    &mod_speaker, &mod_int, &mod_serial, &mod_sio2, &mod_ubus, &mod_charmon,
 };
 
 void ceda_init(void) {
@@ -48,6 +55,8 @@ void ceda_init(void) {
     rom_bios_init(&mod_bios);
     video_init(&mod_video);
     speaker_init(&mod_speaker);
+    ubus_init(&mod_ubus);
+    charmon_init(&mod_charmon);
     bus_init(&mod_bus);
     cpu_init(&mod_cpu);
     int_init(&mod_int);
