@@ -25,6 +25,7 @@ set(CORE_SRCS
     src/time.c
     src/timer.c
     src/tokenizer.c
+    src/ubus.c
     src/upd8255.c
     src/video.c
     src/ram/auxram.c
