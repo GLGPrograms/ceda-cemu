@@ -18,6 +18,7 @@ set(CORE_SRCS
     src/int.c
     src/keyboard.c
     src/main.c
+    src/monitor.c
     src/charmon.c
     src/serial.c
     src/sio2.c
