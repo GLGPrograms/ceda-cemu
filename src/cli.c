@@ -8,6 +8,7 @@
 #include "floppy.h"
 #include "int.h"
 #include "macro.h"
+#include "monitor.h"
 #include "serial.h"
 #include "time.h"
 #include "tokenizer.h"
@@ -80,7 +81,7 @@ static ceda_string_t *cli_pause(const char *arg) {
 
 static ceda_string_t *cli_continue(const char *arg) {
     (void)arg;
-    cpu_step(); // possibly step past the breakpoint
+    monitor_pass();
     cpu_pause(false);
     return NULL;
 }
@@ -124,42 +125,99 @@ static ceda_string_t *cli_step(const char *arg) {
 }
 
 static ceda_string_t *cli_break(const char *arg) {
-    char word[LINE_BUFFER_SIZE];
 
-    // skip argv[0]
+    char word[LINE_BUFFER_SIZE];
     arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
 
-    // extract address
-    unsigned int _address;
-    arg = tokenizer_next_hex(&_address, arg);
+    char what[LINE_BUFFER_SIZE];
+    arg = tokenizer_next_word(what, arg, LINE_BUFFER_SIZE);
+    bool is_what = arg != NULL;
 
-    // no address => show current breakpoints
-    if (arg == NULL) {
-        CpuBreakpoint *breakpoints;
-        const size_t countof_breakpoints = cpu_getBreakpoints(&breakpoints);
+    unsigned int _address;
+    zuint16 address = 0;
+    arg = tokenizer_next_hex(&_address, arg);
+    bool is_address = arg != NULL;
+    if (is_address) {
+        if (_address >= 0x10000) {
+            ceda_string_t *msg = ceda_string_new(0);
+            ceda_string_cpy(msg, USER_BAD_ARG_STR "address must be 16 bit\n");
+            return msg;
+        }
+        address = (zuint16)_address;
+    }
+
+    unsigned int _value;
+    zuint8 value = 0;
+    arg = tokenizer_next_hex(&_value, arg);
+    bool is_value = arg != NULL;
+    if (is_value) {
+        if (_value >= 0x100) {
+            ceda_string_t *msg = ceda_string_new(0);
+            ceda_string_cpy(msg, USER_BAD_ARG_STR "value must be 8 bit\n");
+            return msg;
+        }
+        value = (zuint8)_value;
+    }
+
+    // no "what" => show current monitors
+    if (!is_what) {
+        const Monitor *monitors;
+        const size_t countof_breakpoints = monitor_get(&monitors);
         int count = 0;
         ceda_string_t *msg = ceda_string_new(0);
         for (size_t i = 0; i < countof_breakpoints; ++i) {
-            if (!breakpoints[i].valid)
+            if (!monitors[i].valid)
                 continue;
+            static const struct associator_t {
+                monitor_kind_t kind;
+                char letter;
+            } associators[] = {
+                {MONITOR_EXEC, 'X'},      //
+                {MONITOR_READ_MEM, 'R'},  //
+                {MONITOR_WRITE_MEM, 'W'}, //
+                {MONITOR_READ_IO, 'i'},   //
+                {MONITOR_WRITE_IO, 'o'},  //
+            };
+            char kind = '-';
+            for (size_t j = 0; j < ARRAY_SIZE(associators); ++j) {
+                if (associators[j].kind == monitors[i].kind) {
+                    kind = associators[j].letter;
+                    break;
+                }
+            }
             ++count;
-            ceda_string_printf(msg, "%lu\t%04x\n", i, breakpoints[i].address);
+            ceda_string_printf(msg, "%lu\t%c\t%04x\n", i, kind,
+                               monitors[i].address);
         }
         if (count == 0) {
             ceda_string_cpy(msg, "no breakpoint set\n");
         }
         return msg;
     }
+    // add a new monitor
 
-    if (_address >= 0x10000) {
+    if (!is_address) {
         ceda_string_t *msg = ceda_string_new(0);
-        ceda_string_cpy(msg, USER_BAD_ARG_STR "address must be 16 bit\n");
+        ceda_string_cpy(msg, USER_BAD_ARG_STR "missing address\n");
         return msg;
     }
-    const zuint16 address = (zuint16)_address;
 
-    // actually set breakpoint
-    bool ret = cpu_addBreakpoint(address);
+    bool ret = false;
+    if (strcmp(what, "break") == 0) {
+        ret = monitor_addBreakpoint(address);
+    } else if (strcmp(what, "read") == 0) {
+        ret = monitor_addReadWatchpoint(address);
+    } else if (strcmp(what, "write") == 0) {
+        ret = monitor_addWriteWatchpoint(address, is_value ? &value : NULL);
+    } else if (strcmp(what, "in") == 0) {
+        ret = monitor_addInWatchpoint(address);
+    } else if (strcmp(what, "out") == 0) {
+        ret = monitor_addOutWatchpoint(address, is_value ? &value : NULL);
+    } else {
+        ceda_string_t *msg = ceda_string_new(0);
+        ceda_string_cpy(msg, USER_BAD_ARG_STR "unknown monitor kind\n");
+        return msg;
+    }
 
     if (!ret) {
         ceda_string_t *msg = ceda_string_new(0);
@@ -167,6 +225,7 @@ static ceda_string_t *cli_break(const char *arg) {
         return msg;
     }
 
+    // all ok, no output
     return NULL;
 }
 
@@ -177,16 +236,6 @@ static ceda_string_t *cli_delete(const char *arg) {
 
     // skip argv[0]
     arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
-
-    char what[LINE_BUFFER_SIZE];
-    // extract what to delete (breakpoint, watchpoint, ...)
-    arg = tokenizer_next_word(what, arg, LINE_BUFFER_SIZE);
-
-    // missing what
-    if (arg == NULL) {
-        ceda_string_cpy(msg, USER_BAD_ARG_STR "missing delete target\n");
-        return msg;
-    }
 
     // extract index
     arg = tokenizer_next_word(word, arg, LINE_BUFFER_SIZE);
@@ -206,15 +255,8 @@ static ceda_string_t *cli_delete(const char *arg) {
     }
 
     // actually delete something
-    if (strcmp(what, "breakpoint") == 0) {
-        if (!cpu_deleteBreakpoint(index)) {
-            ceda_string_cpy(msg, "can't delete breakpoint\n");
-            return msg;
-        }
-    } else if (strcmp(what, "watchpoint") == 0) {
-        // TODO(giomba): implement this for watchpoints
-    } else {
-        ceda_string_cpy(msg, USER_BAD_ARG_STR "unknown delete target\n");
+    if (!monitor_delete(index)) {
+        ceda_string_cpy(msg, "can't delete monitor\n");
         return msg;
     }
 
@@ -361,9 +403,9 @@ static ceda_string_t *cli_dis(const char *arg) {
  * Expected command line syntax:
  *  save <filename> <start> <end>
  * where
- *  filename: name of the file where to save the dump (no spaces allowed)
- *  start: starting memory address, in hex
- *  end: ending memory address, in hex
+ *  filename: name of the file where to save the dump (no spaces
+ * allowed) start: starting memory address, in hex end: ending memory
+ * address, in hex
  *
  * Data is saved [start;end)
  *
@@ -376,7 +418,8 @@ static ceda_string_t *cli_dis(const char *arg) {
  *
  * @param arg Pointer to the command line string.
  *
- * @return char* NULL in case of success, pointer to error message otherwise.
+ * @return char* NULL in case of success, pointer to error message
+ * otherwise.
  */
 static ceda_string_t *cli_save(const char *arg) {
     char word[LINE_BUFFER_SIZE];
@@ -611,9 +654,10 @@ static ceda_string_t *cli_umount(const char *arg) {
  *  filename: name of the file from which to load the dump (no spaces
  * allowed) start: starting memory address, in hex
  *
- * When loading, this routine will use the starting address saves inside the
- * file, unless a starting address is explicitly specified on the command
- * line, in which case, the starting address of the file will be overridden.
+ * When loading, this routine will use the starting address saves inside
+ * the file, unless a starting address is explicitly specified on the
+ * command line, in which case, the starting address of the file will be
+ * overridden.
  *
  * Example: load video memory dump, but one row below
  *  load video.crt d050
@@ -808,7 +852,7 @@ static ceda_string_t *cli_help(const char *arg);
 static const cli_command cli_commands[] = {
     {"dis", "disassembly binary data", cli_dis},
     {"break", "set or show cpu breakpoints", cli_break},
-    {"delete", "delete cpu breakpoint", cli_delete},
+    {"delete", "delete cpu monitor/breakpoint", cli_delete},
     {"pause", "pause cpu execution", cli_pause},
     {"continue", "continue cpu execution", cli_continue},
     {"reg", "show cpu registers", cli_reg},
