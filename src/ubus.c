@@ -45,13 +45,8 @@ bool ubus_register(ceda_ioaddr_t base, uint32_t top, ubus_io_read_t read,
     // check if peripherals are overlapping
     for (size_t i = 0; i < ubus_used; ++i) {
         struct ubus_io_slot *slot = &ubus_slots[i];
-        if (slot->base >= base && slot->base < top)
-            return false;
-        if (slot->top <= top && slot->top > base)
-            return false;
-        if (slot->base < base && slot->top > top)
-            return false;
-        if (slot->base > base && slot->top < top)
+        bool ok = (top <= slot->base) || (base >= slot->top);
+        if (!ok)
             return false;
     }
 
