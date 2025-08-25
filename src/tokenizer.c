@@ -58,7 +58,8 @@ const char *tokenizer_next_word(char *word, const char *src, size_t size) {
  * string. NULL if there has been an error during integer parsing.
  */
 const char *tokenizer_next_hex(unsigned int *dst, const char *src) {
-    assert(src);
+    if (src == NULL)
+        return NULL;
 
     char *endptr = NULL;
     char word[LINE_BUFFER_SIZE] = {0};
