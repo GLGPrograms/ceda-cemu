@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "video.h"
 
@@ -30,10 +31,6 @@ static uint8_t regs[CRTC_REGISTER_COUNT];
 unsigned int rselect = 0; // current register selected
 
 #define CRTC_NOT_IMPLEMENTED_STR "not implemented\n"
-
-void crtc_init(void) {
-    // TODO(giomba): missing initialization
-}
 
 uint8_t crtc_in(ceda_ioaddr_t address) {
     (void)address;
@@ -138,4 +135,16 @@ uint16_t crtc_startAddress(void) {
                                               (regs[REG_START_ADDRESS_L]));
 
     return start_address;
+}
+
+static bool crtc_restart(void) {
+    memset(&regs, 0, sizeof(regs));
+    rselect = 0;
+    return true;
+}
+
+void crtc_init(CEDAModule *mod) {
+    memset(mod, 0, sizeof(*mod));
+    mod->init = crtc_init;
+    mod->restart = crtc_restart;
 }

@@ -1,11 +1,12 @@
 #ifndef CEDA_UPD8255_H
 #define CEDA_UPD8255_H
 
+#include "module.h"
 #include "type.h"
 
 #include <Z80.h>
 
-void upd8255_init(void);
+void upd8255_init(CEDAModule *mod);
 
 uint8_t upd8255_in(ceda_ioaddr_t address);
 void upd8255_out(ceda_ioaddr_t address, uint8_t value);
