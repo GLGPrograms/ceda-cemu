@@ -36,6 +36,20 @@ typedef struct CEDAModule {
     bool (*start)(void);
 
     /**
+     * @brief Restart a module.
+     *
+     * This routine is used to implement the "reset" functionality of a module.
+     *
+     * This routine should perform a suitable module cleanup (eg. release
+     * dynamically acquired resources), and then the subsequent proper restart
+     * (eg. reinitialize variables, reacquire dynamic resources, etc...).
+     *
+     * Return true in case of success, false otherwise.
+     *
+     */
+    bool (*restart)(void);
+
+    /**
      * @brief Advance the internal status of the module.
      *
      * Module poll routine is called periodically by the CEDA main loop.

@@ -112,6 +112,21 @@ static void ceda_performance(void) {
     }
 }
 
+static bool ceda_restart(void) {
+    bool ret = false;
+    for (unsigned int i = 0; i < ARRAY_SIZE(modules); ++i) {
+        bool (*restart)(void) = modules[i]->restart;
+        if (!restart)
+            continue;
+        ret = restart();
+        if (!ret) {
+            LOG_ERR("module %u: restart error\n", i);
+            break;
+        }
+    }
+    return ret;
+}
+
 static void ceda_cleanup(void) {
     for (int i = ARRAY_SIZE(modules) - 1; i >= 0; --i) {
         void (*cleanup)(void) = modules[i]->cleanup;
