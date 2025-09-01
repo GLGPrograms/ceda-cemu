@@ -37,6 +37,7 @@ enum { BLOCK_BUFFER_SIZE = 4096 }; // big page-like stuff
 
 static bool initialized = false;
 static bool quit = false;
+static bool restart = false;
 static const us_interval_t UPDATE_INTERVAL = 20000; // [us] 20 ms => 50 Hz
 static us_time_t last_update = 0;                   // last poll() call
 
@@ -48,6 +49,12 @@ static TxFifo tx_fifo;
 
 bool cli_isQuit(void) {
     return quit;
+}
+
+bool cli_checkRestart(void) {
+    bool prev = restart;
+    restart = false;
+    return prev;
 }
 
 /**
@@ -696,6 +703,12 @@ static ceda_string_t *cli_int(const char *arg) {
     return NULL;
 }
 
+static ceda_string_t *cli_reset(const char *arg) {
+    (void)arg;
+    restart = true;
+    return NULL;
+}
+
 static ceda_string_t *cli_in(const char *arg) {
     char word[LINE_BUFFER_SIZE];
     ceda_string_t *msg = ceda_string_new(0);
@@ -815,6 +828,7 @@ static const cli_command cli_commands[] = {
     {"step", "step one instruction", cli_step},
     {"goto", "override cpu program counter", cli_goto},
     {"int", "trigger interrupt request", cli_int},
+    {"reset", "perform an hard reset", cli_reset},
     {"read", "read from memory", cli_read},
     {"write", "write to memory", cli_write},
     {"in", "read from io", cli_in},
