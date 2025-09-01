@@ -1,6 +1,7 @@
 #ifndef CEDA_FDC_H
 #define CEDA_FDC_H
 
+#include "module.h"
 #include "type.h"
 
 #include <Z80.h>
@@ -30,7 +31,7 @@ typedef int (*fdc_read_write_t)(uint8_t *buffer, uint8_t unit_number,
  * @brief Initialize the Floppy Disk Controller system
  *
  */
-void fdc_init(void);
+void fdc_init(CEDAModule *mod);
 
 /**
  * @brief Read data from the Floppy Disk Controller using its bus

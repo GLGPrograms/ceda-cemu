@@ -6,6 +6,7 @@
 // TODO(giuliof) source path is src!
 #include "../fdc.h"
 #include "../fdc_registers.h"
+#include "../module.h"
 
 static void assert_fdc_sr(uint8_t expected_sr);
 static int fake_read(uint8_t *buffer, uint8_t unit_number, bool phy_head,
@@ -77,14 +78,16 @@ static int fake_read_check_track(uint8_t *buffer, uint8_t unit_number,
 }
 
 Test(ceda_fdc, mainStatusRegisterWhenIdle) {
-    fdc_init();
+    CEDAModule mod;
+    fdc_init(&mod);
 
     // Try to read status register and check that it is idle
     assert_fdc_sr(FDC_ST_RQM);
 }
 
 Test(ceda_fdc, specifyCommand) {
-    fdc_init();
+    CEDAModule mod;
+    fdc_init(&mod);
 
     // Try to read status register and check that it is idle
     fdc_out(FDC_ADDR_DATA_REGISTER, FDC_SPECIFY);
@@ -101,7 +104,8 @@ Test(ceda_fdc, specifyCommand) {
 }
 
 Test(ceda_fdc, seekCommand) {
-    fdc_init();
+    CEDAModule mod;
+    fdc_init(&mod);
 
     uint8_t data;
 
@@ -150,7 +154,8 @@ Test(ceda_fdc, seekCommand) {
  * be an Invalid Command" (see invalidCommand test).
  */
 Test(ceda_fdc, invalidSeekSequence) {
-    fdc_init();
+    CEDAModule mod;
+    fdc_init(&mod);
 
     uint8_t data;
 
@@ -222,7 +227,8 @@ Test(ceda_fdc, readCommandNoMedium) {
         4, // DTL
     };
 
-    fdc_init();
+    CEDAModule mod;
+    fdc_init(&mod);
 
     fdc_out(FDC_ADDR_DATA_REGISTER, FDC_READ_DATA);
 
@@ -269,7 +275,8 @@ Test(ceda_fdc, readCommandInvalidParams) {
 
     uint8_t result[sizeof(expected_result)];
 
-    fdc_init();
+    CEDAModule mod;
+    fdc_init(&mod);
 
     // Link a fake reading function
     fdc_kickDiskImage(fake_wrong_rw, NULL);
@@ -317,7 +324,8 @@ Test(ceda_fdc, readCommandOverEot) {
 
     uint8_t result[sizeof(expected_result)];
 
-    fdc_init();
+    CEDAModule mod;
+    fdc_init(&mod);
 
     // Link a fake reading function
     fdc_kickDiskImage(fake_read_check_track, NULL);
@@ -562,7 +570,8 @@ ParameterizedTestParameters(ceda_fdc, readCommand0) {
 ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, readCommand0) {
     uint8_t result[sizeof(param->result)];
 
-    fdc_init();
+    CEDAModule mod;
+    fdc_init(&mod);
 
     // Link a fake reading function
     fdc_kickDiskImage(fake_read, NULL);
@@ -629,7 +638,8 @@ ParameterizedTestParameters(ceda_fdc, writeCommand0) {
 ParameterizedTest(struct rw_test_params_t *param, ceda_fdc, writeCommand0) {
     uint8_t result[sizeof(param->result)];
 
-    fdc_init();
+    CEDAModule mod;
+    fdc_init(&mod);
 
     // Link a fake reading function
     fdc_kickDiskImage(NULL, fake_write);
@@ -696,7 +706,8 @@ Test(ceda_fdc, writeCommandInvalidParams) {
 
     uint8_t result[sizeof(expected_result)];
 
-    fdc_init();
+    CEDAModule mod;
+    fdc_init(&mod);
 
     // Link a fake reading function
     fdc_kickDiskImage(NULL, fake_wrong_rw);
@@ -739,7 +750,8 @@ Test(ceda_fdc, formatCommand) {
 
     uint8_t result[7];
 
-    fdc_init();
+    CEDAModule mod;
+    fdc_init(&mod);
 
     // Link a fake reading function
     fdc_kickDiskImage(NULL, fake_write);
@@ -799,7 +811,8 @@ Test(ceda_fdc, formatCommandInvalidParams) {
 
     uint8_t result[7];
 
-    fdc_init();
+    CEDAModule mod;
+    fdc_init(&mod);
 
     // Link a fake reading function
     fdc_kickDiskImage(NULL, fake_wrong_rw);
@@ -839,7 +852,8 @@ Test(ceda_fdc, formatCommandInvalidParams) {
 Test(ceda_fdc, invalidCommand) {
     uint8_t st0;
 
-    fdc_init();
+    CEDAModule mod;
+    fdc_init(&mod);
 
     // Force an invalid command
     fdc_out(FDC_ADDR_DATA_REGISTER, 0x00);
