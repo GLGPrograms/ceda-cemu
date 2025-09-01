@@ -15,6 +15,7 @@
 #include "serial.h"
 #include "sio2.h"
 #include "speaker.h"
+#include "timer.h"
 #include "ubus.h"
 #include "upd8255.h"
 #include "video.h"
@@ -30,19 +31,23 @@
 static CEDAModule mod_bios;
 static CEDAModule mod_bus;
 static CEDAModule mod_cpu;
+static CEDAModule mod_charmon;
 static CEDAModule mod_cli;
+static CEDAModule mod_fdc;
 static CEDAModule mod_gui;
-static CEDAModule mod_video;
-static CEDAModule mod_speaker;
-static CEDAModule mod_sio2;
 static CEDAModule mod_int;
 static CEDAModule mod_serial;
+static CEDAModule mod_speaker;
+static CEDAModule mod_sio2;
+static CEDAModule mod_timer;
 static CEDAModule mod_ubus;
-static CEDAModule mod_charmon;
+static CEDAModule mod_upd8255;
+static CEDAModule mod_video;
 
 static CEDAModule *modules[] = {
-    &mod_bios,    &mod_cli, &mod_gui,    &mod_bus,  &mod_cpu,  &mod_video,
-    &mod_speaker, &mod_int, &mod_serial, &mod_sio2, &mod_ubus, &mod_charmon,
+    &mod_bios,  &mod_cli,     &mod_gui, &mod_bus,   &mod_cpu,
+    &mod_video, &mod_speaker, &mod_int, &mod_timer, &mod_serial,
+    &mod_sio2,  &mod_upd8255, &mod_fdc, &mod_ubus,  &mod_charmon,
 };
 
 void ceda_init(void) {
@@ -50,8 +55,8 @@ void ceda_init(void) {
     cli_init(&mod_cli);
     gui_init(&mod_gui);
 
-    fdc_init();
-    upd8255_init();
+    fdc_init(&mod_fdc);
+    upd8255_init(&mod_upd8255);
     rom_bios_init(&mod_bios);
     video_init(&mod_video);
     speaker_init(&mod_speaker);
@@ -60,6 +65,7 @@ void ceda_init(void) {
     bus_init(&mod_bus);
     cpu_init(&mod_cpu);
     int_init(&mod_int);
+    timer_init(&mod_timer);
     serial_init(&mod_serial);
     sio2_init(&mod_sio2);
 }
