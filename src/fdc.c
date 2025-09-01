@@ -911,9 +911,7 @@ static bool fdc_commit_write(void) {
     return false;
 }
 
-/* * * * * * * * * * * * * * *  Public routines   * * * * * * * * * * * * * * */
-
-void fdc_init(void) {
+static bool fdc_restart(void) {
     // Reset current command status
     fdc_status = CMD;
     fdc_currop = NULL;
@@ -931,9 +929,17 @@ void fdc_init(void) {
     // Reset track positions
     memset(track, 0, sizeof(track));
 
-    // Detach any read/write callback
-    read_buffer_cb = NULL;
-    write_buffer_cb = NULL;
+    return true;
+}
+
+/* * * * * * * * * * * * * * *  Public routines   * * * * * * * * * * * * * * */
+
+void fdc_init(CEDAModule *mod) {
+    memset(mod, 0, sizeof(*mod));
+    mod->init = fdc_init;
+    mod->restart = fdc_restart;
+
+    fdc_restart();
 }
 
 uint8_t fdc_in(ceda_ioaddr_t address) {
