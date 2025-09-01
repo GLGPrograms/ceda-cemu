@@ -155,6 +155,10 @@ int ceda_run(void) {
         if (gui_isQuit() || cli_isQuit()) {
             break;
         }
+        if (cli_checkRestart()) {
+            if (!ceda_restart())
+                break;
+        }
 
         // check for how long each module can sleep, and yield host cpu
         ceda_remaining();
