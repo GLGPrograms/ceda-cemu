@@ -141,7 +141,7 @@ void bus_io_out(ceda_ioaddr_t _address, uint8_t value) {
     ubus_io_out(address, value);
 }
 
-void bus_init(CEDAModule *mod) {
+static void bus_prepareFirstAccess(void) {
     // when starting, BIOS ROM is mounted at 0x0,
     // until the first I/O access is performed,
     // but we'll just emulate this behaviour with an equivalent
@@ -150,8 +150,19 @@ void bus_init(CEDAModule *mod) {
     for (uint8_t address = 0; address < (uint8_t)ARRAY_SIZE(jmp); ++address) {
         dyn_ram_write(address, jmp[address]);
     }
+}
 
+static bool bus_restart(void) {
+    is_mem_switched = false;
+    bus_prepareFirstAccess();
+    return true;
+}
+
+void bus_init(CEDAModule *mod) {
     memset(mod, 0, sizeof(*mod));
+    mod->restart = bus_restart;
+
+    bus_prepareFirstAccess();
 }
 
 void bus_memSwitch(bool switched) {

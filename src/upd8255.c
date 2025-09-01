@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "log.h"
 
@@ -18,10 +19,6 @@ uint8_t port[UPD8255_PORTS_COUNT];
 #define UPD8255_CONTROL_REG 3
 
 #define UPD8255_REG_COUNT 4
-
-void upd8255_init(void) {
-    ;
-}
 
 uint8_t upd8255_in(ceda_ioaddr_t address) {
     assert(address < UPD8255_REG_COUNT);
@@ -75,4 +72,15 @@ void upd8255_out(ceda_ioaddr_t address, uint8_t value) {
     }
 
     assert(0);
+}
+
+static bool upd8255_restart(void) {
+    memset(&port, 0, sizeof(port));
+    return true;
+}
+
+void upd8255_init(CEDAModule *mod) {
+    memset(mod, 0, sizeof(*mod));
+    mod->init = upd8255_init;
+    mod->restart = upd8255_restart;
 }

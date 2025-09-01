@@ -426,16 +426,23 @@ void sio2_detachPeripheral(sio_channel_idx_t channel) {
     channels[channel].putc = NULL;
 }
 
-void sio2_init(CEDAModule *mod) {
-    mod->init = sio2_init;
-    mod->start = sio2_start;
-    mod->poll = sio2_poll;
-    mod->remaining = sio2_remaining;
-    mod->cleanup = sio2_cleanup;
-
+static bool sio2_restart(void) {
     for (size_t i = 0; i < ARRAY_SIZE(channels); ++i)
         sio_channel_init(&channels[i]);
 
     // attach keyboard to channel B
     channels[SIO_CHANNEL_B].getc = keyboard_getChar;
+
+    return true;
+}
+
+void sio2_init(CEDAModule *mod) {
+    mod->init = sio2_init;
+    mod->start = sio2_start;
+    mod->restart = sio2_restart;
+    mod->poll = sio2_poll;
+    mod->remaining = sio2_remaining;
+    mod->cleanup = sio2_cleanup;
+
+    sio2_restart();
 }

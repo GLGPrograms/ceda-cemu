@@ -207,6 +207,16 @@ static uint8_t cpu_int_read(void *context, zuint16 address) {
     return int_pop();
 }
 
+static void cpu_cleanup(void) {
+    z80_power(&cpu, false);
+}
+
+static bool cpu_restart(void) {
+    cpu_cleanup();
+    z80_power(&cpu, true);
+    return true;
+}
+
 void cpu_init(CEDAModule *mod) {
     // init mod struct
     memset(mod, 0, sizeof(*mod));
@@ -214,7 +224,8 @@ void cpu_init(CEDAModule *mod) {
     mod->start = NULL;
     mod->poll = cpu_poll;
     mod->remaining = cpu_remaining;
-    mod->cleanup = NULL;
+    mod->cleanup = cpu_cleanup;
+    mod->restart = cpu_restart;
     mod->performance = cpu_performance;
 
     // init cpu

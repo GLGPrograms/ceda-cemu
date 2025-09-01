@@ -379,18 +379,24 @@ static us_time_t video_remaining(void) {
     return diff;
 }
 
+static bool video_restart(void) {
+    // default to character memory
+    mem = mem_char;
+    return true;
+}
+
 void video_init(CEDAModule *mod) {
     // mod init
     memset(mod, 0, sizeof(*mod));
     mod->init = video_init;
     mod->start = video_start;
+    mod->restart = video_restart;
     mod->poll = video_poll;
     mod->remaining = video_remaining;
     mod->cleanup = NULL;
     mod->performance = video_performance;
 
-    // default to character memory
-    mem = mem_char;
+    video_restart();
 }
 
 zuint8 video_ram_read(ceda_address_t address) {
