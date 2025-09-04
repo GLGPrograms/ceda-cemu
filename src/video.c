@@ -331,8 +331,13 @@ static void video_poll(void) {
     }
 
     // update cursor on screen
-    const unsigned int cursor_position =
-        crtc_cursorPosition() - crtc_startAddress();
+    unsigned int cursor_position = crtc_cursorPosition();
+    const unsigned int start_address = crtc_startAddress();
+    // avoid underflows in case of cursor position wrap
+    cursor_position = cursor_position > start_address
+                          ? cursor_position - start_address
+                          : start_address - cursor_position;
+
     const unsigned int row = cursor_position / VIDEO_COLUMNS;
     const unsigned int column = cursor_position % VIDEO_COLUMNS;
     unsigned int blink_period = 0; // [fields]
