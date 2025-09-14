@@ -15,7 +15,7 @@
 #define UPD8255_PORTC_REG 2
 
 #define UPD8255_PORTS_COUNT 3
-uint8_t port[UPD8255_PORTS_COUNT];
+static uint8_t port[UPD8255_PORTS_COUNT];
 #define UPD8255_CONTROL_REG 3
 
 #define UPD8255_REG_COUNT 4

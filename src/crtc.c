@@ -28,7 +28,7 @@ static uint8_t regs[CRTC_REGISTER_COUNT];
 #define REG_CURSOR_L                       15
 #define REG_LIGHT_PEN_H                    16
 #define REG_LIGHT_PEN_L                    17
-unsigned int rselect = 0; // current register selected
+static unsigned int rselect = 0; // current register selected
 
 #define CRTC_NOT_IMPLEMENTED_STR "not implemented\n"
 
