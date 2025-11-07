@@ -40,6 +40,9 @@ static const struct bus_mem_slot bus_mem_slots[] = {
 };
 
 static bool is_mem_switched = false;
+// when starting, BIOS ROM is virtually switched over the whole
+// addressing space, until the first I/O access is performed
+static bool is_bios_rom_switched = true;
 
 typedef uint8_t (*bus_io_read_t)(ceda_ioaddr_t address);
 typedef void (*bus_io_write_t)(ceda_ioaddr_t address, uint8_t value);
@@ -63,6 +66,9 @@ static const struct bus_io_slot bus_io_slots[] = {
 };
 
 uint8_t bus_mem_read(ceda_address_t address) {
+    if (is_bios_rom_switched)
+        return rom_bios_read(address & 0xFFF);
+
     if (!is_mem_switched) {
         for (size_t i = 0; i < ARRAY_SIZE(bus_mem_slots); ++i) {
             const struct bus_mem_slot *slot = &bus_mem_slots[i];
@@ -93,6 +99,9 @@ void bus_mem_readsome(uint8_t *blob, ceda_address_t address, ceda_size_t len) {
 void bus_mem_write(ceda_address_t address, uint8_t value) {
     LOG_DEBUG("%s: [%04x] <= %02x\n", __func__, address, value);
 
+    if (is_bios_rom_switched)
+        return;
+
     if (!is_mem_switched) {
         for (size_t i = 0; i < ARRAY_SIZE(bus_mem_slots); ++i) {
             const struct bus_mem_slot *slot = &bus_mem_slots[i];
@@ -112,6 +121,9 @@ void bus_mem_write(ceda_address_t address, uint8_t value) {
 uint8_t bus_io_in(ceda_ioaddr_t address) {
     LOG_DEBUG("%s: [%02x]\n", __func__, (zuint8)address);
 
+    // IO access, rom override condition is de-asserted
+    is_bios_rom_switched = false;
+
     for (size_t i = 0; i < ARRAY_SIZE(bus_io_slots); ++i) {
         const struct bus_io_slot *slot = &bus_io_slots[i];
         if (address >= slot->base && address < slot->top) {
@@ -128,6 +140,9 @@ void bus_io_out(ceda_ioaddr_t _address, uint8_t value) {
     const zuint8 address = (zuint8)_address;
     LOG_DEBUG("%s: [%02x] <= %02x\n", __func__, address, value);
 
+    // IO access, rom override condition is de-asserted
+    is_bios_rom_switched = false;
+
     for (size_t i = 0; i < ARRAY_SIZE(bus_io_slots); ++i) {
         const struct bus_io_slot *slot = &bus_io_slots[i];
         if (address >= slot->base && address < slot->top) {
@@ -141,28 +156,15 @@ void bus_io_out(ceda_ioaddr_t _address, uint8_t value) {
     ubus_io_out(address, value);
 }
 
-static void bus_prepareFirstAccess(void) {
-    // when starting, BIOS ROM is mounted at 0x0,
-    // until the first I/O access is performed,
-    // but we'll just emulate this behaviour with an equivalent
-    // jmp $c030
-    static const uint8_t jmp[] = {0xc3, 0x30, 0xc0};
-    for (uint8_t address = 0; address < (uint8_t)ARRAY_SIZE(jmp); ++address) {
-        dyn_ram_write(address, jmp[address]);
-    }
-}
-
 static bool bus_restart(void) {
     is_mem_switched = false;
-    bus_prepareFirstAccess();
+    is_bios_rom_switched = true;
     return true;
 }
 
 void bus_init(CEDAModule *mod) {
     memset(mod, 0, sizeof(*mod));
     mod->restart = bus_restart;
-
-    bus_prepareFirstAccess();
 }
 
 void bus_memSwitch(bool switched) {
