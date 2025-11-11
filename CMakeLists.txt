@@ -50,6 +50,7 @@ set(TEST_SRCS
     src/tests/test_conf.c
     src/tests/test_fdc.c
     src/tests/test_tokenizer.c
+    src/tests/test_monitor.c
 )
 
 # External dependencies
