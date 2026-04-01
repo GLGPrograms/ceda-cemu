@@ -3,7 +3,7 @@
 #include "keyboard.h"
 #include "time.h"
 
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 
 #include "log.h"
 
@@ -11,7 +11,6 @@ static bool started = false;
 static bool quit = false;
 #define UPDATE_INTERVAL 20000 // [us] 20 ms => 50 Hz
 static us_time_t last_update = 0;
-static SDL_Event event;
 
 bool gui_isStarted(void) {
     return started;
@@ -34,13 +33,14 @@ static bool gui_start(void) {
 static void gui_poll(void) {
     last_update = time_now_us();
 
+    SDL_Event event;
     if (!SDL_PollEvent(&event))
         return;
 
-    quit = (event.type == SDL_QUIT);
+    quit = (event.type == SDL_EVENT_QUIT);
 
     // handle keyboard events
-    if (event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
+    if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
         const SDL_KeyboardEvent *key_event =
             (const SDL_KeyboardEvent *)&event.key;
         keyboard_handleEvent(key_event);

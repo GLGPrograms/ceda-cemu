@@ -1,7 +1,7 @@
 #ifndef CEDA_KEYBOARD_H
 #define CEDA_KEYBOARD_H
 
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #include <stdbool.h>
 
 void keyboard_init(void);

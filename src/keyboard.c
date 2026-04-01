@@ -4,8 +4,8 @@
 #include "macro.h"
 #include "video.h"
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_scancode.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_scancode.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -195,12 +195,12 @@ void keyboard_init(void) {
 }
 
 void keyboard_handleEvent(const SDL_KeyboardEvent *event) {
-    LOG_DEBUG("scancode = %" PRId32 ", repeat = %d\n", event->keysym.scancode,
+    LOG_DEBUG("scancode = %" PRId32 ", repeat = %d\n", event->scancode,
               (int)event->repeat);
 
     for (size_t i = 0; i < ARRAY_SIZE(associators); ++i) {
         const ceda_associator_t *const associator = &associators[i];
-        if (associator->sdl != event->keysym.scancode)
+        if (associator->sdl != event->scancode)
             continue;
 
         switch (associator->type) {
@@ -209,7 +209,7 @@ void keyboard_handleEvent(const SDL_KeyboardEvent *event) {
 
         case CEDA_ASSOCIATOR_KEY:
             // ignore key release
-            if (event->type == SDL_KEYUP)
+            if (event->type == SDL_EVENT_KEY_UP)
                 break;
 
             // ignore if FIFO full

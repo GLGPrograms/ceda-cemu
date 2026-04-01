@@ -7,9 +7,10 @@
 #include "time.h"
 #include "units.h"
 
-#include <SDL2/SDL.h>
+#include <SDL3/SDL.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <sys/time.h>
 
@@ -42,6 +43,7 @@ static bool cge_installed = false;
 static SDL_Window *window = NULL;
 static SDL_Surface *surface = NULL;
 static SDL_Renderer *renderer = NULL;
+static SDL_Palette *palette = NULL;
 static bool started = false;
 
 static float perf_value = 0;
@@ -126,37 +128,38 @@ static bool video_start(void) {
     if (!video_load_roms())
         return false;
 
-    window = SDL_CreateWindow("ceda cemu", SDL_WINDOWPOS_UNDEFINED,
-                              SDL_WINDOWPOS_UNDEFINED, CRT_PIXEL_WIDTH,
-                              CRT_PIXEL_HEIGHT,
-                              SDL_WINDOW_RESIZABLE | SDL_WINDOW_SHOWN);
+    window = SDL_CreateWindow("ceda cemu", CRT_PIXEL_WIDTH, CRT_PIXEL_HEIGHT,
+                              SDL_WINDOW_RESIZABLE);
     if (window == NULL) {
         LOG_ERR("unable to create window: %s\n", SDL_GetError());
         return false;
     }
 
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+    renderer = SDL_CreateRenderer(window, "software");
     if (renderer == NULL) {
         LOG_ERR("unable to create renderer: %s\n", SDL_GetError());
         return false;
     }
 
     SDL_SetWindowMinimumSize(window, CRT_PIXEL_WIDTH, CRT_PIXEL_HEIGHT);
-    if (SDL_RenderSetLogicalSize(renderer, CRT_PIXEL_WIDTH, CRT_PIXEL_HEIGHT) <
-        0) {
-        LOG_ERR("sdl error: %s\n", SDL_GetError());
-        return false;
-    }
-    if (SDL_RenderSetIntegerScale(renderer, SDL_TRUE) < 0) {
-        LOG_ERR("sdl error: %s\n", SDL_GetError());
+
+    surface = SDL_CreateSurface(CRT_PIXEL_WIDTH, CRT_PIXEL_HEIGHT,
+                                SDL_PIXELFORMAT_INDEX1MSB);
+    if (surface == NULL) {
+        LOG_ERR("unable to create surface: %s\n", SDL_GetError());
         return false;
     }
 
-    surface = SDL_CreateRGBSurfaceWithFormat(SDL_SWSURFACE, CRT_PIXEL_WIDTH,
-                                             CRT_PIXEL_HEIGHT, 1,
-                                             SDL_PIXELFORMAT_INDEX1MSB);
+    palette = SDL_CreatePalette(2);
+    if (palette == NULL) {
+        LOG_ERR("unable to create palette: %s\n", SDL_GetError());
+        return false;
+    }
+
     SDL_Color colors[2] = {{0, 0, 0, 255}, {0, 192, 0, 255}};
-    SDL_SetPaletteColors(surface->format->palette, colors, 0, 2);
+    if (!SDL_SetPaletteColors(palette, colors, 0, 2)) {
+        LOG_ERR("unable to set palette colors: %s\n", SDL_GetError());
+    }
 
     started = true;
     return true;
@@ -361,11 +364,26 @@ static void video_poll(void) {
     }
 
     // render
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
     SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
-    SDL_RenderCopy(renderer, texture, NULL, NULL);
-    SDL_RenderPresent(renderer);
+    if (texture == NULL) {
+        LOG_ERR("no texture: %s\n", SDL_GetError());
+        // TODO(giomba): do something please
+    }
+    bool ok = SDL_SetTexturePalette(texture, palette);
+    if (!ok) {
+        LOG_ERR("cannot set texture palette: %s\n", SDL_GetError());
+    }
+    ok = SDL_RenderTexture(renderer, texture, NULL, NULL);
+    if (!ok) {
+        LOG_ERR("cannot render texture: %s\n", SDL_GetError());
+    }
     SDL_DestroyTexture(texture);
+    ok = SDL_RenderPresent(renderer);
+    if (!ok) {
+        LOG_ERR("cannot render present: %s\n", SDL_GetError());
+    }
     SDL_UpdateWindowSurface(window);
 
     // measure performance

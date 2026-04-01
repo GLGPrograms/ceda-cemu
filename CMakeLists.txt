@@ -72,8 +72,8 @@ function(add_ceda_target target)
 
     target_link_libraries(${target}
         Z80
-        SDL2
-        SDL2_mixer
+        SDL3
+        SDL3_mixer
         inih
     )
 

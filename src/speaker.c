@@ -2,7 +2,7 @@
 
 #include "gui.h"
 
-#include <SDL2/SDL_mixer.h>
+#include <SDL3_mixer/SDL_mixer.h>
 #include <stdbool.h>
 
 #define LOG_LEVEL LOG_LVL_INFO
@@ -21,23 +21,54 @@ static bool fallback = true;
     (SPEAKER_SAMPLE_RATE / SPEAKER_BEEP_FREQUENCY)
 
 static uint8_t sample[SPEAKER_SAMPLE_SIZE] = {0};
-static Mix_Chunk chunk = {
-    .allocated = 0,
-    .abuf = sample,
-    .alen = SPEAKER_SAMPLE_SIZE,
-    .volume = 64,
-};
+
+static MIX_Mixer *mixer = NULL;
+static MIX_Track *track = NULL;
+static MIX_Audio *audio = NULL;
 
 static bool speaker_start(void) {
     if (!gui_isStarted()) {
-        LOG_WARN("no gui: default to terminal speaker\n");
+        LOG_WARN("speaker: no GUI started, aborting audio init\n");
         return false;
     }
 
-    if (Mix_OpenAudio(SPEAKER_SAMPLE_RATE, AUDIO_U8, 1, SPEAKER_SAMPLE_SIZE) <
-        0) {
-        LOG_WARN("unable to open audio card: default to terminal speaker");
-        return false;
+    if (!MIX_Init()) {
+        LOG_WARN("unable to initialize SDL mixer: %s\n", SDL_GetError());
+        LOG_INFO("default to terminal speaker\n");
+        return true;
+    }
+
+    mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL) ;
+    if (!mixer) {
+        LOG_WARN("unable to create mixer: %s\n", SDL_GetError());
+        LOG_INFO("default to terminal speaker\n");
+        return true;
+    }
+
+    SDL_AudioSpec spec = {
+        .format = SDL_AUDIO_U8,
+        .channels = 1,
+        .freq = SPEAKER_SAMPLE_RATE,
+    };
+
+    audio = MIX_LoadRawAudio(NULL, sample, sizeof(sample), &spec);
+    if (!audio) {
+        LOG_WARN("unable to load raw audio: %s\n", SDL_GetError());
+        LOG_INFO("default to terminal speaker\n");
+        return true;
+    }
+
+    track = MIX_CreateTrack(mixer);
+    if (!track) {
+        LOG_WARN("unable to create track: %s\n", SDL_GetError());
+        LOG_INFO("default to terminal speaker\n");
+        return true;
+    }
+
+    if (!MIX_SetTrackAudio(track, audio)) {
+        LOG_WARN("unable to set track audio: %s\n", SDL_GetError());
+        LOG_INFO("default to terminal speaker\n");
+        return true;
     }
 
     LOG_INFO("%s: ready\n", __func__);
@@ -61,6 +92,7 @@ void speaker_init(CEDAModule *mod) {
                         ? 255
                         : 0;
     }
+
 }
 
 uint8_t speaker_in(ceda_ioaddr_t address) {
@@ -87,5 +119,6 @@ void speaker_trigger(void) {
         return;
     }
 
-    Mix_PlayChannel(-1, &chunk, 0);
+    if (!MIX_PlayTrack(track, 0))
+        LOG_WARN("unable to play track: %s\n", SDL_GetError());
 }
