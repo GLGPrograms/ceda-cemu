@@ -2,13 +2,15 @@
 
 #include "../units.h"
 
-#define DYNAMIC_RAM_SIZE (64 * KiB)
-static zuint8 ram[DYNAMIC_RAM_SIZE] = {0};
+#include <stdint.h>
 
-zuint8 dyn_ram_read(zuint16 address) {
+#define DYNAMIC_RAM_SIZE (64 * KiB)
+static uint8_t ram[DYNAMIC_RAM_SIZE] = {0};
+
+uint8_t dyn_ram_read(uint16_t address) {
     return ram[address];
 }
 
-void dyn_ram_write(zuint16 address, zuint8 value) {
+void dyn_ram_write(uint16_t address, uint8_t value) {
     ram[address] = value;
 }

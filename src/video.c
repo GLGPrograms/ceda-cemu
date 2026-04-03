@@ -4,14 +4,21 @@
 #include "crtc.h"
 #include "gui.h"
 #include "macro.h"
+#include "module.h"
 #include "time.h"
+#include "type.h"
 #include "units.h"
 
 #include <SDL3/SDL.h>
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
 #include <sys/time.h>
 
 #define LOG_LEVEL LOG_LVL_INFO
@@ -33,11 +40,11 @@
 #define UPDATE_INTERVAL 20000 // [us] 20 ms => 50 Hz
 static us_time_t last_update = 0;
 
-static zuint8 mem_char[VIDEO_CHAR_MEM_SIZE];
-static zuint8 mem_attr[VIDEO_ATTR_MEM_SIZE];
-static zuint8 *mem = NULL; // pointer to current selected memory bank
-static zuint8 char_rom[CHAR_ROM_SIZE];
-static zuint8 cge_rom[CGE_ROM_SIZE];
+static uint8_t mem_char[VIDEO_CHAR_MEM_SIZE];
+static uint8_t mem_attr[VIDEO_ATTR_MEM_SIZE];
+static uint8_t *mem = NULL; // pointer to current selected memory bank
+static uint8_t char_rom[CHAR_ROM_SIZE];
+static uint8_t cge_rom[CGE_ROM_SIZE];
 static bool cge_installed = false;
 
 static SDL_Window *window = NULL;
@@ -53,72 +60,100 @@ static unsigned long int fields = 0; // displayed video fields
 
 static bool frame_sync = false; // set to true for each new frame
 
-static bool video_load_roms(void) {
-    // load character generator rom
-    {
-        const char *rom_path = CHAR_ROM_PATH;
-        const char *rom_path_cfg = conf_getString("path", "char_rom");
+// Load standard character generator ROM
+static bool video_load_charROM(void) {
+    bool ret = false;
 
-        if (rom_path_cfg != NULL)
-            rom_path = rom_path_cfg;
+    const char *rom_path = CHAR_ROM_PATH;
+    const char *rom_path_cfg = conf_getString("path", "char_rom");
 
-        LOG_INFO("Loading char rom from %s\n", rom_path);
+    if (rom_path_cfg != NULL)
+        rom_path = rom_path_cfg;
 
-        FILE *fp = fopen(rom_path, "rb");
+    LOG_INFO("Loading char rom from %s\n", rom_path);
 
-        if (fp == NULL) {
-            LOG_ERR("missing char rom file\n");
-            return false;
-        }
+    FILE *fp = fopen(rom_path, "rb");
 
-        const size_t read = fread(char_rom, 1, CHAR_ROM_SIZE, fp);
-        if (read != CHAR_ROM_SIZE) {
-            LOG_ERR("bad char rom file size: %lu\n", read);
-            return false;
-        }
-
-        if (fclose(fp) != 0) {
-            LOG_ERR("error closing char rom file\n");
-            return false;
-        }
+    if (fp == NULL) {
+        LOG_ERR("missing char rom file\n");
+        ret = false;
+        goto err_char_missingFile;
     }
 
-    // load extended character generator rom (custom mod)
+    const size_t read = fread(char_rom, 1, CHAR_ROM_SIZE, fp);
+    if (read != CHAR_ROM_SIZE) {
+        LOG_ERR("bad char rom file size: %lu\n", read);
+        ret = false;
+        goto err_char_badFileSize;
+    }
+
+    ret = true;
+
+err_char_badFileSize:
+    if (fclose(fp) != 0)
+        LOG_ERR("error closing char rom file\n");
+err_char_missingFile:
+
+    return ret;
+}
+
+// Load extended character generator ROM (custom mod)
+static bool video_load_CGEROM(void) {
+
     bool *conf_cge_installed = conf_getBool("mod", "cge_installed");
     if (conf_cge_installed)
         cge_installed = *conf_cge_installed;
 
-    if (cge_installed) {
-        const char *rom_path = CGE_ROM_PATH;
-        const char *rom_path_cfg = conf_getString("path", "cge_rom");
+    if (!cge_installed)
+        return false;
 
-        if (rom_path_cfg != NULL)
-            rom_path = rom_path_cfg;
+    bool ret = false;
 
-        LOG_INFO("Loading CGE rom from %s\n", rom_path);
+    const char *rom_path = CGE_ROM_PATH;
+    const char *rom_path_cfg = conf_getString("path", "cge_rom");
 
-        FILE *fp = fopen(rom_path, "rb");
+    if (rom_path_cfg != NULL)
+        rom_path = rom_path_cfg;
 
-        if (fp == NULL) {
-            LOG_WARN("cge: extended char rom not found\n");
-            return true;
-        }
+    LOG_INFO("Loading CGE rom from %s\n", rom_path);
 
-        const size_t read = fread(cge_rom, 1, CGE_ROM_SIZE, fp);
-        if (read != CGE_ROM_SIZE) {
-            LOG_WARN("cge: extended character rom found, but cannot read\n");
-            return true;
-        }
+    FILE *fp = fopen(rom_path, "rb");
 
-        if (fclose(fp) != 0) {
-            LOG_ERR("cge: error closing extended char rom file\n");
-            return false;
-        }
-
-        LOG_INFO("cge: mod installed ok\n");
+    if (fp == NULL) {
+        LOG_WARN("cge: extended char rom not found\n");
+        ret = false;
+        goto err_cge_notFound;
     }
 
-    return true;
+    const size_t read = fread(cge_rom, 1, CGE_ROM_SIZE, fp);
+    if (read != CGE_ROM_SIZE) {
+        LOG_WARN("cge: extended character rom found, but cannot read\n");
+        ret = false;
+        goto err_cge_badFileSize;
+    }
+
+    ret = true;
+    LOG_INFO("cge: mod installed ok\n");
+
+err_cge_badFileSize:
+    if (fclose(fp) != 0)
+        LOG_ERR("cge: error closing extended char rom file\n");
+
+err_cge_notFound:
+    return ret;
+}
+
+static bool video_load_roms(void) {
+    bool ok = false;
+
+    ok = video_load_CGEROM();
+    if (!ok)
+        LOG_INFO("cannot load CGE ROM: silently fail\n");
+
+    ok = video_load_charROM();
+    if (!ok)
+        LOG_ERR("cannot load char ROM: fail!\n");
+    return ok;
 }
 
 static bool video_start(void) {
@@ -205,26 +240,25 @@ static void video_poll(void) {
     const uint16_t crtc_start_address = crtc_startAddress();
 
     // get base pointer of SDL surface bitmap
-    zuint8 *pixels = (zuint8 *)(surface->pixels);
+    uint8_t *pixels = (uint8_t *)(surface->pixels);
 
     for (size_t row = 0; row < VIDEO_ROWS; ++row) {
         for (size_t column = 0; column < VIDEO_COLUMNS; ++column) {
             // get character at (row,column) position in video memory, and its
             // attributes
             const unsigned char c = (unsigned char)
-                mem_char[(crtc_start_address + row * VIDEO_COLUMNS + column) %
+                mem_char[(crtc_start_address + (row * VIDEO_COLUMNS) + column) %
                          ARRAY_SIZE(mem_char)];
-            const zuint8 attr =
-                mem_attr[(crtc_start_address + row * VIDEO_COLUMNS + column) %
+            const uint8_t attr =
+                mem_attr[(crtc_start_address + (row * VIDEO_COLUMNS) + column) %
                          ARRAY_SIZE(mem_attr)];
 
-            const zuint8 *selected_char_rom =
-                (cge_installed) ? ((attr & 0x80) ? cge_rom : char_rom)
-                                : char_rom;
+            const uint8_t *selected_char_rom =
+                cge_installed ? ((attr & 0x80) ? cge_rom : char_rom) : char_rom;
 
             // pointer to bitmap in the char rom,
             // for the character we need to draw
-            const zuint8 *bitmap = selected_char_rom + (ptrdiff_t)c * 16;
+            const uint8_t *bitmap = selected_char_rom + ((ptrdiff_t)c * 16);
 
             // need to stretch char horizontally?
             const bool hstretch = attr & 0x08;
@@ -235,15 +269,17 @@ static void video_poll(void) {
             for (int i = 0; i < 16; ++i) {
                 // compute pointer to SDL frame buffer memory where char will
                 // reside
-                zuint8 *pixels_segment = pixels + (row * 16) * VIDEO_COLUMNS +
-                                         column + (ptrdiff_t)i * VIDEO_COLUMNS;
+                uint8_t *pixels_segment = pixels                         //
+                                          + ((row * 16) * VIDEO_COLUMNS) //
+                                          + column                       //
+                                          + ((ptrdiff_t)i * VIDEO_COLUMNS);
 
                 // retrieve i-th horizontal segment which composes the gliph,
                 // from the char rom
-                zuint8 segment = bitmap[i];
+                uint8_t segment = bitmap[i];
 
                 // index 28L22 glue ROM for special chars effects (emulated)
-                const zuint8 attr_index = (attr >> 4) & 0x7;
+                const uint8_t attr_index = (attr >> 4) & 0x7;
                 switch (attr_index) {
                 // plain gliph from char ROM
                 case 0:
@@ -286,7 +322,7 @@ static void video_poll(void) {
                 // enable vertical stretch (lower part)
                 case 7:
                     if (i <= 6 * 2)
-                        segment = bitmap[7 + i / 2];
+                        segment = bitmap[7 + (i / 2)];
                     else
                         segment = 0;
                     break;
@@ -315,13 +351,14 @@ static void video_poll(void) {
                     // horizontal stretch
                     if (hstretch) {
                         // compute widened char segment
-                        zuint16 wide_segment = 0;
+                        uint16_t wide_segment = 0;
                         for (int i = 7; i >= 0; --i) {
                             const bool lit = segment & (1 << i);
-                            wide_segment |= (zuint16)((lit ? 3 : 0) << (i * 2));
+                            wide_segment |=
+                                (uint16_t)((lit ? 3 : 0) << (i * 2));
                         }
-                        *pixels_segment = (zuint8)((wide_segment >> 8) & 0xff);
-                        segment = (zuint8)(wide_segment & 0xff);
+                        *pixels_segment = (uint8_t)((wide_segment >> 8) & 0xff);
+                        segment = (uint8_t)(wide_segment & 0xff);
                         ++pixels_segment;
                     }
                 }
@@ -358,8 +395,10 @@ static void video_poll(void) {
     if (blink_period == 0 || ((fields % blink_period) < (blink_period / 2))) {
         for (uint8_t raster = cursor_raster_start; raster <= cursor_raster_end;
              ++raster) {
-            *(pixels + ((ptrdiff_t)row * 16) * VIDEO_COLUMNS + column +
-              (ptrdiff_t)raster * VIDEO_COLUMNS) ^= 0xff;
+            *(pixels                                    //
+              + (((ptrdiff_t)row * 16) * VIDEO_COLUMNS) //
+              + column                                  //
+              + ((ptrdiff_t)raster * VIDEO_COLUMNS)) ^= 0xff;
         }
     }
 
@@ -367,10 +406,8 @@ static void video_poll(void) {
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     SDL_RenderClear(renderer);
     SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
-    if (texture == NULL) {
+    if (texture == NULL)
         LOG_ERR("no texture: %s\n", SDL_GetError());
-        // TODO(giomba): do something please
-    }
     bool ok = SDL_SetTexturePalette(texture, palette);
     if (!ok) {
         LOG_ERR("cannot set texture palette: %s\n", SDL_GetError());
@@ -417,7 +454,7 @@ void video_init(CEDAModule *mod) {
     video_restart();
 }
 
-zuint8 video_ram_read(ceda_address_t address) {
+uint8_t video_ram_read(ceda_address_t address) {
     assert(address < VIDEO_CHAR_MEM_SIZE);
 
     return mem[address];

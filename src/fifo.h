@@ -33,9 +33,9 @@
 
 #define DECLARE_FIFO_TYPE(type, fifo_type_name, size)                          \
     typedef struct fifo_type_name {                                            \
-        type *volatile head;                                                   \
-        type *volatile tail;                                                   \
-        type buffer[size];                                                     \
+        /* NOLINT */ type *volatile head;                                      \
+        /* NOLINT */ type *volatile tail;                                      \
+        /* NOLINT */ type buffer[size];                                        \
     } fifo_type_name
 
 #define FIFO_END(fifo) &(fifo)->buffer[ARRAY_SIZE((fifo)->buffer) - 1]
@@ -104,8 +104,9 @@
         if ((fb)->head == FIFO_END(fb)) {                                      \
             (fb)->head = (fb)->buffer;                                         \
             ret = *(FIFO_END(fb));                                             \
-        } else                                                                 \
+        } else {                                                               \
             ret = *((fb)->head++);                                             \
+        }                                                                      \
         ret;                                                                   \
     })
 

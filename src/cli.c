@@ -1,3 +1,4 @@
+// NOLINTBEGIN
 #include "cli.h"
 
 #include "3rd/disassembler.h"
@@ -11,6 +12,7 @@
 #include "serial.h"
 #include "time.h"
 #include "tokenizer.h"
+#include "type.h"
 
 #include <assert.h>
 #include <ctype.h>
@@ -18,6 +20,7 @@
 #include <inttypes.h>
 #include <netinet/in.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/select.h>
@@ -163,7 +166,7 @@ static ceda_string_t *cli_break(const char *arg) {
         ceda_string_cpy(msg, USER_BAD_ARG_STR "address must be 16 bit\n");
         return msg;
     }
-    const zuint16 address = (zuint16)_address;
+    const uint16_t address = (uint16_t)_address;
 
     // actually set breakpoint
     bool ret = cpu_addBreakpoint(address);
@@ -255,7 +258,7 @@ static ceda_string_t *cli_read(const char *arg) {
     // read some mem
     const ceda_size_t BLOB_SIZE = 8 * (size_t)16;
     uint8_t blob[BLOB_SIZE];
-    bus_mem_readsome(blob, (zuint16)address, BLOB_SIZE);
+    bus_mem_readsome(blob, (uint16_t)address, BLOB_SIZE);
 
     // print nice hexdump
     uint8_t ascii[16 + 1] = {0};
@@ -266,7 +269,7 @@ static ceda_string_t *cli_read(const char *arg) {
             ceda_string_printf(msg, "%04x\t", address + i);
         }
 
-        ceda_string_printf(msg, "%02x ", ((unsigned int)(c)) & 0xff);
+        ceda_string_printf(msg, "%02x ", ((unsigned int)c) & 0xff);
         ascii[i % 16] = isprint(c) ? c : '.';
 
         if (i % 16 == 8 - 1) {
@@ -301,10 +304,10 @@ static ceda_string_t *cli_write(const char *arg) {
         ceda_string_cpy(msg, USER_BAD_ARG_STR "address must be 16 bit\n");
         return msg;
     }
-    const zuint16 address = (zuint16)_address;
+    const uint16_t address = (uint16_t)_address;
 
     // read values, and put them in memory
-    for (zuint16 i = 0;; ++i) {
+    for (uint16_t i = 0;; ++i) {
         // extract value
         unsigned int _value;
         arg = tokenizer_next_hex(&_value, arg);
@@ -324,7 +327,7 @@ static ceda_string_t *cli_write(const char *arg) {
             ceda_string_cpy(msg, USER_BAD_ARG_STR "value must be 8 bit\n");
             return msg;
         }
-        const zuint8 value = (zuint8)_value;
+        const uint8_t value = (uint8_t)_value;
 
         bus_mem_write(address + i, value);
     }
@@ -353,7 +356,7 @@ static ceda_string_t *cli_dis(const char *arg) {
     char line[LINE_BUFFER_SIZE];
     uint8_t blob[CPU_MAX_OPCODE_LEN];
     for (int i = 0; i < 16; ++i) {
-        bus_mem_readsome(blob, (zuint16)(address + (unsigned int)disb),
+        bus_mem_readsome(blob, (uint16_t)(address + (unsigned int)disb),
                          CPU_MAX_OPCODE_LEN);
         disb += disassemble(blob, (int)address + disb, line, BLOCK_BUFFER_SIZE);
         ceda_string_printf(msg, "%s\n", line);
@@ -440,7 +443,7 @@ static ceda_string_t *cli_save(const char *arg) {
     blob[0] = lsb;
     blob[1] = msb;
     // payload
-    bus_mem_readsome(&blob[2], (zuint16)start_address, data_size);
+    bus_mem_readsome(&blob[2], (uint16_t)start_address, data_size);
     // write
     size_t written = fwrite(blob, 1, alloc_size, fp);
     if (written != alloc_size) {
@@ -545,7 +548,7 @@ static ceda_string_t *cli_load_and_run(const char *arg, bool run) {
         ret = fread(&c, 1, 1, fp);
         if (ret == 0)
             break;
-        bus_mem_write((zuint16)address++, (zuint8)c);
+        bus_mem_write((uint16_t)address++, (uint8_t)c);
     }
 
     (void)fclose(fp);
@@ -662,7 +665,7 @@ static ceda_string_t *cli_goto(const char *arg) {
     }
 
     // inconditional jump
-    cpu_goto((zuint16)address);
+    cpu_goto((uint16_t)address);
     return NULL;
 }
 
@@ -728,7 +731,7 @@ static ceda_string_t *cli_in(const char *arg) {
         return msg;
     }
 
-    const zuint8 value = bus_io_in((ceda_ioaddr_t)address);
+    const uint8_t value = bus_io_in((ceda_ioaddr_t)address);
     ceda_string_printf(msg, "%02x\n", value);
     return msg;
 }
@@ -764,7 +767,7 @@ static ceda_string_t *cli_out(const char *arg) {
         return msg;
     }
 
-    bus_io_out((ceda_ioaddr_t)address, (zuint8)value);
+    bus_io_out((ceda_ioaddr_t)address, (uint8_t)value);
 
     ceda_string_delete(msg);
     return NULL;
@@ -1201,3 +1204,5 @@ Test(cli, delete, .init = cli_test_setup) {
 }
 
 #endif
+//NOLINTEND
+

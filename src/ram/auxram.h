@@ -1,9 +1,9 @@
 #ifndef CEDA_ALT_RAM_H
 #define CEDA_ALT_RAM_H
 
-#include <Z80.h>
+#include <stdint.h>
 
-zuint8 auxram_read(zuint16 address);
-void auxram_write(zuint16 address, zuint8 value);
+uint8_t auxram_read(uint16_t address);
+void auxram_write(uint16_t address, uint8_t value);
 
 #endif // CEDA_ALT_RAM_H

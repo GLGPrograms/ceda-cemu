@@ -1,8 +1,10 @@
 #include "ubus.h"
 
-#include "conf.h"
+#include "module.h"
+#include "type.h"
 
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 #define UBUS_MAX_PERIPHERALS (4)
@@ -61,7 +63,7 @@ bool ubus_register(ceda_ioaddr_t base, uint32_t top, ubus_io_read_t read,
     return true;
 }
 
-zuint8 ubus_io_in(ceda_ioaddr_t address) {
+uint8_t ubus_io_in(ceda_ioaddr_t address) {
     for (size_t i = 0; i < ubus_used; ++i) {
         struct ubus_io_slot *slot = &ubus_slots[i];
         if (address >= slot->base && address < slot->top)

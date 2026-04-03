@@ -6,6 +6,8 @@
 
 #include "fdc_registers.h"
 #include "macro.h"
+#include "module.h"
+#include "type.h"
 
 #define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
@@ -218,7 +220,7 @@ static fdc_read_write_t read_buffer_cb = NULL;
 static fdc_read_write_t write_buffer_cb = NULL;
 
 /* ID Register, store CHR for the current and the next record under execution */
-idr_t idr, next_idr;
+static idr_t idr, next_idr;
 
 /* * * * * * * * * * * * * * *  Command routines  * * * * * * * * * * * * * * */
 
@@ -622,13 +624,13 @@ static bool is_cmd_out_of_sequence(uint8_t cmd) {
     bool ret = true;
 
     bool fdc_busy = status_register[MSR] &
-                    ((FDC_ST_D3B | FDC_ST_D2B | FDC_ST_D1B | FDC_ST_D0B));
+                    (FDC_ST_D3B | FDC_ST_D2B | FDC_ST_D1B | FDC_ST_D0B);
 
-    if (cmd == FDC_SEEK || cmd == FDC_RECALIBRATE)
+    if (cmd == FDC_SEEK || cmd == FDC_RECALIBRATE) {
         ret = false;
-    // TODO(giuliof): to be correct, I should check int, but it was already
-    // cleared in command read/write routine
-    else if (cmd == FDC_SENSE_INTERRUPT) {
+        // TODO(giuliof): to be correct, I should check int, but it was already
+        // cleared in command read/write routine
+    } else if (cmd == FDC_SENSE_INTERRUPT) {
         if (fdc_busy)
             ret = false;
     }
@@ -978,6 +980,9 @@ uint8_t fdc_in(ceda_ioaddr_t address) {
 
         return value;
     } break;
+    default: {
+        assert(false);
+    }
     }
 
     return 0x00;
@@ -1039,6 +1044,9 @@ void fdc_out(ceda_ioaddr_t address, uint8_t value) {
 
         fdc_compute_next_status();
     } break;
+    default: {
+        assert(false);
+    }
     }
 }
 

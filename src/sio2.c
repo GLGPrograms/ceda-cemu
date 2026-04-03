@@ -1,13 +1,17 @@
 #include "sio2.h"
 
 #include <assert.h>
+#include <ctype.h>
+#include <stdint.h>
 #include <string.h>
 
-#include "bus.h"
 #include "fifo.h"
 #include "int.h"
 #include "keyboard.h"
 #include "macro.h"
+#include "module.h"
+#include "time.h"
+#include "type.h"
 
 #define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
@@ -219,6 +223,8 @@ static void write_register_1(SIOChannel *channel, uint8_t value) {
                   (channel == &channels[SIO_CHANNEL_A]) ? 'A' : 'B');
         channel->rx_int_enabled = true;
         break;
+    default:
+        assert(false);
     }
 }
 

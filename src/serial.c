@@ -1,15 +1,20 @@
 #include "serial.h"
 
 #include "fifo.h"
+#include "macro.h"
+#include "module.h"
 #include "sio2.h"
 #include "time.h"
 
-#include <ctype.h>
-#include <errno.h>
 #include <netinet/in.h>
+#include <stdint.h>
 #include <string.h>
+
+#include <errno.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #define LOG_LEVEL LOG_LVL_INFO
@@ -44,6 +49,7 @@ static bool serial_putChar(uint8_t c) {
 }
 
 static void serial_poll(void) {
+    // NOLINTNEXTLINE Reason 1 (see .clang-tidy)
     struct timeval timeout;
     timeout.tv_sec = 0;
     timeout.tv_usec = 0;
@@ -159,6 +165,7 @@ bool serial_open(uint16_t port) {
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
     server_addr.sin_port = htons(port);
 
+    // NOLINTNEXTLINE Reason 1 (see .clang-tidy)
     if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &(int){true},
                    sizeof(int)) != 0) {
         LOG_ERR("serial: unable to setsockopt(): %s\n", strerror(errno));

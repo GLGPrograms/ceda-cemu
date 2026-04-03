@@ -1,9 +1,16 @@
 #include "speaker.h"
 
 #include "gui.h"
+#include "module.h"
+#include "type.h"
 
 #include <SDL3_mixer/SDL_mixer.h>
+
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 #define LOG_LEVEL LOG_LVL_INFO
 #include "log.h"
@@ -38,7 +45,7 @@ static bool speaker_start(void) {
         return true;
     }
 
-    mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL) ;
+    mixer = MIX_CreateMixerDevice(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, NULL);
     if (!mixer) {
         LOG_WARN("unable to create mixer: %s\n", SDL_GetError());
         LOG_INFO("default to terminal speaker\n");
@@ -92,7 +99,6 @@ void speaker_init(CEDAModule *mod) {
                         ? 255
                         : 0;
     }
-
 }
 
 uint8_t speaker_in(ceda_ioaddr_t address) {

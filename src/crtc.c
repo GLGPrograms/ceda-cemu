@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "module.h"
+#include "type.h"
 #include "video.h"
 
 #include "log.h"
@@ -122,7 +124,7 @@ CRTCCursorBlink crtc_cursorBlink(void) {
 }
 
 unsigned int crtc_cursorPosition(void) {
-    return regs[REG_CURSOR_H] * 256U + regs[REG_CURSOR_L];
+    return (regs[REG_CURSOR_H] * 256U) + regs[REG_CURSOR_L];
 }
 
 void crtc_cursorRasterSize(uint8_t *start, uint8_t *end) {

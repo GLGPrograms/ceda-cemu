@@ -1,9 +1,13 @@
 #include "int.h"
 
 #include "cpu.h"
-#include "fifo.h"
+#include "macro.h"
+#include "module.h"
 
+#include <assert.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 // Interrupt request event representation
 typedef struct irq_t {

@@ -59,7 +59,7 @@ bool cpu_addBreakpoint(zuint16 address);
 
 bool cpu_deleteBreakpoint(unsigned int index);
 
-size_t cpu_getBreakpoints(CpuBreakpoint *v[]);
+size_t cpu_getBreakpoints(CpuBreakpoint *vector[]);
 
 /**
  * @brief Set the interrupt line of the Z80 CPU.

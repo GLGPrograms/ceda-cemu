@@ -1,10 +1,13 @@
 #include "ceda_string.h"
 
 #include "macro.h"
+#include "type.h"
 
+#include <assert.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -85,7 +88,7 @@ void ceda_string_cat(ceda_string_t *str, const char *data) {
 
     // concatenate data, overwriting old null-terminator
     --str->used;
-    for (ceda_size_t i = 0; i < strlen_data; ++i) {
+    for (ceda_size_t i = 0; i < (ceda_size_t)strlen_data; ++i) {
         str->data[str->used++] = data[i];
     }
     str->data[str->used++] = '\0';

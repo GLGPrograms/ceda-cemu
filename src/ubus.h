@@ -5,8 +5,7 @@
 #include "type.h"
 
 #include <stdbool.h>
-
-#include <Z80.h>
+#include <stdint.h>
 
 typedef uint8_t (*ubus_io_read_t)(ceda_ioaddr_t address);
 typedef void (*ubus_io_write_t)(ceda_ioaddr_t address, uint8_t value);
@@ -31,7 +30,7 @@ void ubus_init(CEDAModule *mod);
 bool ubus_register(ceda_ioaddr_t base, uint32_t top, ubus_io_read_t read,
                    ubus_io_write_t write);
 
-zuint8 ubus_io_in(ceda_ioaddr_t address);
+uint8_t ubus_io_in(ceda_ioaddr_t address);
 void ubus_io_out(ceda_ioaddr_t address, uint8_t value);
 
 #endif // CEDA_USER_BUS_H

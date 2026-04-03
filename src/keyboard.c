@@ -2,10 +2,12 @@
 
 #include "fifo.h"
 #include "macro.h"
-#include "video.h"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_scancode.h>
+
+#include <assert.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <string.h>
 

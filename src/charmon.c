@@ -1,8 +1,11 @@
 #include "charmon.h"
 
 #include "conf.h"
+#include "module.h"
+#include "type.h"
 #include "ubus.h"
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 

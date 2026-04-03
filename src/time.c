@@ -8,8 +8,9 @@ ms_time_t time_now_ms(void) {
 }
 
 us_time_t time_now_us(void) {
+    // NOLINTNEXTLINE Reason 1 (see .clang-tidy)
     struct timeval now;
     gettimeofday(&now, NULL);
-    const us_time_t now_us = now.tv_sec * 1000 * 1000 + now.tv_usec;
+    const us_time_t now_us = (now.tv_sec * 1000 * 1000) + now.tv_usec;
     return now_us;
 }

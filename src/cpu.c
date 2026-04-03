@@ -1,11 +1,15 @@
 #include "cpu.h"
 
-#include "3rd/disassembler.h"
 #include "bus.h"
 #include "int.h"
+#include "module.h"
 #include "time.h"
+#include "type.h"
 
+#include <stdint.h>
 #include <string.h>
+
+#include <Z80.h>
 
 #include "log.h"
 
@@ -24,7 +28,7 @@ static float perf_value = 0;
 static const char *perf_unit = "ips";
 
 #define CPU_BREAKPOINTS 8
-static CpuBreakpoint breakpoints[CPU_BREAKPOINTS] = {0};
+static CpuBreakpoint breakpoints[CPU_BREAKPOINTS] = {};
 static unsigned int valid_breakpoints = 0;
 
 /**
@@ -44,7 +48,7 @@ static bool cpu_checkBreakpoints(void) {
     return false;
 }
 
-static zuint8 cpu_fetch_opcode(void *context, zuint16 address) {
+static uint8_t cpu_fetch_opcode(void *context, uint16_t address) {
     (void)context;
     LOG_DEBUGB({
         char mnemonic[256];
@@ -144,11 +148,11 @@ void cpu_step(void) {
     z80_run(&cpu, 1);
 }
 
-void cpu_goto(zuint16 address) {
+void cpu_goto(uint16_t address) {
     cpu.pc.uint16_value = address;
 }
 
-bool cpu_addBreakpoint(zuint16 address) {
+bool cpu_addBreakpoint(uint16_t address) {
     // find free breakpoint slot (if any) and add it
     for (size_t i = 0; i < CPU_BREAKPOINTS; ++i) {
         if (!breakpoints[i].valid) {
@@ -180,7 +184,7 @@ void cpu_int(bool state) {
     z80_int(&cpu, state);
 }
 
-static uint8_t cpu_mem_read(void *context, zuint16 address) {
+static uint8_t cpu_mem_read(void *context, uint16_t address) {
     (void)context;
     return bus_mem_read(address);
 }
@@ -191,17 +195,17 @@ static void cpu_mem_write(void *context, ceda_address_t address,
     bus_mem_write(address, value);
 }
 
-static uint8_t cpu_io_in(void *context, zuint16 address) {
+static uint8_t cpu_io_in(void *context, uint16_t address) {
     (void)context;
     return bus_io_in((ceda_ioaddr_t)address);
 }
 
-static void cpu_io_out(void *context, zuint16 address, zuint8 value) {
+static void cpu_io_out(void *context, uint16_t address, uint8_t value) {
     (void)context;
     return bus_io_out((ceda_ioaddr_t)address, value);
 }
 
-static uint8_t cpu_int_read(void *context, zuint16 address) {
+static uint8_t cpu_int_read(void *context, uint16_t address) {
     (void)context;
     (void)address;
     return int_pop();

@@ -1,6 +1,7 @@
-
 #include <criterion/criterion.h>
 #include <criterion/parameterized.h>
+
+#include <stdint.h>
 #include <stdio.h>
 
 // TODO(giuliof) source path is src!

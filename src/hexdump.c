@@ -31,7 +31,7 @@ void hexdump(const void *buffer, size_t size) {
         }
 
         n += snprintf(output + n, (size_t)(BUFFER_SIZE - n), "%02x ",
-                      ((unsigned int)(c)) & 0xff);
+                      ((unsigned int)c) & 0xff);
         ascii[i % 16] = isprint(c) ? c : '.';
 
         if (i % 16 == 7) {

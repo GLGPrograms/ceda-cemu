@@ -1,20 +1,20 @@
 #include "bus.h"
 
 #include "bios.h"
-#include "cpu.h"
 #include "crtc.h"
 #include "fdc.h"
 #include "macro.h"
+#include "module.h"
 #include "ram/auxram.h"
 #include "ram/dynamic.h"
 #include "sio2.h"
 #include "speaker.h"
 #include "timer.h"
+#include "type.h"
 #include "ubus.h"
 #include "upd8255.h"
 #include "video.h"
 
-#include <Z80.h>
 #include <inttypes.h>
 #include <stdint.h>
 #include <string.h>
@@ -74,7 +74,7 @@ uint8_t bus_mem_read(ceda_address_t address) {
             const struct bus_mem_slot *slot = &bus_mem_slots[i];
             if (address >= slot->base && address < slot->top) {
                 if (slot->read) {
-                    const zuint8 value = slot->read(address - slot->base);
+                    const uint8_t value = slot->read(address - slot->base);
                     LOG_DEBUG("%s: [%04x] => %02x\n", __func__, address, value);
                     return value;
                 }
@@ -83,7 +83,7 @@ uint8_t bus_mem_read(ceda_address_t address) {
     }
 
     // default: read from dynamic ram
-    const zuint8 value = dyn_ram_read(address);
+    const uint8_t value = dyn_ram_read(address);
     LOG_DEBUG("%s: [%04x] => %02x\n", __func__, address, value);
     return value;
 }
@@ -91,7 +91,7 @@ uint8_t bus_mem_read(ceda_address_t address) {
 void bus_mem_readsome(uint8_t *blob, ceda_address_t address, ceda_size_t len) {
     LOG_DEBUG("%s: [%04x] x %hu\n", __func__, address, len);
 
-    for (zuint16 i = 0; i < len; ++i) {
+    for (uint16_t i = 0; i < len; ++i) {
         blob[i] = bus_mem_read(address + i);
     }
 }
@@ -119,7 +119,7 @@ void bus_mem_write(ceda_address_t address, uint8_t value) {
 }
 
 uint8_t bus_io_in(ceda_ioaddr_t address) {
-    LOG_DEBUG("%s: [%02x]\n", __func__, (zuint8)address);
+    LOG_DEBUG("%s: [%02x]\n", __func__, (uint8_t)address);
 
     // IO access, rom override condition is de-asserted
     is_bios_rom_switched = false;
@@ -137,7 +137,7 @@ uint8_t bus_io_in(ceda_ioaddr_t address) {
 }
 
 void bus_io_out(ceda_ioaddr_t _address, uint8_t value) {
-    const zuint8 address = (zuint8)_address;
+    const uint8_t address = (uint8_t)_address;
     LOG_DEBUG("%s: [%02x] <= %02x\n", __func__, address, value);
 
     // IO access, rom override condition is de-asserted

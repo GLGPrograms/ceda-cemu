@@ -2,13 +2,15 @@
 
 #include "../units.h"
 
-#define AUXRAM_SIZE (2 * KiB)
-static zuint8 ram[AUXRAM_SIZE] = {0};
+#include <stdint.h>
 
-zuint8 auxram_read(zuint16 address) {
+#define AUXRAM_SIZE (2 * KiB)
+static uint8_t ram[AUXRAM_SIZE] = {0};
+
+uint8_t auxram_read(uint16_t address) {
     return ram[address % AUXRAM_SIZE];
 }
 
-void auxram_write(zuint16 address, zuint8 value) {
+void auxram_write(uint16_t address, uint8_t value) {
     ram[address % AUXRAM_SIZE] = value;
 }

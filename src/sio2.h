@@ -11,7 +11,7 @@
 
 typedef enum sio_channel_idx_t {
     SIO_CHANNEL_A = 0,
-    SIO_CHANNEL_B = 1,
+    SIO_CHANNEL_B,
 
     SIO_CHANNEL_CNT,
 } sio_channel_idx_t;

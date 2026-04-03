@@ -2,13 +2,13 @@
 
 #include "bus.h"
 #include "fdc.h"
+#include "module.h"
+#include "type.h"
 #include "video.h"
 
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
-
-#include "log.h"
 
 #define UPD8255_PORTA_REG 0
 #define UPD8255_PORTB_REG 1
@@ -43,7 +43,7 @@ uint8_t upd8255_in(ceda_ioaddr_t address) {
         return port_c;
     }
 
-    return (zuint8)(port[address]);
+    return port[address];
 }
 
 void upd8255_out(ceda_ioaddr_t address, uint8_t value) {
@@ -61,9 +61,9 @@ void upd8255_out(ceda_ioaddr_t address, uint8_t value) {
         return;
     }
     if (address == UPD8255_PORTB_REG) {
-        bus_memSwitch(value & 0x01);
+        bus_memSwitch((bool)(value & 0x01));
         // bank 7 switching
-        video_bank(value & 0x80);
+        video_bank((bool)(value & 0x80));
         return;
     }
     if (address == UPD8255_PORTC_REG) {

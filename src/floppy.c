@@ -1,8 +1,11 @@
 #include "floppy.h"
 
+#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <sys/types.h>
 
 #include "fdc.h"
 #include "macro.h"
@@ -43,7 +46,7 @@ typedef struct floppy_unit_t {
     FILE *fd;
 } floppy_unit_t;
 
-floppy_unit_t floppy_units[4];
+static floppy_unit_t floppy_units[4];
 
 ssize_t floppy_load_image(const char *filename, unsigned int unit_number) {
     assert(unit_number < ARRAY_SIZE(floppy_units));

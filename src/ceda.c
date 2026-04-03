@@ -15,6 +15,7 @@
 #include "serial.h"
 #include "sio2.h"
 #include "speaker.h"
+#include "time.h"
 #include "timer.h"
 #include "ubus.h"
 #include "upd8255.h"
@@ -24,6 +25,7 @@
 #include "charmon.h"
 
 #include <assert.h>
+
 #include <unistd.h>
 
 #include "log.h"
@@ -101,7 +103,7 @@ static void ceda_remaining(void) {
         wait = MIN(remaining(), wait);
     }
     if (wait > 0) {
-        usleep((__useconds_t)wait);
+        usleep((__useconds_t)wait); /* NOLINT */
     }
 }
 

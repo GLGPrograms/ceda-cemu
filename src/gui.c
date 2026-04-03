@@ -1,7 +1,10 @@
 #include "gui.h"
 
 #include "keyboard.h"
+#include "module.h"
 #include "time.h"
+
+#include <string.h>
 
 #include <SDL3/SDL.h>
 
@@ -21,7 +24,7 @@ bool gui_isQuit(void) {
 }
 
 static bool gui_start(void) {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
+    if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
         LOG_ERR("unable to initialize SDL: %s\n", SDL_GetError());
         return false;
     }

@@ -1,6 +1,10 @@
 #include "timer.h"
 
+#include <stdint.h>
 #include <string.h>
+
+#include "module.h"
+#include "type.h"
 
 uint8_t timer_in(ceda_ioaddr_t address) {
     // TODO(giomba)
