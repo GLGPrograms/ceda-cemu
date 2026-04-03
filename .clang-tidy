@@ -1,7 +1,21 @@
+# Reasons
+# -------
+# A list of common reasons why certain specific lines are not linted (see source code)
+#
+# Reason 1
+# This specific struct/define can be found buried under several stdlib/OS-dependent
+# layers of header files, and it triggers the misc-include-cleaner check.
+# The misc-include-cleaner check is useful and we don't want to disable it,
+# but also including the specific header is cumbersome and not portable.
+
+
+# Checks
+# ------
 # altera-id-dependent-backward-branch: it's ok to have ID-dependent loops, we have plenty of processing power and no safety critical system
 # altera-struct-pack-align: it's just for performance, we don't need to optimize up to this level
 # altera-unroll-loop: it's just for performance, we don't need to optimize up to this level
 # bugprone-easily-swappable-parameters: loud warnings, with no clear advice on how to fix
+# llvm-header-guard: warns when headers do not adhere to LLVM style, but this is not LLVM
 # llvmlibc-restrict-system-libc-headers: this is a desktop application, libc is useful
 # cppcoreguidelines*: this is a C application, not a C++ one
 # readability-magic-numbers.IgnorePowersOf2IntegerValues: it's reasonable that powers of two can be pretty self-explanatory in an emulator
@@ -11,8 +25,11 @@
 # concurrency-mt-unsafe: better to check for errors with strerror() and errno, instead of ignoring because functions are thread unsafe, don't you think?
 # clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling: disabled because everybody needs memset()
 # modernize-macro-to-enum: too much noise for harmless notation
+# readability-avoid-unconditional-preprocessor-if: this is the only proper way to leave some stale, but useful code in the codebase, we can't have clang-tidy prohibit it
+# readability-implicit-bool-conversion: explicit bool/int generates a lot of unnecessary boilerplate which actually impairs readability at this point
 # readability-function-cognitive-complexity: difficult to decide a meaningful threshold, this has been chosen pretty random
 # readability-magic-numbers: this is an emulator, we need magic numbers here and there, otherwise code will get too bloated
+# readability-use-concise-preprocessor-directives: they were expanded because clang-tidy asked us to do so in a previous version, so it better shut up now
 
 Checks: >
   *,
@@ -20,6 +37,7 @@ Checks: >
   -altera-struct-pack-align,
   -altera-unroll-loops,
   -bugprone-easily-swappable-parameters,
+  -llvm-header-guard,
   -llvmlibc-restrict-system-libc-headers,
   -cppcoreguidelines*,
   -google-readability-braces-around-statements,
@@ -30,7 +48,10 @@ Checks: >
   -concurrency-mt-unsafe,
   -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,
   -modernize-macro-to-enum,
-  -readability-magic-numbers
+  -readability-avoid-unconditional-preprocessor-if,
+  -readability-implicit-bool-conversion,
+  -readability-magic-numbers,
+  -readability-use-concise-preprocessor-directives
 
 CheckOptions:
   - key: readability-magic-numbers.IgnorePowersOf2IntegerValues
@@ -45,5 +66,8 @@ CheckOptions:
     value: true
   - key: readability-function-cognitive-complexity.Threshold
     value: 110
-
+  - key: misc-include-cleaner.IgnoreHeaders
+    value: "SDL3/.*;criterion/.*;sys/time.h"
+  - key: readability-implicit-bool-conversion.AllowLogicalOperatorConversion
+    value: true
 
