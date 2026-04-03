@@ -36,7 +36,18 @@ set(CORE_SRCS
 
 # Put here sources needed for tests only
 set(TEST_SRCS
+    src/main_test.c
+
+    src/ceda_string.c
+    src/conf.c
+    src/fdc.c
+    src/hexdump.c
+    src/tokenizer.c
+
+    src/tests/test_ceda_string.c
+    src/tests/test_conf.c
     src/tests/test_fdc.c
+    src/tests/test_tokenizer.c
 )
 
 # External dependencies
@@ -58,10 +69,6 @@ set_source_files_properties(src/3rd/disassembler.c PROPERTIES COMPILE_FLAGS -Wno
 # Automatically add targets, with same properties
 function(add_ceda_target target)
 
-    add_executable(${target}
-        ${CORE_SRCS}
-    )
-
     target_compile_options(${target} PRIVATE -W -Wformat -Wall -Wundef -Wpointer-arith -Wcast-qual -Wwrite-strings -Wsign-compare -Wmissing-noreturn -Wextra -Wconversion)
 
     if(CMAKE_BUILD_TYPE MATCHES "Release")
@@ -81,12 +88,25 @@ function(add_ceda_target target)
 
 endfunction()
 
-# core target and tests target
+# Options related to core target only
+# -----------------------------------
+add_executable(ceda ${CORE_SRCS})
 add_ceda_target(ceda)
-add_ceda_target(ceda-test)
+target_sources(ceda
+    PRIVATE
+    ${CORE_SRC}
+)
 
 # Options related to test target only
-target_compile_options(ceda-test PRIVATE -DCEDA_TEST=1)
+# -----------------------------------
+include(CTest)
+set(CMAKE_CTEST_ARGUMENTS "--verbose")
+add_executable(ceda-test ${TEST_SRCS})
+add_ceda_target(ceda-test)
+add_test(NAME ceda-test
+    COMMAND ceda-test
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)
 
 target_link_libraries(ceda-test
     criterion
@@ -96,3 +116,4 @@ target_sources(ceda-test
     PRIVATE
     ${TEST_SRCS}
 )
+

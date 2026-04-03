@@ -1,0 +1,10 @@
+#!/bin/bash
+
+cd "$(dirname "$0")/.."
+
+docker run --rm -u builder \
+    -v "$(pwd)":/home/builder/workspace \
+    -w /home/builder/workspace \
+    giomba/ceda-cemu-builder:2 \
+    script/format
+

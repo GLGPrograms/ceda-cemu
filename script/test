@@ -2,5 +2,6 @@
 
 set -euo pipefail
 
-build/release/ceda-test
+make -C build.release test
+make -C build.debug test
 

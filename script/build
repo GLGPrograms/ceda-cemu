@@ -2,33 +2,9 @@
 
 set -euo pipefail
 
-function banner() {
-    echo "================================================================================"
-    echo
-    echo -n -e "\t"
-    echo $1
-    echo
-    echo "================================================================================"
-}
+cmake -B build.release -DCMAKE_BUILD_TYPE=Release
+make -C build.release -j
 
-case ${1-help} in
-    release)
-        banner "Building RELEASE"
-        mkdir -p build/release
-        cmake -B build/release -DCMAKE_BUILD_TYPE=Release
-        make -C build/release -j
-        ;;
-
-    debug)
-        banner "Building DEBUG"
-        mkdir -p build/debug
-        cmake -B build/debug -DCMAKE_BUILD_TYPE=Debug
-        make -C build/debug
-        ;;
-
-    help|*)
-        echo Choose one among: [release, debug]
-        exit 1
-        ;;
-esac
+cmake -B build.debug -DCMAKE_BUILD_TYPE=Debug
+make -C build.debug -j
 
