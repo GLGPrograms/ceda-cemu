@@ -8,9 +8,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-docker run --rm -ti -u builder \
-    -v "$(pwd)":/home/builder/workspace \
+docker run --rm -ti -u ubuntu \
+    -v "$(pwd)":/home/ubuntu/workspace \
     -v /tmp:/tmp \
-    -w /home/builder/workspace \
-    giomba/ceda-cemu-builder:2 \
+    -w /home/ubuntu/workspace \
+    giomba/ceda-cemu-builder:3 \
     "$@"
