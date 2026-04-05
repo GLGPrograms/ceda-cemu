@@ -11,7 +11,7 @@ This software is released under the terms of the GNU GPLv3 license.
 ```
 git submodule init
 git submodule update
-script/docker script/build release
+script/docker script/build
 ```
 
 ## Run
@@ -40,27 +40,13 @@ In the command line, type:
 To emulate the `BOOT` key of the original keyboard, press `INS`.
 
 ## Development
-- to add debug symbols:
-```
-script/docker script/build debug
-```
-
-- to compile tests
-```
-script/docker script/build test
-```
-
-- to run tests:
-```
-build/test/ceda
-```
-
-### Script
-The `script/` directory contains some useful script for development.
+The `script/` directory contains some useful script for development, mainly `script/build` and `script/test`.
 It is suggested to run them in the docker container by prefixing them with `script/docker` in order to use the correct version of the dev tools.
 
 - `format`: clang-format sources
 - `valgrind`: check for memory leaks
 
 ## About
-This emulator is part of a documentation effort by [Retrofficina GLG Programs](https://retrofficina.glgprograms.it/). See [ceda-home](https://github.com/GLGPrograms/ceda-home).
+This emulator is part of a documentation effort by [Retrofficina GLG Programs](https://retrofficina.glgprograms.it/).
+See [ceda-home](https://github.com/GLGPrograms/ceda-home).
+
