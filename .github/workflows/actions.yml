@@ -4,9 +4,9 @@ on: push
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     container:
-      image: giomba/ceda-cemu-builder:2
+      image: giomba/ceda-cemu-builder:3
       options: --user root
     steps:
       - name: Checkout repository
@@ -19,9 +19,8 @@ jobs:
           git config --global --add safe.directory /__w/ceda-cemu/ceda-cemu
           git submodule init
           git submodule update
-          script/build release
-          script/build debug
+          script/build
       - name: Test
         run: |
-          build/release/ceda-test
+          script/test
 
