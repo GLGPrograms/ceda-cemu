@@ -37,6 +37,8 @@ RUN cd /build && \
     meson install -C build && \
     ldconfig
 
+RUN apt install -y gcovr
+
 RUN useradd -s /bin/bash --create-home builder
 USER builder
 RUN mkdir -p /home/builder/workspace

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+pushd build.release
+ctest -T coverage
+
+pushd Testing/CoverageInfo
+gcovr --root ../../.. --html-details coverage.html
+
+popd
+popd
+
+

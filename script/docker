@@ -12,5 +12,5 @@ docker run --rm -ti -u ubuntu \
     -v "$(pwd)":/home/ubuntu/workspace \
     -v /tmp:/tmp \
     -w /home/ubuntu/workspace \
-    giomba/ceda-cemu-builder:3 \
+    giomba/ceda-cemu-builder:4 \
     "$@"

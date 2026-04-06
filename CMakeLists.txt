@@ -72,7 +72,7 @@ set_source_files_properties(src/3rd/disassembler.c PROPERTIES COMPILE_FLAGS -Wno
 # Automatically add targets, with same properties
 function(add_ceda_target target)
 
-    target_compile_options(${target} PRIVATE -W -Wformat -Wall -Wundef -Wpointer-arith -Wcast-qual -Wwrite-strings -Wsign-compare -Wmissing-noreturn -Wextra -Wconversion)
+    target_compile_options(${target} PRIVATE -W -Wformat -Wall -Wundef -Wpointer-arith -Wcast-qual -Wwrite-strings -Wsign-compare -Wmissing-noreturn -Wextra -Wconversion -coverage)
 
     if(CMAKE_BUILD_TYPE MATCHES "Release")
         target_compile_options(${target} PRIVATE -Werror)
@@ -86,6 +86,7 @@ function(add_ceda_target target)
         SDL3_mixer
         inih
     )
+    target_link_options(${target} PRIVATE -coverage)
 
     set_target_properties(${target} PROPERTIES C_CLANG_TIDY "${CLANG_TIDY_COMMAND}")
 
