@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 int main(int argc, char *argv[]) {
-    int ret = 0;
+    int ret = 1;
 
     printf("CEDA Test\n");
     criterion_options.color = true;
