@@ -170,7 +170,7 @@ static bool video_start(void) {
         return false;
     }
 
-    renderer = SDL_CreateRenderer(window, "software");
+    renderer = SDL_CreateRenderer(window, NULL);
     if (renderer == NULL) {
         LOG_ERR("unable to create renderer: %s\n", SDL_GetError());
         return false;
