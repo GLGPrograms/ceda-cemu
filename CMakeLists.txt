@@ -59,7 +59,7 @@ include_directories(vendor/inih)
 
 include_directories(vendor/Z80/API)
 set(Z80_SHARED_LIBS NO CACHE BOOL "")
-add_subdirectory(vendor/Z80)
+add_subdirectory(vendor/Z80 EXCLUDE_FROM_ALL)
 
 # Global properties and settings
 set(CMAKE_C_STANDARD 17)
