@@ -10,6 +10,9 @@
 #include "fdc.h"
 #include "macro.h"
 
+#define LOG_LEVEL LOG_LVL_INFO
+#include "log.h"
+
 #define CFF_MAXIMUM_TRACKS (80U)
 #define CFF_SECTOR_SIZE    (1024U)
 #define CFF_MAX_SECTORS    (5U)
@@ -57,13 +60,16 @@ ssize_t floppy_load_image(const char *filename, unsigned int unit_number) {
     // TODO(giuliof): if extension is ..., then image format is ...
     FILE *fd = fopen(filename, "rb+");
 
-    if (fd == NULL)
+    if (fd == NULL) {
+        LOG_WARN("floppy: unable to mount %s\n", filename);
         return -1;
+    }
 
     floppy_units[unit_number].fd = fd;
 
     fdc_kickDiskImage(floppy_read_buffer, floppy_write_buffer);
 
+    LOG_INFO("floppy: mounted %s\n", filename);
     return 0;
 }
 
