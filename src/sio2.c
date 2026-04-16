@@ -438,6 +438,7 @@ static bool sio2_restart(void) {
 
     // attach keyboard to channel B
     channels[SIO_CHANNEL_B].getc = keyboard_getChar;
+    channels[SIO_CHANNEL_B].putc = keyboard_putChar;
 
     return true;
 }

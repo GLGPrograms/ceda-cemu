@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char *CONF_PATH_CWD = "./ceda-cemu.ini";
 static const char *CONF_PATH_HOME =
     "/.config/it.glgprograms.retrofficina/ceda-cemu.ini";
 
@@ -132,18 +131,12 @@ void conf_init(void) {
     const char *loaded_path = NULL;
     char path[CONF_PATH_SIZE];
 
-    // load ini from local working directory
-    if (ini_parse(CONF_PATH_CWD, conf_handler, conf_tuples) >= 0)
-        loaded_path = CONF_PATH_CWD;
-
-    // load ini from user home, if not in local directory
-    if (loaded_path == NULL) {
-        const char *home = getenv("HOME");
-        if (home) {
-            (void)snprintf(path, CONF_PATH_SIZE, "%s/%s", home, CONF_PATH_HOME);
-            if (ini_parse(path, conf_handler, conf_tuples) >= 0)
-                loaded_path = path;
-        }
+    // load ini from user home
+    const char *home = getenv("HOME");
+    if (home) {
+        (void)snprintf(path, CONF_PATH_SIZE, "%s/%s", home, CONF_PATH_HOME);
+        if (ini_parse(path, conf_handler, conf_tuples) >= 0)
+            loaded_path = path;
     }
 
     if (loaded_path)

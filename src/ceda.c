@@ -7,6 +7,7 @@
 #include "conf.h"
 #include "cpu.h"
 #include "fdc.h"
+#include "floppy.h"
 #include "gui.h"
 #include "int.h"
 #include "limits.h"
@@ -153,6 +154,9 @@ int ceda_run(void) {
         ret = 1;
         goto err;
     }
+
+    // mount operating system disk (if any), and ignore errors
+    floppy_load_image(CEDA_PREFIX "/share/ceda/SANCO-CPM22_us.bin", 0);
 
     cpu_pause(false);
 

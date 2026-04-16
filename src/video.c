@@ -32,9 +32,9 @@
 #define CRT_PIXEL_WIDTH  640
 #define CRT_PIXEL_HEIGHT 400
 
-#define CHAR_ROM_PATH "rom/CGV7.2_ROM.bin"
+#define CHAR_ROM_PATH CEDA_PREFIX "/share/ceda/cgv7.2_rom.bin"
 #define CHAR_ROM_SIZE (ceda_size_t)(4 * KiB)
-#define CGE_ROM_PATH  "rom/CGE.bin"
+#define CGE_ROM_PATH  CEDA_PREFIX "/share/ceda/cge2412.bin"
 #define CGE_ROM_SIZE  (ceda_size_t)(4 * KiB)
 
 #define UPDATE_INTERVAL 20000 // [us] 20 ms => 50 Hz

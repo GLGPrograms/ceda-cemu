@@ -10,9 +10,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define LOG_LEVEL LOG_LVL_DEBUG
 #include "log.h"
 
-#define ROM_BIOS_PATH "rom/V1.01_ROM.bin"
+#define ROM_BIOS_PATH CEDA_PREFIX "/share/ceda/v1.01_rom.bin"
 #define ROM_BIOS_SIZE (ceda_size_t)(4 * KiB)
 
 static uint8_t bios[ROM_BIOS_SIZE] = {0};

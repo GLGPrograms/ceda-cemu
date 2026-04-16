@@ -10,4 +10,6 @@ void keyboard_handleEvent(const SDL_KeyboardEvent *event);
 
 bool keyboard_getChar(uint8_t *c);
 
+bool keyboard_putChar(uint8_t c);
+
 #endif // CEDA_KEYBOARD_H
