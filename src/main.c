@@ -7,6 +7,7 @@ int main(int argc, char *argv[]) {
     int ret = 0;
 
     LOG_INFO("CEDA Emulator\n");
+    LOG_INFO("prefix = %s\n", CEDA_PREFIX);
 
     (void)argc;
     (void)argv;
