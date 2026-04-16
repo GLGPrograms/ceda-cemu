@@ -249,3 +249,13 @@ bool keyboard_getChar(uint8_t *c) {
     *c = FIFO_POP(&keyboard_serial_fifo);
     return true;
 }
+
+// Emulates JP3 which shorts together KBD_RX and KBD_TX
+// and is normally closed on the main board
+bool keyboard_putChar(uint8_t c) {
+    if (FIFO_ISFULL(&keyboard_serial_fifo))
+        return false;
+
+    FIFO_PUSH(&keyboard_serial_fifo, c);
+    return true;
+}
